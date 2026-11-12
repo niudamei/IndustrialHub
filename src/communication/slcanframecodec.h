@@ -12,6 +12,7 @@ struct SlcanFrame
     bool fd = false;
     bool brs = false;
     bool remote = false;
+    quint8 remoteDlc = 0;
     QByteArray data;
 };
 
