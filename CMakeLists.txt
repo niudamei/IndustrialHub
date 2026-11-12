@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.6.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.8.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Network)\nfind_package(Qt6 6.5 QUIET COMPONENTS SerialPort)
 qt_standard_project_setup()
 include(CTest)
 
@@ -111,7 +111,41 @@ if(BUILD_TESTING)
     add_test(NAME communication_manager_smoke_test COMMAND communication_manager_smoke_test)
 endif()
 
-target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
+
+# RS485 support is optional so the project still builds when Qt SerialPort
+# was not selected in the local Qt installation.
+if(TARGET Qt6::SerialPort)
+    target_sources(hhh PRIVATE
+        src/communication/rs485communication.h
+        src/communication/rs485communication.cpp
+    )
+    target_link_libraries(hhh PRIVATE Qt6::SerialPort)
+    target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALPORT)
+
+    if(BUILD_TESTING)
+        add_executable(rs485_communication_smoke_test
+            tests/rs485_communication_smoke_test.cpp
+            src/communication/icommunication.h
+            src/communication/icommunication.cpp
+            src/communication/rs485communication.h
+            src/communication/rs485communication.cpp
+            src/pages/deviceinfo.h
+        )
+        target_include_directories(rs485_communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(rs485_communication_smoke_test PRIVATE Qt6::Core Qt6::SerialPort)
+        add_test(NAME rs485_communication_smoke_test COMMAND rs485_communication_smoke_test)
+
+        target_sources(communication_manager_smoke_test PRIVATE
+            src/communication/rs485communication.h
+            src/communication/rs485communication.cpp
+        )
+        target_link_libraries(communication_manager_smoke_test PRIVATE Qt6::SerialPort)
+        target_compile_definitions(communication_manager_smoke_test PRIVATE INDUSTRIALHUB_HAS_SERIALPORT)
+    endif()
+else()
+    message(STATUS "Qt SerialPort not found: RS485 driver will be disabled.")
+endif()
+\ntarget_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network)
 
 install(TARGETS hhh
