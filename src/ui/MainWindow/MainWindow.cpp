@@ -1,34 +1,39 @@
 #include "MainWindow.h"
 #include "ui_mainwindow.h"
 #include "src/pages/DashboardPage.h"
-#include "src/pages/DevicePage.h"
+#include "src/pages/devicepage.h"
+#include "src/pages/devicemanager.h"
 #include "src/pages/AlarmPage.h"
 #include "src/pages/ConfigPage.h"
 #include "src/pages/HistoryPage.h"
 #include "src/pages/MonitorPage.h"
 #include "src/pages/SettingsPage.h"
-#include <QDebug>
+#include <QListWidgetItem>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    : QMainWindow(parent), ui(new Ui::MainWindow), m_deviceManager(new DeviceManager(this))
 {
     ui->setupUi(this);
+    m_deviceManager->addDevice(DeviceInfo("DEV001", "导航控制器", "控制器", "TCP",
+                                           "192.168.2.125:5600", DeviceStatus::Online));
+    m_deviceManager->addDevice(DeviceInfo("DEV002", "CAN采集盒", "采集设备", "CAN",
+                                           "0x06069001", DeviceStatus::Offline));
     init_class();
     connect(ui->listWidget, &QListWidget::currentRowChanged, this, &MainWindow::onNavigationClicked);
 }
-
-void MainWindow::onNavigationClicked(int index){
-    ui->stackedWidget->setCurrentIndex(index);
+void MainWindow::onNavigationClicked(int index)
+{
+    if (index >= 0 && index < ui->stackedWidget->count()) ui->stackedWidget->setCurrentIndex(index);
 }
-void MainWindow::init_class(){
-    dashboardPage = new DashboardPage();
-    devicePage    = new DevicePage();
-    alarmPage     = new AlarmPage();
-    configPage    = new ConfigPage();
-    historyPage   = new HistoryPage();
-    monitorPage   = new MonitorPage();
-    settingsPage  = new SettingsPage();
+void MainWindow::init_class()
+{
+    dashboardPage = new DashboardPage(this);
+    devicePage = new DevicePage(m_deviceManager, this);
+    alarmPage = new AlarmPage(this);
+    configPage = new ConfigPage(this);
+    historyPage = new HistoryPage(this);
+    monitorPage = new MonitorPage(this);
+    settingsPage = new SettingsPage(this);
     ui->stackedWidget->addWidget(dashboardPage);
     ui->stackedWidget->addWidget(devicePage);
     ui->stackedWidget->addWidget(alarmPage);
@@ -38,25 +43,15 @@ void MainWindow::init_class(){
     ui->stackedWidget->addWidget(settingsPage);
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
-    ui->listWidget->addItem("运行总览");
-    ui->listWidget->addItem("设备管理");
-    ui->listWidget->addItem("实时监控");
-    ui->listWidget->addItem("报警中心");
-    ui->listWidget->addItem("历史数据");
-    ui->listWidget->addItem("通信配置");
-    ui->listWidget->addItem("系统设置");
-    ui->listWidget->setCurrentRow(0);
-    for(int i = 0; i < ui->listWidget->count(); i++)
-    {
-        QListWidgetItem* item = ui->listWidget->item(i);
-        item->setTextAlignment(Qt::AlignCenter);
-    }
+    ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
+        QStringLiteral("实时监控"), QStringLiteral("报警中心"), QStringLiteral("历史数据"),
+        QStringLiteral("通信配置"), QStringLiteral("系统设置")});
+    for (int i = 0; i < ui->listWidget->count(); ++i)
+        ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText("系统就绪 | V0.1.0");
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.2.0"));
     m_statusLabel->setMinimumSize(180, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
+    ui->listWidget->setCurrentRow(0);
 }
-MainWindow::~MainWindow()
-{
-    delete ui;
-}
+MainWindow::~MainWindow() { delete ui; }
