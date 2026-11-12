@@ -212,7 +212,7 @@ void SlcanCommunication::readSerialData()
         m_receiveBuffer.remove(0, end + 1);
 
         if (line.isEmpty() || line == QByteArray("#")
-            || line.startsWith('M')) {
+            || (!line.isEmpty() && line.at(0) == 'M')) {
             continue;
         }
 
