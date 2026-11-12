@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.3.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +40,8 @@ qt_add_executable(hhh
     src/pages/deviceinfo.h
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
+    src/communication/icommunication.h src/communication/icommunication.cpp
+    src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
     src/pages/SettingsPage.h src/pages/SettingsPage.cpp src/pages/SettingsPage.ui
