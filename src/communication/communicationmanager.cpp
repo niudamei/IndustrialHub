@@ -2,6 +2,7 @@
 
 #include "simulatedcommunication.h"
 #include "tcpcommunication.h"
+#include "udpcommunication.h"
 
 #include <utility>
 
