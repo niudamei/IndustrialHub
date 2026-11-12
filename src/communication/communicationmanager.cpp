@@ -12,6 +12,9 @@ CommunicationManager::CommunicationManager(QObject *parent)
     registerFactory(QStringLiteral("TCP"), [](QObject *parent) {
         return new TcpCommunication(parent);
     });
+    registerFactory(QStringLiteral("UDP"), [](QObject *parent) {
+        return new UdpCommunication(parent);
+    });
     registerFactory(QStringLiteral("SIMULATED"), [](QObject *parent) {
         return new SimulatedCommunication(parent);
     });
