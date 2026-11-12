@@ -9,7 +9,7 @@
 - 构建：CMake
 - UI：Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL 模块）
-- 当前版本：0.3.0
+- 当前版本：0.4.0
 
 ## 已实现
 
@@ -34,6 +34,13 @@
 - 仅当数据库为空时写入两条演示设备，不会在每次启动时覆盖用户数据。
 - 数据库文件名为 `industrialhub.db`，存放在 Qt `QStandardPaths::AppDataLocation` 对应的应用数据目录。
 
+### 统一通信接口（基础层）
+
+- 新增 `ICommunication` 抽象基类，统一定义连接、断开、连接状态、发送数据和接收数据接口。
+- 新增 `SimulatedCommunication` 回环模拟实现，无需真实设备即可验证上层通信调用。
+- 模拟器发送数据后会延迟约 30 ms，通过 `dataReceived` 信号回传相同数据。
+- 后续 TCP、UDP、RS485、CAN/CANFD 驱动可分别实现 `ICommunication`，不需要让页面依赖具体驱动类。
+
 ## Windows 构建
 
 建议使用 VS Code + CMake Tools，选择 Qt 6 MinGW 64-bit 工具链。
@@ -52,12 +59,13 @@ cmake --build build --config Debug
 - `app/`：程序入口
 - `src/pages/`：功能页面、设备数据结构和设备管理逻辑
 - `src/database/`：数据库持久化实现
+- `src/communication/`：统一通信接口及模拟通信实现
 - `src/ui/MainWindow/`：主窗口
 - `CustomFolder/`：自定义控件
 
 ## 后续开发建议
 
 1. 增加数据库备份、恢复和版本迁移。
-2. 增加通信接口抽象层，将 TCP、UDP、CAN、CANFD、RS485 驱动与页面解耦。
+2. 基于统一通信接口实现 TCP/UDP 网络通信及串口 RS485 驱动。
 3. 增加设备在线心跳、超时离线和故障状态联动。
 4. 增加日志、报警和历史数据存储。
