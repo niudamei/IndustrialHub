@@ -62,7 +62,11 @@ int main(int argc, char *argv[])
         std::cerr << "FAIL: simulated data routing failed: " << error.toStdString() << std::endl;
         return 3;
     }
-    if (!manager.isConnected(QStringLiteral("sim-001"))) {\n        std::cerr << "FAIL: device identifiers should be case-insensitive." << std::endl;\n        return 10;\n    }\n    std::cout << "PASS: manager routes simulated device data and normalizes device IDs." << std::endl;
+    if (!manager.isConnected(QStringLiteral("sim-001"))) {
+        std::cerr << "FAIL: device identifiers should be case-insensitive." << std::endl;
+        return 10;
+    }
+    std::cout << "PASS: manager routes simulated device data and normalizes device IDs." << std::endl;
 
     // TCP：本机启动临时服务端，不依赖真实设备或外部网络。
     QTcpServer server;
