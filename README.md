@@ -47,10 +47,10 @@
 
 启用 CMake 的 `BUILD_TESTING` 时构建：
 
-- `communication_smoke_test)：模拟通信打开、发送、回环接收和关闭。
-- `tcp_communication_smoke_test)：本机 TCP 连接、收发、断开和非法端口检查。
-- `udp_communication_smoke_test)：本机 UDP 数据报回环和非法端口检查。
-- `communication_manager_smoke_test)：验证多设备管理、数据路由、单设备断开和资源释放。
+- `communication_smoke_test`：模拟通信打开、发送、回环接收和关闭。
+- `tcp_communication_smoke_test`：本机 TCP 连接、收发、断开和非法端口检查。
+- `udp_communication_smoke_test`：本机 UDP 数据报回环和非法端口检查。
+- `communication_manager_smoke_test`：验证多设备管理、数据路由、单设备断开和资源释放。
 - `rs485_communication_smoke_test`：仅在 Qt SerialPort 可用时构建，检查串口参数格式，不要求连接真实串口。
 
 构建后运行：
