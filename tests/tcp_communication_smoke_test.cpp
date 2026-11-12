@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QHostAddress>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
               << receivedData.toHex(' ').toStdString() << std::endl;
 
     communication.close();
-    if (communication.isOpen() || !disconnectedSignal) {
+    if (!waitUntil([&]() { return !communication.isOpen() && disconnectedSignal; }, 1000)) {
         std::cerr << "FAIL: TCP disconnect state was not reported." << std::endl;
         return 6;
     }
