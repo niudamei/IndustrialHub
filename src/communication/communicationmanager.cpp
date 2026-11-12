@@ -3,6 +3,9 @@
 #include "simulatedcommunication.h"
 #include "tcpcommunication.h"
 #include "udpcommunication.h"
+#ifdef INDUSTRIALHUB_HAS_SERIALPORT
+#include "rs485communication.h"
+#endif
 
 #include <utility>
 
@@ -15,6 +18,14 @@ CommunicationManager::CommunicationManager(QObject *parent)
     registerFactory(QStringLiteral("UDP"), [](QObject *parent) {
         return new UdpCommunication(parent);
     });
+#ifdef INDUSTRIALHUB_HAS_SERIALPORT
+    registerFactory(QStringLiteral("RS485"), [](QObject *parent) {
+        return new Rs485Communication(parent);
+    });
+    registerFactory(QStringLiteral("SERIAL"), [](QObject *parent) {
+        return new Rs485Communication(parent);
+    });
+#endif
     registerFactory(QStringLiteral("SIMULATED"), [](QObject *parent) {
         return new SimulatedCommunication(parent);
     });
