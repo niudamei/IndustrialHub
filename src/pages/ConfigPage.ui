@@ -15,49 +15,91 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QGroupBox" name="protocolGroup">
+    <widget class="QGroupBox" name="connectionGroup">
      <property name="title">
-      <string>协议配置</string>
+      <string>设备连接</string>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item>
-       <widget class="QLabel" name="labelProtocolType">
+     <layout class="QGridLayout" name="connectionLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="deviceLabel">
         <property name="text">
-         <string>通信类型：</string>
+         <string>选择设备：</string>
         </property>
        </widget>
       </item>
-      <item>
-       <widget class="QComboBox" name="protocolCombo"/>
+      <item row="0" column="1" colspan="3">
+       <widget class="QComboBox" name="deviceCombo">
+        <property name="minimumSize">
+         <size><width>280</width><height>0</height></size>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QPushButton" name="connectButton">
+        <property name="text"><string>连接设备</string></property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QPushButton" name="disconnectButton">
+        <property name="text"><string>断开连接</string></property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="connectionStatusTitle">
+        <property name="text"><string>连接状态：</string></property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="connectionStateLabel">
+        <property name="text"><string>未连接</string></property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLabel" name="addressTitle">
+        <property name="text"><string>设备地址：</string></property>
+       </widget>
+      </item>
+      <item row="1" column="3" colspan="3">
+       <widget class="QLabel" name="deviceAddressLabel">
+        <property name="text"><string>--</string></property>
+        <property name="textInteractionFlags">
+         <set>Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="ipConfigGroup">
-     <property name="title">
-      <string>IP 配置</string>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <widget class="QGroupBox" name="sendGroup">
+     <property name="title"><string>数据发送（十六进制）</string></property>
+     <layout class="QHBoxLayout" name="sendLayout">
       <item>
-       <widget class="QLabel" name="labelLocalIp">
-        <property name="text">
-         <string>本地 IP：</string>
+       <widget class="QLineEdit" name="sendHexEdit">
+        <property name="placeholderText">
+         <string>例如：01 03 00 00 00 02</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QLineEdit" name="localIpEdit"/>
-      </item>
-      <item>
-       <widget class="QLabel" name="labelPort">
-        <property name="text">
-         <string>端口：</string>
-        </property>
+       <widget class="QPushButton" name="sendButton">
+        <property name="text"><string>发送数据</string></property>
        </widget>
       </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="logGroup">
+     <property name="title"><string>通信日志</string></property>
+     <layout class="QVBoxLayout" name="logLayout">
       <item>
-       <widget class="QLineEdit" name="portEdit"/>
+       <widget class="QTextEdit" name="communicationLog">
+        <property name="readOnly"><bool>true</bool></property>
+        <property name="placeholderText">
+         <string>连接状态、发送数据、接收数据和错误信息将在这里显示。</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
