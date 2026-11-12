@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
-project(hhh LANGUAGES CXX)
+project(IndustrialHub VERSION 0.2.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
-
 qt_standard_project_setup()
 
 qt_add_executable(hhh
@@ -29,32 +31,28 @@ qt_add_executable(hhh
     CustomFolder/customlistview.h CustomFolder/customlistview.cpp
     CustomFolder/customtreeview.h CustomFolder/customtreeview.cpp
     CustomFolder/customtableview.h CustomFolder/customtableview.cpp
-    src/pages/AlarmPage.h src/pages/ConfigPage.h src/pages/DashboardPage.h src/pages/DevicePage.h src/pages/HistoryPage.h src/pages/MonitorPage.h src/pages/SettingsPage.h
+    CustomFolder/customlistwidget.h CustomFolder/customlistwidget.cpp
+    src/pages/AlarmPage.h src/pages/AlarmPage.cpp src/pages/AlarmPage.ui
+    src/pages/ConfigPage.h src/pages/ConfigPage.cpp src/pages/ConfigPage.ui
+    src/pages/DashboardPage.h src/pages/DashboardPage.cpp src/pages/DashboardPage.ui
+    src/pages/devicepage.h src/pages/DevicePage.cpp src/pages/DevicePage.ui
+    src/pages/devicedialog.h src/pages/devicedialog.cpp src/pages/devicedialog.ui
     src/pages/deviceinfo.h
-    src/ui/MainWindow/MainWindow.ui
+    src/pages/devicemanager.h src/pages/devicemanager.cpp
+    src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
+    src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
+    src/pages/SettingsPage.h src/pages/SettingsPage.cpp src/pages/SettingsPage.ui
     src/ui/MainWindow/MainWindow.h
     src/ui/MainWindow/MainWindow.cpp
-    src/pages/AlarmPage.cpp src/pages/ConfigPage.cpp src/pages/DashboardPage.cpp src/pages/DevicePage.cpp src/pages/HistoryPage.cpp src/pages/MonitorPage.cpp src/pages/SettingsPage.cpp
-    src/pages/AlarmPage.ui src/pages/ConfigPage.ui src/pages/DashboardPage.ui src/pages/DevicePage.ui src/pages/HistoryPage.ui src/pages/MonitorPage.ui src/pages/SettingsPage.ui
-    CustomFolder/customlistwidget.h CustomFolder/customlistwidget.cpp
-    src/pages/devicedialog.h src/pages/devicedialog.cpp src/pages/devicedialog.ui
-
-
+    src/ui/MainWindow/MainWindow.ui
 )
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(hhh
-    PRIVATE
-        Qt::Core
-        Qt::Widgets
-)
-
+target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets)
 
 install(TARGETS hhh
-    BUNDLE  DESTINATION .
+    BUNDLE DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-
 qt_generate_deploy_app_script(
     TARGET hhh
     OUTPUT_SCRIPT deploy_script
