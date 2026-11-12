@@ -132,17 +132,39 @@ void ConfigPage::onSendClicked()
         return;
 
     const QString id = selectedDeviceId();
-    QString hex = ui->sendHexEdit->text();
-    hex.remove(QRegularExpression(QStringLiteral("\\s+")));
-
-    if (hex.isEmpty() || (hex.size() % 2) != 0
-        || !QRegularExpression(QStringLiteral("^[0-9A-Fa-f]+$")).match(hex).hasMatch()) {
-        QMessageBox::warning(this, QStringLiteral("数据格式错误"),
-                             QStringLiteral("请输入偶数个十六进制字符，可使用空格分隔。"));
+    DeviceInfo device;
+    if (id.isEmpty() || !m_deviceManager
+        || !m_deviceManager->getDeviceById(id, device)) {
+        QMessageBox::information(this, QStringLiteral("提示"),
+                                 QStringLiteral("请先选择一个有效设备。"));
         return;
     }
 
-    const QByteArray data = QByteArray::fromHex(hex.toLatin1());
+    QByteArray data;
+    const bool slcanMode =
+        device.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
+        || device.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0;
+
+    if (slcanMode) {
+        data = ui->sendHexEdit->text().trimmed().toLatin1();
+        if (data.isEmpty()) {
+            QMessageBox::warning(this, QStringLiteral("数据格式错误"),
+                                 QStringLiteral("请输入 SLCAN 帧命令，例如 T18AABBCC03112233。"));
+            return;
+        }
+    } else {
+        QString hex = ui->sendHexEdit->text();
+        hex.remove(QRegularExpression(QStringLiteral("\\s+")));
+
+        if (hex.isEmpty() || (hex.size() % 2) != 0
+            || !QRegularExpression(QStringLiteral("^[0-9A-Fa-f]+$")).match(hex).hasMatch()) {
+            QMessageBox::warning(this, QStringLiteral("数据格式错误"),
+                                 QStringLiteral("请输入偶数个十六进制字符，可使用空格分隔。"));
+            return;
+        }
+        data = QByteArray::fromHex(hex.toLatin1());
+    }
+
     QString error;
     if (!m_communicationManager->sendData(id, data, &error)) {
         appendLog(QStringLiteral("[发送失败] %1").arg(error));
@@ -150,7 +172,10 @@ void ConfigPage::onSendClicked()
         return;
     }
 
-    appendLog(QStringLiteral("[TX][%1] %2").arg(id, QString::fromLatin1(data.toHex(' ').toUpper())));
+    const QString displayData = slcanMode
+        ? QString::fromLatin1(data)
+        : QString::fromLatin1(data.toHex(' ').toUpper());
+    appendLog(QStringLiteral("[TX][%1] %2").arg(id, displayData));
 }
 
 void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connected)
@@ -181,12 +206,18 @@ void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connecte
 
 void ConfigPage::onDataReceived(const QString &deviceId, const QByteArray &data)
 {
-    appendLog(QStringLiteral("[RX][%1] %2")
-                  .arg(deviceId, QString::fromLatin1(data.toHex(' ').toUpper())));
-
-    // 收到设备实际数据后，才将 UDP/RS485 等无连接型链路对应的设备标记为在线。
-    if (m_deviceManager)
+    QString displayData = QString::fromLatin1(data.toHex(' ').toUpper());
+    if (m_deviceManager) {
+        DeviceInfo device;
+        if (m_deviceManager->getDeviceById(deviceId, device)
+            && (device.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
+                || device.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0)) {
+            displayData = QString::fromLatin1(data);
+        }
+        // 收到实际数据后才将 UDP、RS485、CAN/CAN-FD 等无连接链路标记为在线。
         m_deviceManager->updateDeviceStatus(deviceId, DeviceStatus::Online);
+    }
+    appendLog(QStringLiteral("[RX][%1] %2").arg(deviceId, displayData));
 }
 
 void ConfigPage::onCommunicationError(const QString &deviceId, const QString &message)
@@ -214,6 +245,11 @@ void ConfigPage::updateConnectionDisplay()
                    && (selectedDevice.commType.compare(QStringLiteral("RS485"), Qt::CaseInsensitive) == 0
                        || selectedDevice.commType.compare(QStringLiteral("SERIAL"), Qt::CaseInsensitive) == 0)) {
             stateText = QStringLiteral("串口已打开");
+        } else if (m_deviceManager
+                   && m_deviceManager->getDeviceById(id, selectedDevice)
+                   && (selectedDevice.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
+                       || selectedDevice.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0)) {
+            stateText = QStringLiteral("CAN 适配器已就绪");
         } else {
             stateText = QStringLiteral("已连接");
         }
@@ -227,8 +263,15 @@ void ConfigPage::updateConnectionDisplay()
     if (m_deviceManager && !id.isEmpty()
         && m_deviceManager->getDeviceById(id, device)) {
         ui->deviceAddressLabel->setText(device.devAddr);
+        const bool slcanMode =
+            device.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
+            || device.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0;
+        ui->sendHexEdit->setPlaceholderText(slcanMode
+            ? QStringLiteral("SLCAN 帧：T18AABBCC03112233 / D000000018...")
+            : QStringLiteral("HEX 数据：01 03 00 00 00 02"));
     } else {
         ui->deviceAddressLabel->setText(QStringLiteral("--"));
+        ui->sendHexEdit->setPlaceholderText(QStringLiteral("请选择设备"));
     }
 }
 
