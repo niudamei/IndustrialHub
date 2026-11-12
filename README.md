@@ -10,7 +10,7 @@
 - UI：Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL 模块）
 - 网络：Qt Network（TCP）
-- 当前版本：0.7.0
+- 当前版本：0.8.0
 
 ## 已实现
 
@@ -28,11 +28,12 @@
 - `SimulatedCommunication` 提供无硬件回环模拟。
 - `TcpCommunication` 提供 TCP 客户端实现，支持主机名、IPv4 和 `[IPv6]:端口` 格式。
 - `UdpCommunication` 提供 UDP 数据报通信，支持 IPv4 和 `[IPv6]:端口` 数字地址；UDP 打开表示本地 socket 绑定成功，不代表远端设备在线。
+- `Rs485Communication` 基于 Qt SerialPort 提供串口收发，支持波特率、数据位、校验位、停止位和可选流控配置。
 - TCP 连接异步建立；连接成功、断开、接收数据和错误均通过信号上报。
 - `CommunicationManager` 按设备编号管理独立通信实例，支持多个设备同时连接、单设备断开、全部断开、数据发送和信号转发。
 - 通信配置页面已接入共享的 `CommunicationManager` 和 `DeviceManager`，可以选择设备、连接/断开、发送十六进制数据，并查看 TX/RX、连接状态和错误日志。
 - TCP/模拟通信连接状态会同步回设备管理数据库；删除设备时会释放对应通信实例。
-- 通信类型通过工厂注册，TCP、UDP 和模拟通信已注册；后续可扩展 RS485、CAN/CANFD，而不让业务页面依赖具体驱动类。
+- 通信类型通过工厂注册，TCP、UDP 和模拟通信默认可用；安装了 Qt SerialPort 时自动注册 RS485/SERIAL。后续可扩展 CAN/CANFD，而不让业务页面依赖具体驱动类。
 - 设备编号查找忽略大小写，与设备数据库的编号规则保持一致。
 
 ### 自动化测试
@@ -61,7 +62,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH="D:/qt/6.10.3/mingw_64"
 cmake --build build --config Debug
 ```
 
-请按本机 Qt 安装目录调整 `CMAKE_PREFIX_PATH`。
+请按本机 Qt 安装目录调整 `CMAKE_PREFIX_PATH`。如果 Qt 安装时未选择 SerialPort 模块，程序仍可构建，但 RS485 驱动会自动禁用。
 
 ## 目录说明
 
