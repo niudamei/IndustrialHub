@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.5.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Network)
 qt_standard_project_setup()
+include(CTest)
 
 qt_add_executable(hhh
     WIN32 MACOSX_BUNDLE
@@ -43,6 +44,7 @@ qt_add_executable(hhh
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
+    src/communication/communicationmanager.h src/communication/communicationmanager.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
     src/pages/SettingsPage.h src/pages/SettingsPage.cpp src/pages/SettingsPage.ui
@@ -51,33 +53,47 @@ qt_add_executable(hhh
     src/ui/MainWindow/MainWindow.ui
 )
 
-enable_testing()
+if(BUILD_TESTING)
+    add_executable(communication_smoke_test
+        tests/communication_smoke_test.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(communication_smoke_test PRIVATE Qt6::Core)
+    add_test(NAME communication_smoke_test COMMAND communication_smoke_test)
 
-# Standalone smoke test for the simulated communication layer.
-add_executable(communication_smoke_test
-    tests/communication_smoke_test.cpp
-    src/communication/icommunication.h
-    src/communication/icommunication.cpp
-    src/communication/simulatedcommunication.h
-    src/communication/simulatedcommunication.cpp
-    src/pages/deviceinfo.h
-)
-target_include_directories(communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(communication_smoke_test PRIVATE Qt6::Core)
-add_test(NAME communication_smoke_test COMMAND communication_smoke_test)
+    add_executable(tcp_communication_smoke_test
+        tests/tcp_communication_smoke_test.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(tcp_communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(tcp_communication_smoke_test PRIVATE Qt6::Core Qt6::Network)
+    add_test(NAME tcp_communication_smoke_test COMMAND tcp_communication_smoke_test)
 
-# TCP communication test uses a local QTcpServer; no external hardware is required.
-add_executable(tcp_communication_smoke_test
-    tests/tcp_communication_smoke_test.cpp
-    src/communication/icommunication.h
-    src/communication/icommunication.cpp
-    src/communication/tcpcommunication.h
-    src/communication/tcpcommunication.cpp
-    src/pages/deviceinfo.h
-)
-target_include_directories(tcp_communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(tcp_communication_smoke_test PRIVATE Qt6::Core Qt6::Network)
-add_test(NAME tcp_communication_smoke_test COMMAND tcp_communication_smoke_test)
+    add_executable(communication_manager_smoke_test
+        tests/communication_manager_smoke_test.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/communication/communicationmanager.h
+        src/communication/communicationmanager.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(communication_manager_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(communication_manager_smoke_test PRIVATE Qt6::Core Qt6::Network)
+    add_test(NAME communication_manager_smoke_test COMMAND communication_manager_smoke_test)
+endif()
 
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network)
