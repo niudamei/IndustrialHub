@@ -46,11 +46,13 @@ private:
     ICommunication *createCommunication(const QString &commType,
                                          QString *errorMessage);
     ICommunication *communicationFor(const QString &deviceId) const;
+    static QString deviceKey(const QString &deviceId);
     void attachSignals(const QString &deviceId, ICommunication *communication);
     bool setError(const QString &message, QString *errorMessage);
 
     QHash<QString, ICommunication *> m_communications;
     QHash<QString, QString> m_commTypes;
+    QHash<QString, QString> m_deviceIds;
     QHash<QString, CommunicationFactory> m_factories;
 };
 
