@@ -45,6 +45,7 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
         ui->edtAddr_L->setToolTip(hint);
     });
     ui->cmbCommType_C->setCurrentText(QStringLiteral("TCP"));
+    ui->edtAddr_L->setPlaceholderText(QStringLiteral("192.168.1.100:5000 或 [IPv6]:5000"));
     ui->cmbStatus_C->addItems({"在线", "离线", "故障"});
     ui->edtAddTime_L->setReadOnly(true);
     ui->edtAddTime_L->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
