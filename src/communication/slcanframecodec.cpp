@@ -98,6 +98,7 @@ bool SlcanFrameCodec::parseFrame(const QByteArray &input,
     frame.fd = fd;
     frame.brs = brs;
     frame.remote = remote;
+    frame.remoteDlc = static_cast<quint8>(dlc);
     frame.data = remote ? QByteArray() : QByteArray::fromHex(dataText);
     return true;
 }
@@ -119,7 +120,12 @@ bool SlcanFrameCodec::encodeFrame(const SlcanFrame &frame,
     if (frame.remote && !frame.data.isEmpty())
         return setError(QStringLiteral("远程帧不能携带数据。"), errorMessage);
 
-    const int dlc = dlcFromBytes(frame.remote ? 0 : frame.data.size(), frame.fd);
+    if (frame.remote && frame.remoteDlc > 8)
+        return setError(QStringLiteral("经典 CAN 远程帧 DLC 必须在 0-8 范围内。"),
+                        errorMessage);
+
+    const int dlc = frame.remote ? frame.remoteDlc
+                                 : dlcFromBytes(frame.data.size(), frame.fd);
     if (dlc < 0)
         return setError(frame.fd
                             ? QStringLiteral("CAN-FD 数据长度必须为 0-8、12、16、20、24、32、48 或 64 字节。")
