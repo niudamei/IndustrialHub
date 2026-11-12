@@ -4,16 +4,37 @@
 #include <QWidget>
 #include "ui_configpage.h"
 
+class DeviceManager;
+class CommunicationManager;
+struct DeviceInfo;
+
 class ConfigPage : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ConfigPage(QWidget *parent = nullptr);
+    explicit ConfigPage(DeviceManager *deviceManager,
+                        CommunicationManager *communicationManager,
+                        QWidget *parent = nullptr);
     ~ConfigPage() override;
 
+private slots:
+    void refreshDeviceList();
+    void onConnectClicked();
+    void onDisconnectClicked();
+    void onSendClicked();
+    void onConnectionStateChanged(const QString &deviceId, bool connected);
+    void onDataReceived(const QString &deviceId, const QByteArray &data);
+    void onCommunicationError(const QString &deviceId, const QString &message);
+
 private:
-    Ui::ConfigPage *ui;
+    QString selectedDeviceId() const;
+    void updateConnectionDisplay();
+    void appendLog(const QString &message);
+
+    Ui::ConfigPage *ui = nullptr;
+    DeviceManager *m_deviceManager = nullptr;
+    CommunicationManager *m_communicationManager = nullptr;
 };
 
 #endif // CONFIGPAGE_H
