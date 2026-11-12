@@ -132,6 +132,10 @@ int main(int argc, char *argv[])
 
     manager.releaseDevice(simulated.devId);
     manager.releaseDevice(tcp.devId);
+    if (!manager.managedDeviceIds().isEmpty()) {
+        std::cerr << "FAIL: released devices remain managed." << std::endl;
+        return 11;
+    }
     std::cout << "PASS: per-device disconnect and release." << std::endl;
     std::cout << "ALL COMMUNICATION MANAGER TESTS PASSED." << std::endl;
     return 0;
