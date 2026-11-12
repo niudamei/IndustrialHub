@@ -44,6 +44,7 @@ qt_add_executable(hhh
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
+    src/communication/udpcommunication.h src/communication/udpcommunication.cpp
     src/communication/communicationmanager.h src/communication/communicationmanager.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
@@ -78,6 +79,19 @@ if(BUILD_TESTING)
     target_link_libraries(tcp_communication_smoke_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME tcp_communication_smoke_test COMMAND tcp_communication_smoke_test)
 
+
+    add_executable(udp_communication_smoke_test
+        tests/udp_communication_smoke_test.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(udp_communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(udp_communication_smoke_test PRIVATE Qt6::Core Qt6::Network)
+    add_test(NAME udp_communication_smoke_test COMMAND udp_communication_smoke_test)
+
     add_executable(communication_manager_smoke_test
         tests/communication_manager_smoke_test.cpp
         src/communication/icommunication.h
@@ -86,6 +100,8 @@ if(BUILD_TESTING)
         src/communication/simulatedcommunication.cpp
         src/communication/tcpcommunication.h
         src/communication/tcpcommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
         src/communication/communicationmanager.h
         src/communication/communicationmanager.cpp
         src/pages/deviceinfo.h
