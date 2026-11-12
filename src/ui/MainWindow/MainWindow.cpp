@@ -22,12 +22,21 @@ MainWindow::MainWindow(QWidget *parent)
     if (!m_deviceManager->isDatabaseReady()) {
         QMessageBox::warning(this, QStringLiteral("数据库初始化失败"),
                              m_deviceManager->lastError());
-    } else if (m_deviceManager->getAllDevices().isEmpty()) {
+    } else {
+        // 进程重启后不会自动恢复旧 TCP 会话，因此启动时清除上次运行遗留的在线状态。
+        const QList<DeviceInfo> storedDevices = m_deviceManager->getAllDevices();
+        for (const DeviceInfo &device : storedDevices) {
+            if (device.status != DeviceStatus::Offline)
+                m_deviceManager->updateDeviceStatus(device.devId, DeviceStatus::Offline);
+        }
+
         // 仅首次运行且数据库没有设备时写入演示数据，之后不再覆盖用户数据。
-        m_deviceManager->addDevice(DeviceInfo("DEV001", "导航控制器", "控制器", "TCP",
-                                               "192.168.2.125:5600", DeviceStatus::Online));
-        m_deviceManager->addDevice(DeviceInfo("DEV002", "CAN采集盒", "采集设备", "CAN",
-                                               "0x06069001", DeviceStatus::Offline));
+        if (m_deviceManager->getAllDevices().isEmpty()) {
+            m_deviceManager->addDevice(DeviceInfo("DEV001", "导航控制器", "控制器", "TCP",
+                                                   "192.168.2.125:5600", DeviceStatus::Offline));
+            m_deviceManager->addDevice(DeviceInfo("DEV002", "CAN采集盒", "采集设备", "CAN",
+                                                   "0x06069001", DeviceStatus::Offline));
+        }
     }
 
     init_class();
