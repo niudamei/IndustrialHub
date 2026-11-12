@@ -1,0 +1,227 @@
+#include "devicedatabase.h"
+
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QStandardPaths>
+#include <QUuid>
+
+namespace {
+QString dateTimeToString(const QDateTime &dateTime)
+{
+    return dateTime.toString(Qt::ISODateWithMs);
+}
+
+QDateTime dateTimeFromString(const QString &value)
+{
+    QDateTime result = QDateTime::fromString(value, Qt::ISODateWithMs);
+    if (!result.isValid())
+        result = QDateTime::fromString(value, Qt::ISODate);
+    return result;
+}
+}
+
+DeviceDatabase::DeviceDatabase()
+{
+    m_connectionName = QStringLiteral("IndustrialHubSQLite_%1")
+                           .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+
+    QString dataDirectory =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dataDirectory.isEmpty())
+        dataDirectory = QDir(QCoreApplication::applicationDirPath()).filePath("data");
+
+    QDir dir;
+    if (!dir.mkpath(dataDirectory))
+        return;
+
+    m_databasePath = QDir(dataDirectory).filePath("industrialhub.db");
+    m_database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_connectionName);
+    m_database.setDatabaseName(m_databasePath);
+}
+
+DeviceDatabase::~DeviceDatabase()
+{
+    if (m_database.isValid()) {
+        m_database.close();
+        m_database = QSqlDatabase();
+        QSqlDatabase::removeDatabase(m_connectionName);
+    }
+}
+
+bool DeviceDatabase::initialize(QString *errorMessage)
+{
+    if (!m_database.isValid())
+        return setError(QStringLiteral("无法创建 SQLite 数据库连接或创建数据目录失败。"),
+                        errorMessage);
+
+    if (!m_database.open())
+        return setError(QStringLiteral("打开 SQLite 数据库失败：%1")
+                            .arg(m_database.lastError().text()), errorMessage);
+
+    QSqlQuery query(m_database);
+    const QString createTableSql = QStringLiteral(
+        "CREATE TABLE IF NOT EXISTS devices ("
+        "dev_id TEXT PRIMARY KEY COLLATE NOCASE,"
+        "dev_name TEXT NOT NULL,"
+        "dev_type TEXT,"
+        "comm_type TEXT,"
+        "dev_addr TEXT,"
+        "status INTEGER NOT NULL DEFAULT 1,"
+        "add_time TEXT NOT NULL"
+        ")");
+
+    if (!query.exec(createTableSql))
+        return setError(QStringLiteral("创建 devices 数据表失败：%1")
+                            .arg(query.lastError().text()), errorMessage);
+
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 1")))
+        return setError(QStringLiteral("设置数据库版本失败：%1")
+                            .arg(query.lastError().text()), errorMessage);
+
+    m_initialized = true;
+    return true;
+}
+
+bool DeviceDatabase::isOpen() const
+{
+    return m_initialized && m_database.isOpen();
+}
+
+QString DeviceDatabase::databasePath() const
+{
+    return m_databasePath;
+}
+
+bool DeviceDatabase::loadAll(QList<DeviceInfo> &devices, QString *errorMessage) const
+{
+    if (!isOpen())
+        return setError(QStringLiteral("数据库尚未初始化。"), errorMessage);
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT dev_id, dev_name, dev_type, comm_type, dev_addr, status, add_time "
+        "FROM devices ORDER BY rowid"));
+
+    if (!query.exec())
+        return setError(QStringLiteral("读取设备列表失败：%1")
+                            .arg(query.lastError().text()), errorMessage);
+
+    QList<DeviceInfo> loadedDevices;
+    while (query.next()) {
+        DeviceInfo device;
+        device.devId = query.value(0).toString();
+        device.devName = query.value(1).toString();
+        device.devType = query.value(2).toString();
+        device.commType = query.value(3).toString();
+        device.devAddr = query.value(4).toString();
+
+        const int statusValue = query.value(5).toInt();
+        if (statusValue >= static_cast<int>(DeviceStatus::Online)
+            && statusValue <= static_cast<int>(DeviceStatus::Fault)) {
+            device.status = static_cast<DeviceStatus>(statusValue);
+        } else {
+            device.status = DeviceStatus::Offline;
+        }
+
+        device.addTime = dateTimeFromString(query.value(6).toString());
+        loadedDevices.append(device);
+    }
+
+    devices = loadedDevices;
+    return true;
+}
+
+bool DeviceDatabase::insert(const DeviceInfo &device, QString *errorMessage)
+{
+    if (!isOpen())
+        return setError(QStringLiteral("数据库尚未初始化。"), errorMessage);
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "INSERT INTO devices (dev_id, dev_name, dev_type, comm_type, dev_addr, status, add_time) "
+        "VALUES (:id, :name, :type, :comm, :addr, :status, :time)"));
+    query.bindValue(QStringLiteral(":id"), device.devId);
+    query.bindValue(QStringLiteral(":name"), device.devName);
+    query.bindValue(QStringLiteral(":type"), device.devType);
+    query.bindValue(QStringLiteral(":comm"), device.commType);
+    query.bindValue(QStringLiteral(":addr"), device.devAddr);
+    query.bindValue(QStringLiteral(":status"), static_cast<int>(device.status));
+    query.bindValue(QStringLiteral(":time"), dateTimeToString(device.addTime));
+
+    if (!query.exec())
+        return setError(QStringLiteral("写入设备失败：%1").arg(query.lastError().text()),
+                        errorMessage);
+    return true;
+}
+
+bool DeviceDatabase::update(const DeviceInfo &device, QString *errorMessage)
+{
+    if (!isOpen())
+        return setError(QStringLiteral("数据库尚未初始化。"), errorMessage);
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "UPDATE devices SET dev_name = :name, dev_type = :type, comm_type = :comm, "
+        "dev_addr = :addr, status = :status, add_time = :time WHERE dev_id = :id"));
+    query.bindValue(QStringLiteral(":id"), device.devId);
+    query.bindValue(QStringLiteral(":name"), device.devName);
+    query.bindValue(QStringLiteral(":type"), device.devType);
+    query.bindValue(QStringLiteral(":comm"), device.commType);
+    query.bindValue(QStringLiteral(":addr"), device.devAddr);
+    query.bindValue(QStringLiteral(":status"), static_cast<int>(device.status));
+    query.bindValue(QStringLiteral(":time"), dateTimeToString(device.addTime));
+
+    if (!query.exec())
+        return setError(QStringLiteral("更新设备失败：%1").arg(query.lastError().text()),
+                        errorMessage);
+    if (query.numRowsAffected() == 0)
+        return setError(QStringLiteral("数据库中不存在设备：%1").arg(device.devId),
+                        errorMessage);
+    return true;
+}
+
+bool DeviceDatabase::remove(const QString &devId, QString *errorMessage)
+{
+    if (!isOpen())
+        return setError(QStringLiteral("数据库尚未初始化。"), errorMessage);
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("DELETE FROM devices WHERE dev_id = :id"));
+    query.bindValue(QStringLiteral(":id"), devId);
+
+    if (!query.exec())
+        return setError(QStringLiteral("删除设备失败：%1").arg(query.lastError().text()),
+                        errorMessage);
+    if (query.numRowsAffected() == 0)
+        return setError(QStringLiteral("数据库中不存在设备：%1").arg(devId), errorMessage);
+    return true;
+}
+
+bool DeviceDatabase::updateStatus(const QString &devId, DeviceStatus status,
+                                  QString *errorMessage)
+{
+    if (!isOpen())
+        return setError(QStringLiteral("数据库尚未初始化。"), errorMessage);
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("UPDATE devices SET status = :status WHERE dev_id = :id"));
+    query.bindValue(QStringLiteral(":id"), devId);
+    query.bindValue(QStringLiteral(":status"), static_cast<int>(status));
+
+    if (!query.exec())
+        return setError(QStringLiteral("更新设备状态失败：%1")
+                            .arg(query.lastError().text()), errorMessage);
+    if (query.numRowsAffected() == 0)
+        return setError(QStringLiteral("数据库中不存在设备：%1").arg(devId), errorMessage);
+    return true;
+}
+
+bool DeviceDatabase::setError(const QString &message, QString *errorMessage) const
+{
+    if (errorMessage)
+        *errorMessage = message;
+    return false;
+}
