@@ -3,7 +3,7 @@
 #include "simulatedcommunication.h"
 #include "tcpcommunication.h"
 
-#include <QMetaObject>
+#include <utility>
 
 CommunicationManager::CommunicationManager(QObject *parent)
     : QObject(parent)
@@ -39,6 +39,7 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
                                            QString *errorMessage)
 {
     const QString deviceId = device.devId.trimmed();
+    const QString key = deviceKey(deviceId);
     if (deviceId.isEmpty())
         return setError(QStringLiteral("连接失败：设备编号不能为空。"), errorMessage);
 
@@ -47,11 +48,12 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
         return setError(QStringLiteral("连接失败：设备通信类型不能为空。"), errorMessage);
 
     ICommunication *communication = communicationFor(deviceId);
-    if (communication && m_commTypes.value(deviceId) != commType) {
+    if (communication && m_commTypes.value(key) != commType) {
         communication->close();
         communication->deleteLater();
-        m_communications.remove(deviceId);
-        m_commTypes.remove(deviceId);
+        m_communications.remove(key);
+        m_commTypes.remove(key);
+        m_deviceIds.remove(key);
         communication = nullptr;
     }
 
@@ -61,8 +63,9 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
             return false;
 
         communication->setParent(this);
-        m_communications.insert(deviceId, communication);
-        m_commTypes.insert(deviceId, commType);
+        m_communications.insert(key, communication);
+        m_commTypes.insert(key, commType);
+        m_deviceIds.insert(key, deviceId);
         attachSignals(deviceId, communication);
     }
 
@@ -106,15 +109,17 @@ bool CommunicationManager::isConnected(const QString &deviceId) const
 
 QStringList CommunicationManager::managedDeviceIds() const
 {
-    QStringList ids = m_communications.keys();
+    QStringList ids = m_deviceIds.values();
     ids.sort(Qt::CaseInsensitive);
     return ids;
 }
 
 void CommunicationManager::releaseDevice(const QString &deviceId)
 {
-    ICommunication *communication = m_communications.take(deviceId);
-    m_commTypes.remove(deviceId);
+    const QString key = deviceKey(deviceId);
+    ICommunication *communication = m_communications.take(key);
+    m_commTypes.remove(key);
+    m_deviceIds.remove(key);
     if (!communication)
         return;
 
@@ -142,7 +147,7 @@ ICommunication *CommunicationManager::createCommunication(
 ICommunication *CommunicationManager::communicationFor(
     const QString &deviceId) const
 {
-    return m_communications.value(deviceId.trimmed(), nullptr);
+    return m_communications.value(deviceKey(deviceId), nullptr);
 }
 
 void CommunicationManager::attachSignals(const QString &deviceId,
@@ -162,6 +167,11 @@ void CommunicationManager::attachSignals(const QString &deviceId,
             this, [this, deviceId](const QString &message) {
         emit deviceErrorOccurred(deviceId, message);
     });
+}
+
+QString CommunicationManager::deviceKey(const QString &deviceId)
+{
+    return deviceId.trimmed().toCaseFolded();
 }
 
 bool CommunicationManager::setError(const QString &message,
