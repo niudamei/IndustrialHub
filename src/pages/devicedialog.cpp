@@ -22,7 +22,29 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("设备信息"));
-    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "Modbus"});
+    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "Modbus"});
+    connect(ui->cmbCommType_C, &QComboBox::currentTextChanged,
+            this, [this](const QString &type) {
+        QString hint;
+        if (type == QStringLiteral("TCP")) {
+            hint = QStringLiteral("192.168.1.100:5000 或 [IPv6]:5000");
+        } else if (type == QStringLiteral("UDP")) {
+            hint = QStringLiteral("192.168.1.100:5000（数字 IP）");
+        } else if (type == QStringLiteral("RS485")) {
+            hint = QStringLiteral("COM3,115200,8,N,1");
+        } else if (type == QStringLiteral("CAN")) {
+            hint = QStringLiteral("COM4,1000000（CANable SLCAN）");
+        } else if (type == QStringLiteral("CANFD")) {
+            hint = QStringLiteral("COM4,1000000,2000000（仲裁段/数据段）");
+        } else if (type == QStringLiteral("SIMULATED")) {
+            hint = QStringLiteral("模拟通信无需填写");
+        } else {
+            hint = QStringLiteral("当前版本暂未实现该通信驱动");
+        }
+        ui->edtAddr_L->setPlaceholderText(hint);
+        ui->edtAddr_L->setToolTip(hint);
+    });
+    ui->cmbCommType_C->setCurrentText(QStringLiteral("TCP"));
     ui->cmbStatus_C->addItems({"在线", "离线", "故障"});
     ui->edtAddTime_L->setReadOnly(true);
     ui->edtAddTime_L->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
