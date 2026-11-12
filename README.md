@@ -10,7 +10,7 @@
 - UI：Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL 模块）
 - 网络：Qt Network（TCP）
-- 当前版本：0.6.0
+- 当前版本：0.7.0
 
 ## 已实现
 
@@ -27,11 +27,12 @@
 - `ICommunication` 抽象基类统一定义连接、断开、连接状态、发送和接收接口。
 - `SimulatedCommunication` 提供无硬件回环模拟。
 - `TcpCommunication` 提供 TCP 客户端实现，支持主机名、IPv4 和 `[IPv6]:端口` 格式。
+- `UdpCommunication` 提供 UDP 数据报通信，支持 IPv4 和 `[IPv6]:端口` 数字地址；UDP 打开表示本地 socket 绑定成功，不代表远端设备在线。
 - TCP 连接异步建立；连接成功、断开、接收数据和错误均通过信号上报。
 - `CommunicationManager` 按设备编号管理独立通信实例，支持多个设备同时连接、单设备断开、全部断开、数据发送和信号转发。
 - 通信配置页面已接入共享的 `CommunicationManager` 和 `DeviceManager`，可以选择设备、连接/断开、发送十六进制数据，并查看 TX/RX、连接状态和错误日志。
 - TCP/模拟通信连接状态会同步回设备管理数据库；删除设备时会释放对应通信实例。
-- 通信类型通过工厂注册，后续可扩展 UDP、RS485、CAN/CANFD，而不让业务页面依赖具体驱动类。
+- 通信类型通过工厂注册，TCP、UDP 和模拟通信已注册；后续可扩展 RS485、CAN/CANFD，而不让业务页面依赖具体驱动类。
 - 设备编号查找忽略大小写，与设备数据库的编号规则保持一致。
 
 ### 自动化测试
@@ -40,6 +41,7 @@
 
 - `communication_smoke_test`：模拟通信打开、发送、回环接收和关闭。
 - `tcp_communication_smoke_test`：本机 TCP 连接、数据收发、断开和非法端口检查。
+- `udp_communication_smoke_test`：本机 UDP 数据报收发、回环和非法端口检查。
 - `communication_manager_smoke_test`：验证管理器同时管理模拟设备和 TCP 设备、按设备编号路由数据，以及单设备断开不影响其他设备。
 
 测试使用本机回环服务，不需要真实设备或外部服务器。可在构建后运行：
