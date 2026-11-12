@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.2.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql)
 qt_standard_project_setup()
 
 qt_add_executable(hhh
@@ -39,6 +39,7 @@ qt_add_executable(hhh
     src/pages/devicedialog.h src/pages/devicedialog.cpp src/pages/devicedialog.ui
     src/pages/deviceinfo.h
     src/pages/devicemanager.h src/pages/devicemanager.cpp
+    src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
     src/pages/SettingsPage.h src/pages/SettingsPage.cpp src/pages/SettingsPage.ui
@@ -47,7 +48,7 @@ qt_add_executable(hhh
     src/ui/MainWindow/MainWindow.ui
 )
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets)
+target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql)
 
 install(TARGETS hhh
     BUNDLE DESTINATION .
