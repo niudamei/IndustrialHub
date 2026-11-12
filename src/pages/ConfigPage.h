@@ -2,6 +2,8 @@
 #define CONFIGPAGE_H
 
 #include <QWidget>
+#include <QByteArray>
+#include <QString>
 #include "ui_configpage.h"
 
 class DeviceManager;
