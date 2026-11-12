@@ -77,7 +77,7 @@ void MainWindow::init_class()
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.6.0 | SQLite + TCP + 通信管理器"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.7.0 | SQLite + TCP/UDP + 通信管理器"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
