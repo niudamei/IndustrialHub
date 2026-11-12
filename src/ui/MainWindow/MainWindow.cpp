@@ -3,6 +3,7 @@
 #include "src/pages/DashboardPage.h"
 #include "src/pages/devicepage.h"
 #include "src/pages/devicemanager.h"
+#include "src/communication/communicationmanager.h"
 #include "src/pages/AlarmPage.h"
 #include "src/pages/ConfigPage.h"
 #include "src/pages/HistoryPage.h"
@@ -12,7 +13,9 @@
 #include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow), m_deviceManager(new DeviceManager(this))
+    : QMainWindow(parent), ui(new Ui::MainWindow),
+      m_deviceManager(new DeviceManager(this)),
+      m_communicationManager(new CommunicationManager(this))
 {
     ui->setupUi(this);
 
@@ -43,7 +46,7 @@ void MainWindow::init_class()
     dashboardPage = new DashboardPage(this);
     devicePage = new DevicePage(m_deviceManager, this);
     alarmPage = new AlarmPage(this);
-    configPage = new ConfigPage(this);
+    configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
     historyPage = new HistoryPage(this);
     monitorPage = new MonitorPage(this);
     settingsPage = new SettingsPage(this);
@@ -65,7 +68,7 @@ void MainWindow::init_class()
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.4.0 | SQLite + 通信接口"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.6.0 | SQLite + TCP + 通信管理器"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
