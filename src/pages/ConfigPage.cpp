@@ -249,7 +249,8 @@ void ConfigPage::updateConnectionDisplay()
                    && m_deviceManager->getDeviceById(id, selectedDevice)
                    && (selectedDevice.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
                        || selectedDevice.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0)) {
-            stateText = QStringLiteral("CAN 适配器已就绪");
+            stateText = selectedDevice.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0
+                ? QStringLiteral("CAN-FD 适配器已就绪") : QStringLiteral("CAN 适配器已就绪");
         } else {
             stateText = QStringLiteral("已连接");
         }
