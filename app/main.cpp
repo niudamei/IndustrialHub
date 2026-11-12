@@ -5,6 +5,9 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    a.setOrganizationName(QStringLiteral("IndustrialHub"));
+    a.setApplicationName(QStringLiteral("IndustrialHub"));
+
     MainWindow w;
     w.show();
     // DashboardPage w;
