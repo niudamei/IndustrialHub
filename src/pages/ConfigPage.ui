@@ -72,7 +72,7 @@
    </item>
    <item>
     <widget class="QGroupBox" name="sendGroup">
-     <property name="title"><string>数据发送（十六进制）</string></property>
+     <property name="title"><string>数据发送（HEX / SLCAN）</string></property>
      <layout class="QHBoxLayout" name="sendLayout">
       <item>
        <widget class="QLineEdit" name="sendHexEdit">
