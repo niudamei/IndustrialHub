@@ -8,13 +8,14 @@
 - C++：17
 - 构建：CMake
 - UI：Qt Designer（`.ui`）
-- 当前数据存储：内存模拟数据（程序退出后不会保留）
+- 数据库：SQLite（Qt SQL 模块）
+- 当前版本：0.3.0
 
 ## 已实现
 
 ### 设备管理
 
-- 设备信息统一由 `DeviceManager` 管理，页面不再直接维护设备数据副本。
+- 设备信息统一由 `DeviceManager` 管理，页面不直接维护设备数据副本。
 - 新增设备：设备编号、设备名称必填，设备编号不区分大小写且不可重复。
 - 编辑设备：设备编号作为主键，编辑时只读；添加时间保留。
 - 删除设备：二次确认。
@@ -23,31 +24,40 @@
 - 状态更新：管理层提供按设备编号更新状态的接口。
 - Qt signals/slots：设备增删改和状态变化后发出信号，页面自动刷新。
 
-当前启动时会加载两条演示设备。后续接入 TCP/CAN/RS485 通信或数据库时，可以继续复用 `DeviceManager` 的接口。
+### SQLite 数据持久化
+
+- 使用 Qt SQL 的 QSQLITE 驱动。
+- 首次启动自动创建数据库目录和 `devices` 数据表。
+- 程序启动时从数据库加载设备。
+- 新增、编辑、删除和状态修改均先写入数据库，成功后再更新内存列表。
+- 设备编号使用 SQLite `PRIMARY KEY COLLATE NOCASE`，防止大小写不同的重复编号。
+- 仅当数据库为空时写入两条演示设备，不会在每次启动时覆盖用户数据。
+- 数据库文件名为 `industrialhub.db`，存放在 Qt `QStandardPaths::AppDataLocation` 对应的应用数据目录。
 
 ## Windows 构建
 
-建议使用 Qt Creator 打开项目根目录的 `CMakeLists.txt`，选择已安装的 Qt 6 MinGW 64-bit Kit，配置并构建运行。
+建议使用 VS Code + CMake Tools，选择 Qt 6 MinGW 64-bit 工具链。
 
 也可以在已配置 Qt 6 CMake 环境的终端中执行：
 
 ```powershell
-cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.x.x/mingw_64"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.10.3/mingw_64"
 cmake --build build --config Debug
 ```
 
-请将示例路径中的 Qt 版本目录替换为本机实际安装路径。
+请按本机 Qt 安装目录调整 `CMAKE_PREFIX_PATH`。
 
 ## 目录说明
 
 - `app/`：程序入口
 - `src/pages/`：功能页面、设备数据结构和设备管理逻辑
+- `src/database/`：数据库持久化实现
 - `src/ui/MainWindow/`：主窗口
 - `CustomFolder/`：自定义控件
 
 ## 后续开发建议
 
-1. 为设备数据增加 JSON 持久化，避免重启后演示数据重置。
+1. 增加数据库备份、恢复和版本迁移。
 2. 增加通信接口抽象层，将 TCP、UDP、CAN、CANFD、RS485 驱动与页面解耦。
 3. 增加设备在线心跳、超时离线和故障状态联动。
 4. 增加日志、报警和历史数据存储。
