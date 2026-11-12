@@ -159,9 +159,21 @@ void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connecte
                   .arg(connected ? QStringLiteral("已连接") : QStringLiteral("已断开"),
                        deviceId));
 
-    if (m_deviceManager)
-        m_deviceManager->updateDeviceStatus(deviceId,
-            connected ? DeviceStatus::Online : DeviceStatus::Offline);
+    if (m_deviceManager) {
+        DeviceInfo device;
+        if (m_deviceManager->getDeviceById(deviceId, device)) {
+            // TCP 有连接握手；UDP 绑定本地端口、RS485 打开串口都不能证明远端设备在线。
+            const bool connectionProvesOnline =
+                device.commType.compare(QStringLiteral("TCP"), Qt::CaseInsensitive) == 0
+                || device.commType.compare(QStringLiteral("SIM"), Qt::CaseInsensitive) == 0
+                || device.commType.compare(QStringLiteral("SIMULATED"), Qt::CaseInsensitive) == 0;
+
+            if (!connected || connectionProvesOnline) {
+                m_deviceManager->updateDeviceStatus(deviceId,
+                    connected ? DeviceStatus::Online : DeviceStatus::Offline);
+            }
+        }
+    }
 
     if (deviceId.compare(selectedDeviceId(), Qt::CaseInsensitive) == 0)
         updateConnectionDisplay();
@@ -171,6 +183,10 @@ void ConfigPage::onDataReceived(const QString &deviceId, const QByteArray &data)
 {
     appendLog(QStringLiteral("[RX][%1] %2")
                   .arg(deviceId, QString::fromLatin1(data.toHex(' ').toUpper())));
+
+    // 收到设备实际数据后，才将 UDP/RS485 等无连接型链路对应的设备标记为在线。
+    if (m_deviceManager)
+        m_deviceManager->updateDeviceStatus(deviceId, DeviceStatus::Online);
 }
 
 void ConfigPage::onCommunicationError(const QString &deviceId, const QString &message)
@@ -187,8 +203,22 @@ void ConfigPage::updateConnectionDisplay()
     bool connected = m_communicationManager && !id.isEmpty()
                      && m_communicationManager->isConnected(id);
 
-    ui->connectionStateLabel->setText(connected
-        ? QStringLiteral("已连接") : QStringLiteral("未连接"));
+    QString stateText = QStringLiteral("未连接");
+    if (connected) {
+        DeviceInfo selectedDevice;
+        if (m_deviceManager && m_deviceManager->getDeviceById(id, selectedDevice)
+            && selectedDevice.commType.compare(QStringLiteral("UDP"), Qt::CaseInsensitive) == 0) {
+            stateText = QStringLiteral("UDP 本地已就绪");
+        } else if (m_deviceManager
+                   && m_deviceManager->getDeviceById(id, selectedDevice)
+                   && (selectedDevice.commType.compare(QStringLiteral("RS485"), Qt::CaseInsensitive) == 0
+                       || selectedDevice.commType.compare(QStringLiteral("SERIAL"), Qt::CaseInsensitive) == 0)) {
+            stateText = QStringLiteral("串口已打开");
+        } else {
+            stateText = QStringLiteral("已连接");
+        }
+    }
+    ui->connectionStateLabel->setText(stateText);
     ui->connectButton->setEnabled(!id.isEmpty() && !connected);
     ui->disconnectButton->setEnabled(connected);
     ui->sendButton->setEnabled(connected);
