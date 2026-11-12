@@ -1,7 +1,7 @@
 #ifndef DEVICEDATABASE_H
 #define DEVICEDATABASE_H
 
-#include "deviceinfo.h"
+#include "src/pages/deviceinfo.h"
 #include <QSqlDatabase>
 #include <QString>
 #include <QList>
