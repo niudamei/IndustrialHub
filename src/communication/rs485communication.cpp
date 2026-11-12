@@ -1,5 +1,7 @@
 #include "rs485communication.h"
 
+#include <QStringList>
+
 Rs485Communication::Rs485Communication(QObject *parent)
     : ICommunication(parent)
 {
