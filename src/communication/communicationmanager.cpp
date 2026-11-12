@@ -4,6 +4,9 @@
 #include "tcpcommunication.h"
 #include "udpcommunication.h"
 #ifdef INDUSTRIALHUB_HAS_SERIALPORT
+#include "slcancommunication.h"
+#endif
+#ifdef INDUSTRIALHUB_HAS_SERIALPORT
 #include "rs485communication.h"
 #endif
 
@@ -24,6 +27,12 @@ CommunicationManager::CommunicationManager(QObject *parent)
     });
     registerFactory(QStringLiteral("SERIAL"), [](QObject *parent) {
         return new Rs485Communication(parent);
+    });
+    registerFactory(QStringLiteral("CAN"), [](QObject *parent) {
+        return new SlcanCommunication(false, parent);
+    });
+    registerFactory(QStringLiteral("CANFD"), [](QObject *parent) {
+        return new SlcanCommunication(true, parent);
     });
 #endif
     registerFactory(QStringLiteral("SIMULATED"), [](QObject *parent) {
