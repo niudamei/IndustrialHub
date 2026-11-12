@@ -1,203 +1,130 @@
 #include "devicepage.h"
 #include "devicedialog.h"
-#include "ui_devicepage.h"
-#include <QLabel>
-#include <QString>
+#include "devicemanager.h"
+#include <QHeaderView>
+#include <QMessageBox>
+#include <QItemSelectionModel>
+#include <QStandardItem>
 
-DevicePage::DevicePage(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::DevicePage)
+namespace {
+QString statusText(DeviceStatus s) {
+    switch (s) {
+    case DeviceStatus::Online: return QStringLiteral("在线");
+    case DeviceStatus::Offline: return QStringLiteral("离线");
+    case DeviceStatus::Fault: return QStringLiteral("故障");
+    }
+    return QStringLiteral("未知");
+}
+}
+
+DevicePage::DevicePage(DeviceManager *manager, QWidget *parent)
+    : QWidget(parent), ui(new Ui::DevicePage), m_deviceManager(manager)
 {
     ui->setupUi(this);
     initTable();
-
-    // 状态下拉初始化
-    ui->cmbStatus->addItem("全部");
-    ui->cmbStatus->addItem("在线");
-    ui->cmbStatus->addItem("离线");
-    ui->cmbStatus->addItem("故障");
-
-    // 模拟初始测试数据，你后面可以对接数据库
-    m_allDevList.append(DeviceInfo(
-        "DEV001", "导航控制器", "控制器",
-        "TCP", "192.168.2.125:5600", DeviceStatus::Online
-        ));
-
-    m_allDevList.append(DeviceInfo(
-        "DEV002", "CAN采集盒", "采集设备",
-        "CAN", "0x06069001", DeviceStatus::Offline
-        ));
-    filterData();
+    ui->cmbStatus->addItems({QStringLiteral("全部"), QStringLiteral("在线"),
+                             QStringLiteral("离线"), QStringLiteral("故障")});
+    if (m_deviceManager)
+        connect(m_deviceManager, &DeviceManager::devicesChanged, this, &DevicePage::refreshTable);
+    refreshTable();
 }
+DevicePage::~DevicePage() { delete ui; }
 
-DevicePage::~DevicePage()
-{
-    delete ui;
-}
 void DevicePage::initTable()
 {
-    QStringList headers = {"设备编号","设备名称","设备类型","通信类型","设备地址","当前状态","添加时间"};
     m_model = new QStandardItemModel(this);
-    m_model->setHorizontalHeaderLabels(headers);
+    m_model->setHorizontalHeaderLabels({QStringLiteral("设备编号"), QStringLiteral("设备名称"),
+        QStringLiteral("设备类型"), QStringLiteral("通信类型"), QStringLiteral("设备地址"),
+        QStringLiteral("当前状态"), QStringLiteral("添加时间")});
     ui->DeviceView->setModel(m_model);
-
-    // 样式适配，和平台统一
     ui->DeviceView->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->DeviceView->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->DeviceView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->DeviceView->setAlternatingRowColors(true);
     ui->DeviceView->horizontalHeader()->setStretchLastSection(true);
+    ui->DeviceView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->DeviceView->verticalHeader()->setVisible(false);
 }
-
-void DevicePage::loadTableData(const QList<DeviceInfo> &list)
+void DevicePage::refreshTable()
+{
+    if (m_deviceManager) loadTableData(m_deviceManager->getAllDevices());
+    else m_model->removeRows(0, m_model->rowCount());
+}
+void DevicePage::loadTableData(const QList<DeviceInfo> &devices)
 {
     m_model->removeRows(0, m_model->rowCount());
-
-    for (const auto &dev : list)
-    {
+    for (const DeviceInfo &d : devices) {
         QList<QStandardItem*> row;
-
-        row << new QStandardItem(dev.devId);
-        row << new QStandardItem(dev.devName);
-        row << new QStandardItem(dev.devType);
-        row << new QStandardItem(dev.commType);
-        row << new QStandardItem(dev.devAddr);
-
-        // 枚举状态转换成中文
-        QString statusText;
-        switch (dev.status)
-        {
-        case DeviceStatus::Online:
-            statusText = "在线";
-            break;
-        case DeviceStatus::Offline:
-            statusText = "离线";
-            break;
-        case DeviceStatus::Fault:
-            statusText = "故障";
-            break;
-        }
-
-        row << new QStandardItem(statusText);
-
-        // QDateTime 转换成字符串
-        row << new QStandardItem(
-            dev.addTime.toString("yyyy-MM-dd HH:mm:ss"));
-
+        row << new QStandardItem(d.devId) << new QStandardItem(d.devName)
+            << new QStandardItem(d.devType) << new QStandardItem(d.commType)
+            << new QStandardItem(d.devAddr) << new QStandardItem(statusText(d.status))
+            << new QStandardItem(d.addTime.isValid() ? d.addTime.toString("yyyy-MM-dd HH:mm:ss") : QString());
+        for (QStandardItem *item : row) item->setEditable(false);
         m_model->appendRow(row);
     }
+    filterData();
 }
-
 void DevicePage::filterData()
 {
-    QString key = ui->edtSearch->text().trimmed().toLower();
-    QString statusFilter = ui->cmbStatus->currentText();
-
-    QList<DeviceInfo> res;
-
-    for (const auto &d : m_allDevList)
-    {
-        // 状态筛选
-        if (statusFilter != "全部")
-        {
-            if (statusFilter == "在线" && d.status != DeviceStatus::Online)
-                continue;
-
-            if (statusFilter == "离线" && d.status != DeviceStatus::Offline)
-                continue;
-
-            if (statusFilter == "故障" && d.status != DeviceStatus::Fault)
-                continue;
-        }
-
-        // 设备名称模糊搜索
-        if (!key.isEmpty() && !d.devName.toLower().contains(key))
-            continue;
-
-        res << d;
+    const QString key = ui->edtSearch->text().trimmed();
+    const QString status = ui->cmbStatus->currentText();
+    for (int r = 0; r < m_model->rowCount(); ++r) {
+        const bool textMatch = key.isEmpty()
+            || m_model->index(r,0).data().toString().contains(key, Qt::CaseInsensitive)
+            || m_model->index(r,1).data().toString().contains(key, Qt::CaseInsensitive)
+            || m_model->index(r,2).data().toString().contains(key, Qt::CaseInsensitive)
+            || m_model->index(r,4).data().toString().contains(key, Qt::CaseInsensitive);
+        const QString rowStatus = m_model->index(r,5).data().toString();
+        const bool statusMatch = status.isEmpty() || status == QStringLiteral("全部") || rowStatus == status;
+        ui->DeviceView->setRowHidden(r, !(textMatch && statusMatch));
     }
-
-    loadTableData(res);
 }
-int DevicePage::findRowById(const QString &id)
+QString DevicePage::selectedDeviceId() const
 {
-    for(int i=0; i<m_allDevList.size();i++)
-    {
-        if(m_allDevList[i].devId == id)
-            return i;
-    }
-    return -1;
+    if (!ui->DeviceView->selectionModel()) return {};
+    const auto rows = ui->DeviceView->selectionModel()->selectedRows();
+    return rows.isEmpty() ? QString() : m_model->index(rows.first().row(),0).data().toString();
 }
-
 void DevicePage::on_btnAdd_clicked()
 {
+    if (!m_deviceManager) return;
     DeviceDialog dlg(this);
-    if(dlg.exec() == QDialog::Accepted)
-    {
-        DeviceInfo info = dlg.getInfo();
-        m_allDevList.append(info);
-        filterData();
-    }
+    if (dlg.exec() != QDialog::Accepted) return;
+    QString error;
+    if (!m_deviceManager->addDevice(dlg.getInfo(), &error))
+        QMessageBox::warning(this, QStringLiteral("添加失败"), error);
 }
-
 void DevicePage::on_btnEdit_clicked()
 {
-    auto sel = ui->DeviceView->selectionModel()->selectedRows();
-    if(sel.isEmpty())
-    {
-        QMessageBox::warning(this,"提示","请先选中一行设备！");
-        return;
-    }
-    int row = sel.first().row();
-    QString devId = m_model->index(row,0).data().toString();
-    int srcIdx = findRowById(devId);
-    if(srcIdx <0) return;
-
+    if (!m_deviceManager) return;
+    const QString id = selectedDeviceId();
+    if (id.isEmpty()) { QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选中一行设备。")); return; }
+    DeviceInfo d;
+    if (!m_deviceManager->getDeviceById(id, d)) return;
     DeviceDialog dlg(this);
-    dlg.setInfo(m_allDevList[srcIdx]);
-    if(dlg.exec() == QDialog::Accepted)
-    {
-        m_allDevList[srcIdx] = dlg.getInfo();
-        filterData();
-    }
+    dlg.setInfo(d);
+    if (dlg.exec() != QDialog::Accepted) return;
+    QString error;
+    if (!m_deviceManager->updateDevice(dlg.getInfo(), &error))
+        QMessageBox::warning(this, QStringLiteral("编辑失败"), error);
 }
-
 void DevicePage::on_btnDel_clicked()
 {
-    auto sel = ui->DeviceView->selectionModel()->selectedRows();
-    if(sel.isEmpty())
-    {
-        QMessageBox::warning(this,"提示","请先选中一行设备！");
-        return;
-    }
-    int ret = QMessageBox::question(this,"确认删除","确定删除该设备？此操作不可恢复！",QMessageBox::Yes|QMessageBox::No);
-    if(ret != QMessageBox::Yes)
-        return;
-
-    int row = sel.first().row();
-    QString devId = m_model->index(row,0).data().toString();
-    int srcIdx = findRowById(devId);
-    if(srcIdx >=0)
-    {
-        m_allDevList.removeAt(srcIdx);
-        filterData();
-    }
+    if (!m_deviceManager) return;
+    const QString id = selectedDeviceId();
+    if (id.isEmpty()) { QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选中一行设备。")); return; }
+    if (QMessageBox::question(this, QStringLiteral("确认删除"),
+        QStringLiteral("确定删除设备 %1？此操作不可恢复。").arg(id),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) return;
+    QString error;
+    if (!m_deviceManager->removeDevice(id, &error))
+        QMessageBox::warning(this, QStringLiteral("删除失败"), error);
 }
-
 void DevicePage::on_btnRefresh_clicked()
 {
-    // 这里后面对接后端/读取真实数据，现在清空搜索筛选，重新加载
     ui->edtSearch->clear();
     ui->cmbStatus->setCurrentIndex(0);
-    filterData();
-    QMessageBox::information(this,"刷新成功","设备列表已刷新");
+    refreshTable();
 }
-
-void DevicePage::on_edtSearch_textChanged(const QString &text)
-{
-    filterData();
-}
-
-void DevicePage::on_cmbStatus_currentIndexChanged(int index)
-{
-    filterData();
-}
+void DevicePage::on_edtSearch_textChanged(const QString &text) { Q_UNUSED(text); filterData(); }
+void DevicePage::on_cmbStatus_currentIndexChanged(int index) { Q_UNUSED(index); filterData(); }
