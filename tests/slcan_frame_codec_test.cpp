@@ -67,7 +67,16 @@ int main()
         return 8;
     }
 
-    std::cout << "PASS: invalid frames rejected and CAN-FD BRS encoded." << std::endl;
+    SlcanFrame remoteFrame;
+    if (!SlcanFrameCodec::parseFrame("R000001230", false, remoteFrame, &error)
+        || !remoteFrame.remote || remoteFrame.remoteDlc != 0
+        || !SlcanFrameCodec::encodeFrame(remoteFrame, encoded, &error)
+        || encoded != QByteArray("R000001230")) {
+        std::cerr << "FAIL: CAN remote frame codec." << std::endl;
+        return 9;
+    }
+
+    std::cout << "PASS: invalid frames rejected, remote frames and CAN-FD BRS encoded." << std::endl;
     std::cout << "ALL SLCAN FRAME CODEC TESTS PASSED." << std::endl;
     return 0;
 }
