@@ -148,11 +148,6 @@ if(TARGET Qt6::SerialPort)
         target_link_libraries(rs485_communication_smoke_test PRIVATE Qt6::Core Qt6::SerialPort)
         add_test(NAME rs485_communication_smoke_test COMMAND rs485_communication_smoke_test)
 
-        target_sources(communication_manager_smoke_test PRIVATE
-            src/communication/rs485communication.h
-            src/communication/rs485communication.cpp
-        )
-
         add_executable(slcan_communication_smoke_test
             tests/slcan_communication_smoke_test.cpp
             src/communication/icommunication.h
