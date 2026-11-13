@@ -3,6 +3,7 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QQueue>
 #include <QWidget>
 
 #include "ui_monitorpage.h"
@@ -40,6 +41,10 @@ private:
         bool connected = false;
         QDateTime lastReceiveTime;
         qint64 lastReceiveMs = 0;
+        QQueue<qint64> receiveTimestamps;
+        bool receiveTimedOut = false;
+        quint64 timeoutCount = 0;
+        quint64 recoveryCount = 0;
         qint64 lastIntervalMs = -1;
         qint64 intervalSumMs = 0;
         qint64 intervalCount = 0;
@@ -56,6 +61,7 @@ private:
     QString formatData(const QString &deviceId, const QByteArray &data) const;
     void refreshMetricsTable();
     QString receiveStateText(const DeviceMetrics &metrics, qint64 nowMs) const;
+    double receiveRate(const DeviceMetrics &metrics, qint64 nowMs) const;
 
     Ui::MonitorPage *ui = nullptr;
     DeviceManager *m_deviceManager = nullptr;
