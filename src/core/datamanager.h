@@ -69,6 +69,7 @@ private:
     QString m_connectionName;
     QString m_databasePath;
     QString m_lastError;
+    bool m_ready = false;
     QQueue<CommunicationHistoryRecord> m_pendingRecords;
     QTimer *m_flushTimer = nullptr;
     static constexpr int MaxPendingRecords = 10000;
