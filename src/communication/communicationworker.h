@@ -35,6 +35,7 @@ private:
     ICommunication *m_communication = nullptr; // accessed only in m_thread
     QAtomicInteger<bool> m_ready{false};
     QAtomicInteger<bool> m_open{false};
+    QAtomicInteger<int> m_pendingSendRequests{0};
 };
 
 #endif // COMMUNICATIONWORKER_H
