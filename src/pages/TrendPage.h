@@ -1,11 +1,14 @@
 #ifndef TRENDPAGE_H
 #define TRENDPAGE_H
 
+#include <QByteArray>
 #include <QHash>
+#include <QString>
+#include <QStringList>
 #include <QQueue>
 #include <QWidget>
 
-#include "ui_TrendPage.h"
+#include "ui_trendpage.h"
 
 class CommunicationManager;
 class QChartView;
