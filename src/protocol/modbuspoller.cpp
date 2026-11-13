@@ -146,7 +146,7 @@ void ModbusPoller::onRequestCompleted(
                                    source, QDateTime::currentDateTime(), point, &error)) {
         ++m_failedPoints;
         emit pollError(m_deviceId, mapping.variableId, error);
-        finishOne(false);
+        finishOne();
         return;
     }
     ++m_successfulPoints;
