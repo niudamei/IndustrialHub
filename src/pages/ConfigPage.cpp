@@ -39,6 +39,7 @@
 #include <QJsonObject>
 #include <QSettings>
 #include <QTableWidgetItem>
+#include <QTabWidget>
 
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
@@ -94,7 +95,7 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     auto *exportDiagnosticsButton = new QPushButton(QStringLiteral("导出筛选结果 CSV（最多 1000 条）"), diagnosticsGroup);
     diagnosticsLayout->addWidget(exportDiagnosticsButton);
     diagnosticsLayout->addWidget(splitter);
-    ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);
+
     connect(queryDiagnosticsButton, &QPushButton::clicked, this, &ConfigPage::refreshDiagnostics);
     connect(exportDiagnosticsButton, &QPushButton::clicked, this, [this]() {
         if (!m_diagnostics) return;
@@ -152,7 +153,7 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
             this, &ConfigPage::onApplyParserClicked);
 
     auto *modbusGroup = new QGroupBox(QStringLiteral("Modbus RTU / TCP 主站轮询"), this);
-    modbusGroup->setMaximumHeight(360);
+    modbusGroup->setMaximumHeight(400);
     auto *modbusLayout = new QVBoxLayout(modbusGroup);
     auto *modbusOptions = new QGridLayout;
     m_modbusUnitIdSpin = new QSpinBox(modbusGroup);
@@ -258,7 +259,10 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
         modbusGroup);
     m_modbusStatusLabel->setWordWrap(true);
     modbusLayout->addWidget(m_modbusStatusLabel);
-    ui->verticalLayout->insertWidget(2, modbusGroup, 1);
+    auto *communicationToolsTabs = new QTabWidget(this);
+    communicationToolsTabs->addTab(diagnosticsGroup, QStringLiteral("通信诊断"));
+    communicationToolsTabs->addTab(modbusGroup, QStringLiteral("Modbus 主站"));
+    ui->verticalLayout->insertWidget(2, communicationToolsTabs, 2);
 
     connect(m_modbusAddButton, &QPushButton::clicked, this, &ConfigPage::addModbusMapping);
     connect(m_modbusRemoveButton, &QPushButton::clicked, this, &ConfigPage::removeModbusMapping);
