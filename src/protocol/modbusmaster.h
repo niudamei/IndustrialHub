@@ -7,7 +7,11 @@
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
+#include <QPointer>
+#include <QVector>
 #include <functional>
+
+class CommunicationManager;
 
 class ModbusMaster : public QObject
 {
@@ -18,6 +22,8 @@ public:
     explicit ModbusMaster(ModbusCodec::Transport transport, QObject *parent = nullptr);
 
     void setSendFunction(SendFunction sender);
+    bool bindDevice(CommunicationManager *manager, const QString &deviceId, quint8 unitId);
+    void unbindDevice();
     void setUnitId(quint8 unitId);
     quint8 unitId() const;
     void setTimeoutMs(int timeoutMs);
@@ -73,6 +79,9 @@ private:
     bool m_hasActive = false;
     QByteArray m_receiveBuffer;
     QTimer m_timeoutTimer;
+    QPointer<CommunicationManager> m_manager;
+    QString m_deviceId;
+    QList<QMetaObject::Connection> m_managerConnections;
 };
 
 #endif // MODBUSMASTER_H
