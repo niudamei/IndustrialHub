@@ -7,29 +7,46 @@
   </property>
   <property name="windowTitle"><string>实时监控</string></property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing"><number>8</number></property>
    <item>
     <layout class="QHBoxLayout" name="summaryLayout">
      <item>
       <widget class="QLabel" name="monitorTitleLabel">
-       <property name="text"><string>通信事件监控</string></property>
+       <property name="text"><string>设备实时通信监控</string></property>
        <property name="styleSheet"><string notr="true">font-size: 20px; font-weight: 600;</string></property>
       </widget>
      </item>
-     <item><spacer name="summarySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+     <item><spacer name="summarySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
      <item><widget class="QLabel" name="deviceCountLabel"><property name="text"><string>设备数量：0</string></property></widget></item>
-     <item><widget class="QLabel" name="eventCountLabel"><property name="text"><string>显示事件：0</string></property></widget></item>
-     <item><widget class="QLabel" name="monitorStateLabel"><property name="text"><string>正在记录</string></property></widget></item>
+     <item><widget class="QLabel" name="connectedCountLabel"><property name="text"><string>已连接：0 / 0</string></property></widget></item>
+     <item><widget class="QLabel" name="trafficSummaryLabel"><property name="text"><string>累计 TX：0 RX：0 错误：0</string></property></widget></item>
+     <item><widget class="QLabel" name="monitorStateLabel"><property name="text"><string>实时统计中</string></property></widget></item>
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="metricsGroup">
+     <property name="title"><string>设备通信状态与时间统计（250 ms 刷新，3 s 无接收数据判定超时）</string></property>
+     <layout class="QVBoxLayout" name="metricsLayout">
+      <item>
+       <widget class="QTableWidget" name="metricsTable">
+        <property name="minimumSize"><size><width>0</width><height>150</height></size></property>
+        <property name="maximumHeight"><number>230</number></property>
+        <property name="rowCount"><number>0</number></property>
+        <property name="columnCount"><number>12</number></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="filterGroup">
-     <property name="title"><string>筛选与操作</string></property>
+     <property name="title"><string>通信事件记录与筛选</string></property>
      <layout class="QHBoxLayout" name="filterLayout">
       <item><widget class="QLabel" name="deviceFilterLabel"><property name="text"><string>设备：</string></property></widget></item>
-      <item><widget class="QComboBox" name="deviceFilterCombo"><property name="minimumSize"><size><width>240</width><height>0</height></size></property></widget></item>
+      <item><widget class="QComboBox" name="deviceFilterCombo"><property name="minimumSize"><size><width>220</width><height>0</height></size></property></widget></item>
       <item><widget class="QLabel" name="directionFilterLabel"><property name="text"><string>事件类型：</string></property></widget></item>
-      <item><widget class="QComboBox" name="directionFilterCombo"><property name="minimumSize"><size><width>140</width><height>0</height></size></property></widget></item>
-      <item><spacer name="filterSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+      <item><widget class="QComboBox" name="directionFilterCombo"><property name="minimumSize"><size><width>130</width><height>0</height></size></property></widget></item>
+      <item><spacer name="filterSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
       <item><widget class="QPushButton" name="pauseButton"><property name="text"><string>暂停记录</string></property></widget></item>
       <item><widget class="QPushButton" name="clearButton"><property name="text"><string>清空记录</string></property></widget></item>
      </layout>
@@ -37,7 +54,7 @@
    </item>
    <item>
     <widget class="QTableWidget" name="eventTable">
-     <property name="minimumSize"><size><width>0</width><height>400</height></size></property>
+     <property name="minimumSize"><size><width>0</width><height>230</height></size></property>
      <property name="alternatingRowColors"><bool>true</bool></property>
      <property name="selectionMode"><enum>QAbstractItemView::SingleSelection</enum></property>
      <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
