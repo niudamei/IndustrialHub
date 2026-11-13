@@ -277,28 +277,30 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
     const qint64 fiveMinutesAgoMs = nowMs - 300000;
     QSqlQuery q(m_database);
     q.prepare(QStringLiteral(
+        "WITH recent AS ("
         "SELECT device_id,"
-        "SUM(CASE WHEN category='TX' THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN category='RX' THEN 1 ELSE 0 END),"
-        "SUM(tx_bytes),SUM(rx_bytes),"
-        "SUM(CASE WHEN severity='Error' THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN category='重连' THEN 1 ELSE 0 END),MAX(timestamp_ms),"
-        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN tx_bytes ELSE 0 END),"
-        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN rx_bytes ELSE 0 END),"
-        "MAX(CASE WHEN category='RX' THEN timestamp_ms ELSE NULL END),"
-        "SUM(CASE WHEN (severity='Error' OR category='超时') AND timestamp_ms>=? THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN 1 ELSE 0 END) AS tx_60,"
+        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN 1 ELSE 0 END) AS rx_60,"
+        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN tx_bytes ELSE 0 END) AS tx_bytes_60,"
+        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN rx_bytes ELSE 0 END) AS rx_bytes_60,"
+        "SUM(CASE WHEN (severity='Error' OR category='超时') AND timestamp_ms>=? THEN 1 ELSE 0 END) AS errors_5m,"
         "SUM(CASE WHEN (category='TX' OR category='RX' OR severity='Error' OR category='超时') "
-        "AND timestamp_ms>=? THEN 1 ELSE 0 END) "
-        "FROM communication_diagnostics GROUP BY device_id "
-        "ORDER BY device_id COLLATE NOCASE"));
+        "AND timestamp_ms>=? THEN 1 ELSE 0 END) AS activity_60 "
+        "FROM communication_diagnostics WHERE timestamp_ms>=? GROUP BY device_id) "
+        "SELECT d.device_id,d.tx_count,d.rx_count,d.tx_bytes,d.rx_bytes,"
+        "d.error_count,d.reconnect_count,d.last_event_ms,d.last_rx_ms,"
+        "COALESCE(r.tx_60,0),COALESCE(r.rx_60,0),"
+        "COALESCE(r.tx_bytes_60,0),COALESCE(r.rx_bytes_60,0),"
+        "COALESCE(r.errors_5m,0),COALESCE(r.activity_60,0) "
+        "FROM communication_device_totals d LEFT JOIN recent r ON r.device_id=d.device_id "
+        "ORDER BY d.device_id COLLATE NOCASE"));
     q.bindValue(0, minuteAgoMs);
     q.bindValue(1, minuteAgoMs);
     q.bindValue(2, minuteAgoMs);
     q.bindValue(3, minuteAgoMs);
     q.bindValue(4, fiveMinutesAgoMs);
     q.bindValue(5, minuteAgoMs);
+    q.bindValue(6, fiveMinutesAgoMs);
     if (!q.exec()) {
         m_lastError = QStringLiteral("读取设备通信统计失败：%1").arg(q.lastError().text());
         return result;
@@ -313,14 +315,14 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
         s.errorCount = q.value(5).toLongLong();
         s.reconnectCount = q.value(6).toLongLong();
         s.lastEvent = QDateTime::fromMSecsSinceEpoch(q.value(7).toLongLong());
-        s.txPerSecond = q.value(8).toDouble() / 60.0;
-        s.rxPerSecond = q.value(9).toDouble() / 60.0;
-        s.txBytesPerSecond = q.value(10).toDouble() / 60.0;
-        s.rxBytesPerSecond = q.value(11).toDouble() / 60.0;
-        if (!q.value(12).isNull()) {
-            s.lastRx = QDateTime::fromMSecsSinceEpoch(q.value(12).toLongLong());
+        if (q.value(8).toLongLong() > 0) {
+            s.lastRx = QDateTime::fromMSecsSinceEpoch(q.value(8).toLongLong());
             s.lastRxSilenceMs = qMax<qint64>(0, nowMs - s.lastRx.toMSecsSinceEpoch());
         }
+        s.txPerSecond = q.value(9).toDouble() / 60.0;
+        s.rxPerSecond = q.value(10).toDouble() / 60.0;
+        s.txBytesPerSecond = q.value(11).toDouble() / 60.0;
+        s.rxBytesPerSecond = q.value(12).toDouble() / 60.0;
         s.recentErrorCount = q.value(13).toLongLong();
         const qint64 recentActivityCount = q.value(14).toLongLong();
         s.recentErrorRatePercent = recentActivityCount > 0
