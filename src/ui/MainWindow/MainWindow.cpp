@@ -15,10 +15,18 @@
 #include "src/pages/HistoryPage.h"
 #include "src/pages/MonitorPage.h"
 #include "src/pages/TrendPage.h"
-#include "src/pages/SettingsPage.h"\n#include "src/security/authmanager.h"\n#include "src/security/logindialog.h"\n#include "src/security/usermanagementpage.h"\n#include "src/remote/remotepage.h"
+#include "src/pages/SettingsPage.h"
+#include "src/security/authmanager.h"
+#include "src/security/logindialog.h"
+#include "src/security/usermanagementpage.h"
+#include "src/remote/remotepage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <QDebug>\n#include <QPushButton>\n#include <QLabel>\n#include <QTimer>\n#include <QToolBar>
+#include <QDebug>
+#include <QPushButton>
+#include <QLabel>
+#include <QTimer>
+#include <QToolBar>
 #include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -27,6 +35,18 @@ MainWindow::MainWindow(QWidget *parent)
       m_communicationManager(new CommunicationManager(this))
 {
     ui->setupUi(this);
+
+    m_authManager = new AuthManager(m_deviceManager->databasePath(), this);
+    if (!m_authManager->isReady()) {
+        QMessageBox::critical(this, QStringLiteral("权限服务初始化失败"), m_authManager->lastError());
+        QTimer::singleShot(0, this, &QWidget::close);
+        return;
+    }
+    LoginDialog loginDialog(m_authManager, this);
+    if (loginDialog.exec() != QDialog::Accepted) {
+        QTimer::singleShot(0, this, &QWidget::close);
+        return;
+    }
 
     m_dataManager = new DataManager(m_communicationManager, this);
     m_protocolManager = new ProtocolManager(this);
@@ -139,6 +159,20 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     init_class();
+
+    auto *userLabel = new QLabel(this);
+    auto *logoutButton = new QPushButton(QStringLiteral("退出登录"), this);
+    ui->mainToolbar->addWidget(userLabel);
+    ui->mainToolbar->addSeparator();
+    ui->mainToolbar->addWidget(logoutButton);
+    connect(logoutButton, &QPushButton::clicked, this, &MainWindow::showLoginDialog);
+    connect(m_authManager, &AuthManager::authenticated, this, [userLabel](const AuthUser &user) {
+        userLabel->setText(QStringLiteral("当前用户：%1（%2）").arg(user.displayName, user.role));
+    });
+    userLabel->setText(QStringLiteral("当前用户：%1（%2）")
+        .arg(m_authManager->currentUser().displayName, m_authManager->currentRole()));
+
+    applyPermissions();
     connect(ui->listWidget, &QListWidget::currentRowChanged,
             this, &MainWindow::onNavigationClicked);
 }
@@ -247,7 +281,9 @@ void MainWindow::init_class()
     configPage = new ConfigPage(m_deviceManager, m_communicationManager,
                                 m_protocolManager, this, m_deviceHealthMonitor,
                                 m_businessDataManager, m_alarmManager);
-    settingsPage = new SettingsPage(this);\n    m_remotePage = new RemotePage(this);\n    m_userManagementPage = new UserManagementPage(m_authManager, this);
+    settingsPage = new SettingsPage(this);
+    m_remotePage = new RemotePage(this);
+    m_userManagementPage = new UserManagementPage(m_authManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
@@ -257,13 +293,16 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(alarmPage);     // 4 报警中心
     ui->stackedWidget->addWidget(historyPage);   // 5 历史数据
     ui->stackedWidget->addWidget(configPage);    // 6 通信配置
-    ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置\n    ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket\n    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
+    ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置
+    ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket
+    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
     ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
         QStringLiteral("实时监控"), QStringLiteral("实时趋势"), QStringLiteral("报警中心"),
-        QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置"),\n        QStringLiteral("远程通信"), QStringLiteral("用户与权限")});
+        QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置"),
+        QStringLiteral("远程通信"), QStringLiteral("用户与权限")});
     for (int i = 0; i < ui->listWidget->count(); ++i)
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
