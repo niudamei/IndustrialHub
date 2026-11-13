@@ -71,6 +71,7 @@ bool AuthManager::initialize(QString *error)
         {QStringLiteral("dashboard.view"), QStringLiteral("查看运行总览")},
         {QStringLiteral("device.view"), QStringLiteral("查看设备")},
         {QStringLiteral("device.manage"), QStringLiteral("管理设备")},
+        {QStringLiteral("device.operate"), QStringLiteral("操作设备与模拟设备")},
         {QStringLiteral("monitor.view"), QStringLiteral("查看实时监控")},
         {QStringLiteral("trend.view"), QStringLiteral("查看实时趋势")},
         {QStringLiteral("alarm.view"), QStringLiteral("查看报警")},
@@ -94,7 +95,7 @@ bool AuthManager::initialize(QString *error)
 
     const QStringList allPermissions = {
         QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
-        QStringLiteral("device.manage"), QStringLiteral("monitor.view"),
+        QStringLiteral("device.manage"), QStringLiteral("device.operate"), QStringLiteral("monitor.view"),
         QStringLiteral("trend.view"), QStringLiteral("alarm.view"),
         QStringLiteral("alarm.manage"), QStringLiteral("alarm.acknowledge"), QStringLiteral("history.view"),
         QStringLiteral("history.maintenance"), QStringLiteral("communication.view"),
@@ -103,7 +104,7 @@ bool AuthManager::initialize(QString *error)
     };
     const QStringList operatorPermissions = {
         QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
-        QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
+        QStringLiteral("device.operate"), QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
         QStringLiteral("alarm.view"), QStringLiteral("alarm.acknowledge"),
         QStringLiteral("history.view"), QStringLiteral("communication.view"),
         QStringLiteral("communication.manage"), QStringLiteral("remote.manage")
