@@ -11,6 +11,7 @@
 #include "src/core/communicationdiagnostics.h"
 
 class DeviceManager;
+class DeviceHealthMonitor;
 class CommunicationManager;
 class ProtocolManager;
 class QComboBox;
@@ -28,7 +29,8 @@ public:
     explicit ConfigPage(DeviceManager *deviceManager,
                         CommunicationManager *communicationManager,
                         ProtocolManager *protocolManager = nullptr,
-                        QWidget *parent = nullptr);
+                        QWidget *parent = nullptr,
+                        DeviceHealthMonitor *healthMonitor = nullptr);
     ~ConfigPage() override;
 
 private slots:
