@@ -16,8 +16,13 @@ public:
     explicit SettingsPage(QWidget *parent = nullptr);
     ~SettingsPage() override;
 
+signals:
+    void themeChanged(bool darkTheme);
+    void minimizeToTrayChanged(bool enabled);
+
 private:
     Ui::SettingsPage *ui;
+    class QCheckBox *m_trayCheckBox = nullptr;
 };
 
 #endif // SETTINGSPAGE_H
