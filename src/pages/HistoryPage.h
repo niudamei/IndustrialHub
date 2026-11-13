@@ -18,6 +18,7 @@ class QTableWidget;
 
 struct CommunicationPageResult { bool ok = false; QString error; QList<CommunicationHistoryRecord> records; int totalCount = 0; };
 struct BusinessPageResult { bool ok = false; QString error; QList<BusinessDataHistoryRecord> records; int totalCount = 0; };
+struct HistoryExportResult { bool ok = false; QString error; qint64 rows = 0; };
 
 class HistoryPage : public QWidget
 {
@@ -36,6 +37,9 @@ private slots:
     void showPreviousBusinessPage();
     void showNextBusinessPage();
     void exportBusinessCurrentPage();
+    void exportCommunicationAll();
+    void exportBusinessAll();
+    void applyExportResult(const HistoryExportResult &result);
 
 private:
     void updatePageInfo();
@@ -69,6 +73,9 @@ private:
     int m_businessOffset = 0;
     bool m_businessCountValid = false;
     QFutureWatcher<BusinessPageResult> *m_businessWatcher = nullptr;
+    QFutureWatcher<HistoryExportResult> *m_exportWatcher = nullptr;
+    QPushButton *m_communicationExportAllButton = nullptr;
+    QPushButton *m_businessExportAllButton = nullptr;
 };
 
 #endif // HISTORYPAGE_H
