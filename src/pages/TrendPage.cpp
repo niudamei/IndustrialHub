@@ -59,6 +59,21 @@ TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent
     chartLayout->setContentsMargins(0, 0, 0, 0);
     chartLayout->addWidget(m_chartView);
 
+    ui->analysisTable->setColumnCount(9);
+    ui->analysisTable->setHorizontalHeaderLabels({
+        QStringLiteral("设备编号"), QStringLiteral("连接状态"),
+        QStringLiteral("TX 帧数"), QStringLiteral("RX 帧数"),
+        QStringLiteral("TX 字节"), QStringLiteral("RX 字节"),
+        QStringLiteral("错误数"), QStringLiteral("最近 RX 时间"),
+        QStringLiteral("距最近 RX")
+    });
+    ui->analysisTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->analysisTable->horizontalHeader()->setStretchLastSection(true);
+    ui->analysisTable->verticalHeader()->setVisible(false);
+    ui->analysisTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->analysisTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->analysisTable->setAlternatingRowColors(true);
+
     ui->deviceCombo->addItem(QStringLiteral("全部设备"), QString());
     connect(ui->deviceCombo, &QComboBox::currentIndexChanged, this, [this](int) {
         m_txSeries->clear();
