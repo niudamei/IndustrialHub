@@ -76,8 +76,21 @@ int main(int argc, char *argv[])
     tcpResponse.append(static_cast<char>((tid >> 8) & 0xFF));
     tcpResponse.append(static_cast<char>(tid & 0xFF));
     tcpResponse.append(QByteArray::fromHex("00000005010402002a"));
-    tcp.feedReceivedData(tcpResponse);
-    if (!tcpDone) return 6;
+    QByteArray staleResponse = tcpResponse;
+    staleResponse[1] = static_cast<char>(staleResponse.at(1) + 1);
+    tcp.feedReceivedData(staleResponse);
+    if (tcpDone || !tcp.isBusy()) return 6;
+    tcp.feedReceivedData(tcpResponse.left(4));
+    if (tcpDone) return 7;
+    tcp.feedReceivedData(tcpResponse.mid(4));
+    if (!tcpDone || tcp.isBusy()) return 8;
+
+    ModbusMaster limited(Transport::Rtu);
+    limited.setSendFunction([](const QByteArray &, QString *) { return true; });
+    for (int i = 0; i < 1024; ++i)
+        if (limited.readHoldingRegisters(0, 1) == 0) return 9;
+    if (limited.pendingCount() != 1024 || limited.readHoldingRegisters(0, 1) != 0) return 10;
+    limited.cancelAll();
 
     master.cancelAll();
     return 0;
