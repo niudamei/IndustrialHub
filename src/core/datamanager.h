@@ -1,6 +1,7 @@
 #ifndef DATAMANAGER_H
 #define DATAMANAGER_H
 
+#include <QByteArray>
 #include <QDateTime>
 #include <QList>
 #include <QObject>
@@ -70,7 +71,6 @@ private:
     QString m_lastError;
     QQueue<CommunicationHistoryRecord> m_pendingRecords;
     QTimer *m_flushTimer = nullptr;
-    qint64 m_nextRecordId = 1;
     static constexpr int MaxPendingRecords = 10000;
     static constexpr int BatchSize = 200;
 };
