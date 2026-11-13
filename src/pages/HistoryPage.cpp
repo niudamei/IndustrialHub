@@ -308,7 +308,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
             [invalidateBusinessQuery](const QDateTime &) { invalidateBusinessQuery(); });
     connect(m_businessDeviceEdit, &QLineEdit::textChanged, this,
             [invalidateBusinessQuery](const QString &) { invalidateBusinessQuery(); });
-    connect(m_businessVariableCombo, &QComboBox::currentIndexChanged, this,
+    connect(m_businessVariableCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [invalidateBusinessQuery](int) { invalidateBusinessQuery(); });
 
     const QDate today = QDate::currentDate();
