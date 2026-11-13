@@ -5,6 +5,8 @@
 
 #include "src/communication/communicationmanager.h"
 #include "src/core/datamanager.h"
+#include "src/protocol/businessdatapoint.h"
+#include <QtMath>
 
 int main(int argc, char *argv[])
 {
@@ -24,6 +26,26 @@ int main(int argc, char *argv[])
 
     emit communicationManager.deviceDataSent(deviceId, txPayload);
     emit communicationManager.deviceDataReceived(deviceId, rxPayload);
+    QVector<BusinessDataPoint> businessPoints;
+    BusinessDataPoint temperature;
+    temperature.deviceId = deviceId;
+    temperature.variableId = QStringLiteral("temperature");
+    temperature.name = QStringLiteral("温度");
+    temperature.value = 42.5;
+    temperature.unit = QStringLiteral("°C");
+    temperature.timestamp = QDateTime::currentDateTime();
+    temperature.quality = DataQuality::Good;
+    temperature.sourceProtocol = QStringLiteral("TEST");
+    businessPoints.append(temperature);
+
+    BusinessDataPoint rpm = temperature;
+    rpm.variableId = QStringLiteral("rpm");
+    rpm.name = QStringLiteral("转速");
+    rpm.value = 1250.0;
+    rpm.unit = QStringLiteral("rpm");
+    businessPoints.append(rpm);
+
+    dataManager.appendBusinessDataPoints(deviceId, businessPoints);
     dataManager.flushPendingRecords();
 
     QList<CommunicationHistoryRecord> records;
@@ -55,6 +77,27 @@ int main(int argc, char *argv[])
     if (records.first().direction != QStringLiteral("RX")
         || records.first().payload != rxPayload)
         return 6;
+
+    QList<BusinessDataHistoryRecord> businessRecords;
+    int businessCount = 0;
+    if (!dataManager.queryBusinessDataHistory(
+            start, end, deviceId, QString(), 0, 20,
+            businessRecords, businessCount, &error))
+        return 9;
+    if (businessCount != 2 || businessRecords.size() != 2)
+        return 10;
+
+    if (!dataManager.queryBusinessDataHistory(
+            start, end, deviceId, QStringLiteral("temperature"), 0, 20,
+            businessRecords, businessCount, &error))
+        return 11;
+    if (businessCount != 1 || businessRecords.size() != 1)
+        return 12;
+    if (businessRecords.first().point.variableId != QStringLiteral("temperature")
+        || qAbs(businessRecords.first().point.value - 42.5) > 0.001
+        || businessRecords.first().point.quality != DataQuality::Good
+        || businessRecords.first().point.sourceProtocol != QStringLiteral("TEST"))
+        return 13;
 
     return 0;
 }
