@@ -11,8 +11,6 @@
 #include <iostream>
 #include <functional>
 
-#include <QThread>
-
 class ThreadProbeCommunication : public ICommunication
 {
 public:
