@@ -23,8 +23,14 @@ bool ModbusMaster::bindDevice(CommunicationManager *manager,
                               const QString &deviceId, quint8 unitId)
 {
     unbindDevice();
-    if (!manager || deviceId.trimmed().isEmpty() || unitId < 1 || unitId > 247)
+    if (!manager || deviceId.trimmed().isEmpty() || unitId < 1 || unitId > 247
+        || !manager->isConnected(deviceId))
         return false;
+    const QString commType = manager->communicationType(deviceId).trimmed().toUpper();
+    const bool compatible = m_transport == ModbusCodec::Transport::Tcp
+        ? commType == QStringLiteral("TCP")
+        : (commType == QStringLiteral("RS485") || commType == QStringLiteral("SERIAL"));
+    if (!compatible) return false;
     m_manager = manager;
     m_deviceId = deviceId.trimmed();
     m_unitId = unitId;
