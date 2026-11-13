@@ -208,3 +208,9 @@ CommunicationDeviceStatistics CommunicationDiagnostics::statisticsFor(const QStr
         if (s.deviceId.compare(deviceId, Qt::CaseInsensitive)==0) return s;
     CommunicationDeviceStatistics s; s.deviceId=deviceId; return s;
 }
+
+void CommunicationDiagnostics::recordHealthTimeout(const QString &deviceId, qint64 silenceMs)
+{
+    record(deviceId, QStringLiteral("超时"), QStringLiteral("Warning"),
+           QStringLiteral("设备接收超时，连续静默 %1 ms").arg(silenceMs));
+}
