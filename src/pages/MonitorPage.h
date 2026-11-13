@@ -12,7 +12,6 @@
 class DeviceManager;
 class CommunicationManager;
 class QTimer;
-class TrafficRateChart;
 
 class MonitorPage : public QWidget
 {
@@ -79,8 +78,6 @@ private:
     QValueAxis *m_receiveRateAxisX = nullptr;
     QValueAxis *m_receiveRateAxisY = nullptr;
     quint64 m_chartSampleIndex = 0;
-    TrafficRateChart *m_trafficChart = nullptr;
-    QVector<double> m_totalRxRateHistory;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
     bool m_paused = false;
     bool m_demoMode = false;
