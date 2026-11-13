@@ -85,6 +85,7 @@ private:
     bool m_hasActive = false;
     QByteArray m_receiveBuffer;
     QTimer m_timeoutTimer;
+    QTimer m_dispatchTimer;
     QPointer<CommunicationManager> m_manager;
     QString m_deviceId;
     QList<QMetaObject::Connection> m_managerConnections;
