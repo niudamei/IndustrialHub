@@ -5,6 +5,9 @@
 #include "src/pages/devicemanager.h"
 #include "src/communication/communicationmanager.h"
 #include "src/core/datamanager.h"
+#include "src/core/businessdatamanager.h"
+#include "src/protocol/protocolmanager.h"
+#include "src/protocol/jsonprotocolparser.h"
 #include "src/pages/AlarmPage.h"
 #include "src/pages/ConfigPage.h"
 #include "src/pages/HistoryPage.h"
@@ -13,6 +16,7 @@
 #include "src/pages/SettingsPage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow),
@@ -22,6 +26,29 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     m_dataManager = new DataManager(m_communicationManager, this);
+    m_protocolManager = new ProtocolManager(this);
+    m_businessDataManager = new BusinessDataManager(this);
+
+    QString protocolError;
+    if (!m_protocolManager->registerParser(
+            QStringLiteral("json"), std::make_shared<JsonProtocolParser>(),
+            &protocolError)) {
+        QMessageBox::warning(this, QStringLiteral("协议解析器初始化失败"), protocolError);
+    }
+
+    // RX 原始帧仍先进入 DataManager 历史存储；只有显式绑定协议的设备才会进一步解析。
+    connect(m_communicationManager, &CommunicationManager::deviceDataReceived,
+            m_protocolManager,
+            [this](const QString &deviceId, const QByteArray &payload) {
+        QString error;
+        if (!m_protocolManager->parseFrame(deviceId, payload, &error)
+            && !error.contains(QStringLiteral("尚未绑定协议解析器"))) {
+            // parseFailed 信号会将详细错误送到通信配置页面。
+        }
+    });
+
+    connect(m_protocolManager, &ProtocolManager::businessDataDecoded,
+            m_businessDataManager, &BusinessDataManager::updateDataPoints);
     if (!m_dataManager->isReady()) {
         QMessageBox::warning(this, QStringLiteral("历史数据服务初始化失败"),
                              m_dataManager->lastError());
@@ -66,7 +93,8 @@ void MainWindow::init_class()
     trendPage = new TrendPage(m_communicationManager, this);
     alarmPage = new AlarmPage(this);
     historyPage = new HistoryPage(m_dataManager, this);
-    configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
+    configPage = new ConfigPage(m_deviceManager, m_communicationManager,
+                                m_protocolManager, this);
     settingsPage = new SettingsPage(this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
