@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TrendPage</class>
+ <widget class="QWidget" name="TrendPage">
+  <property name="geometry"><rect><x>0</x><y>0</y><width>1100</width><height>760</height></rect></property>
+  <property name="windowTitle"><string>实时趋势</string></property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="titleLabel">
+     <property name="text"><string>实时通信趋势分析</string></property>
+     <property name="styleSheet"><string notr="true">font-size: 22px; font-weight: 600;</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="descriptionLabel">
+     <property name="text"><string>每 250 ms 更新一次，统计最近 1 秒的发送与接收帧数，并显示为帧/秒（FPS）。可按设备筛选。</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="summaryLayout">
+     <item><widget class="QLabel" name="deviceLabel"><property name="text"><string>统计设备：</string></property></widget></item>
+     <item><widget class="QComboBox" name="deviceCombo"><property name="minimumSize"><size><width>240</width><height>30</height></size></property></widget></item>
+     <item><widget class="QLabel" name="txRateLabel"><property name="text"><string>当前 TX：0 帧/秒</string></property></widget></item>
+     <item><widget class="QLabel" name="rxRateLabel"><property name="text"><string>当前 RX：0 帧/秒</string></property></widget></item>
+     <item><widget class="QLabel" name="trendHintLabel"><property name="text"><string>当前统计范围：全部设备</string></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="chartGroup">
+     <property name="title"><string>实时帧率曲线</string></property>
+     <layout class="QVBoxLayout" name="chartLayout">
+      <item>
+       <widget class="QWidget" name="chartHost" native="true">
+        <property name="minimumSize"><size><width>0</width><height>450</height></size></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="noteLabel">
+     <property name="text"><string>说明：TX 表示本软件向通信驱动提交且驱动接受的发送帧数，不代表远端已收到；RX 表示本软件实际收到的帧数。此图不是带宽、网络吞吐量或往返时延（RTT）。</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
