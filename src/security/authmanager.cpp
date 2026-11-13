@@ -167,8 +167,7 @@ bool AuthManager::authenticate(const QString &username, const QString &password,
     const QByteArray salt = q.value(3).toByteArray();
     const QByteArray expected = q.value(4).toByteArray();
     const QByteArray actual = passwordHash(password.toUtf8(), salt);
-    if (actual.size() != expected.size() || !QCryptographicHash::hash(actual, QCryptographicHash::Sha256)
-            .toHex().compare(QCryptographicHash::hash(expected, QCryptographicHash::Sha256).toHex()) == 0)
+    if (actual != expected)
         return setError(QStringLiteral("用户名或密码错误。"), error);
 
     AuthUser authenticatedUser;
@@ -224,12 +223,13 @@ bool AuthManager::changePassword(const QString &username, const QString &oldPass
     const QByteArray actual = passwordHash(oldPassword.toUtf8(), salt);
     if (actual != expected)
         return setError(QStringLiteral("原密码不正确。"), error);
+    const qint64 userId = q.value(0).toLongLong();
     const QByteArray newSalt = QUuid::createUuid().toRfc4122();
     q.prepare(QStringLiteral("UPDATE auth_users SET salt=?,password_hash=?,must_change_password=0,updated_at=? WHERE id=?"));
     q.addBindValue(newSalt);
     q.addBindValue(passwordHash(newPassword.toUtf8(), newSalt));
     q.addBindValue(nowText());
-    q.addBindValue(q.value(0));
+    q.addBindValue(userId);
     if (!q.exec())
         return setError(QStringLiteral("更新密码失败：%1").arg(q.lastError().text()), error);
     m_currentUser.mustChangePassword = false;
