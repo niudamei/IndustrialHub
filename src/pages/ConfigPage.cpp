@@ -265,6 +265,14 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     connect(m_modbusStopButton, &QPushButton::clicked, this, &ConfigPage::stopModbusPolling);
     connect(m_modbusMappingTable, &QTableWidget::itemSelectionChanged,
             this, &ConfigPage::updateModbusControls);
+    connect(m_modbusUnitIdSpin, &QSpinBox::valueChanged, this, [this](int value) {
+        const QString deviceId = selectedDeviceId();
+        if (deviceId.isEmpty()) return;
+        QSettings settings;
+        settings.beginGroup(QStringLiteral("ModbusUnitIds"));
+        settings.setValue(deviceId.toCaseFolded(), value);
+        settings.endGroup();
+    });
 
     ui->disconnectButton->setEnabled(false);
     ui->sendButton->setEnabled(false);
@@ -649,6 +657,11 @@ void ConfigPage::refreshModbusMappings()
         return;
     }
 
+    QSettings unitSettings;
+    unitSettings.beginGroup(QStringLiteral("ModbusUnitIds"));
+    m_modbusUnitIdSpin->setValue(unitSettings.value(key, 1).toInt());
+    unitSettings.endGroup();
+
     if (!m_modbusMappingsByDevice.contains(key)) {
         QSettings settings;
         settings.beginGroup(QStringLiteral("ModbusRegisterMaps"));
@@ -695,8 +708,15 @@ void ConfigPage::refreshModbusMappings()
         const QStringList values = {
             mapping.variableId, mapping.name, QString::number(mapping.address),
             QStringLiteral("0x%1").arg(mapping.function, 2, 16, QLatin1Char('0')).toUpper(),
-            QString::number(static_cast<int>(mapping.dataType)),
-            QString::number(static_cast<int>(mapping.wordOrder)),
+            mapping.dataType == ModbusRegisterMap::DataType::UInt16 ? QStringLiteral("UInt16")
+                : mapping.dataType == ModbusRegisterMap::DataType::Int16 ? QStringLiteral("Int16")
+                : mapping.dataType == ModbusRegisterMap::DataType::UInt32 ? QStringLiteral("UInt32")
+                : mapping.dataType == ModbusRegisterMap::DataType::Int32 ? QStringLiteral("Int32")
+                : QStringLiteral("Float32"),
+            mapping.wordOrder == ModbusRegisterMap::WordOrder::ABCD ? QStringLiteral("ABCD")
+                : mapping.wordOrder == ModbusRegisterMap::WordOrder::CDAB ? QStringLiteral("CDAB")
+                : mapping.wordOrder == ModbusRegisterMap::WordOrder::BADC ? QStringLiteral("BADC")
+                : QStringLiteral("DCBA"),
             QString::number(mapping.scale, 'g', 12),
             QString::number(mapping.offset, 'g', 12), mapping.unit
         };
@@ -860,10 +880,21 @@ void ConfigPage::startModbusPolling()
     }
 
     destroyModbusSession(deviceId);
+    int unitId = m_modbusUnitIdSpin->value();
+    if (type == QStringLiteral("MODBUS-SIM")) {
+        bool ok = false;
+        const int configured = device.devAddr.trimmed().toInt(&ok);
+        if (!ok || configured < 1 || configured > 247) {
+            QMessageBox::warning(this, QStringLiteral("模拟设备地址无效"),
+                                 QStringLiteral("MODBUS-SIM 的设备地址必须是 1–247。"));
+            return;
+        }
+        unitId = configured;
+    }
     auto *master = new ModbusMaster(transport, this);
     master->setTimeoutMs(m_modbusTimeoutSpin->value());
     if (!master->bindDevice(m_communicationManager, deviceId,
-                            static_cast<quint8>(m_modbusUnitIdSpin->value()))) {
+                            static_cast<quint8>(unitId))) {
         delete master;
         QMessageBox::warning(this, QStringLiteral("Modbus 绑定失败"),
             QStringLiteral("设备连接状态或通信类型与 Modbus RTU/TCP 不匹配。"));
@@ -955,7 +986,7 @@ void ConfigPage::updateModbusControls()
     m_modbusLoadSampleButton->setEnabled(type == QStringLiteral("MODBUS-SIM") && !running);
     m_modbusStartButton->setEnabled(supported && connected && hasMappings && !running);
     m_modbusStopButton->setEnabled(running);
-    m_modbusUnitIdSpin->setEnabled(supported && !running);
+    m_modbusUnitIdSpin->setEnabled(supported && !running && type != QStringLiteral("MODBUS-SIM"));
     m_modbusIntervalSpin->setEnabled(!running);
     m_modbusTimeoutSpin->setEnabled(!running);
 }
