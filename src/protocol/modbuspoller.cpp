@@ -100,6 +100,7 @@ void ModbusPoller::pollOnce()
     m_successfulPoints = 0;
     m_failedPoints = 0;
     m_requestMapping.clear();
+    m_cyclePoints.clear();
 
     for (int index = 0; index < m_mappings.size(); ++index) {
         const auto &mapping = m_mappings.at(index);
@@ -150,7 +151,7 @@ void ModbusPoller::onRequestCompleted(
         return;
     }
     ++m_successfulPoints;
-    emit pointsReady(m_deviceId, {point});
+    m_cyclePoints.append(point);
     finishOne();
 }
 
@@ -175,6 +176,8 @@ void ModbusPoller::finishCycle()
 {
     if (!m_cycleActive) return;
     m_cycleActive = false;
+    if (!m_cyclePoints.isEmpty())
+        emit pointsReady(m_deviceId, m_cyclePoints);
     emit cycleFinished(m_successfulPoints, m_failedPoints);
     if (m_running) m_timer.start(m_intervalMs);
 }
