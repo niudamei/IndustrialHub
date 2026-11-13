@@ -12,9 +12,6 @@
 class DeviceManager;
 class CommunicationManager;
 class QTimer;
-class QChartView;
-class QLineSeries;
-class QValueAxis;
 class TrafficRateChart;
 
 class MonitorPage : public QWidget
