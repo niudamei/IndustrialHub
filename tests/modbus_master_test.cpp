@@ -174,8 +174,21 @@ int main(int argc, char *argv[])
     ModbusMaster boundMaster(Transport::Rtu);
     if (!manager.registerFactory(QStringLiteral("RS485"),
             [](QObject *parent) { return new ModbusLoopbackCommunication(parent); })) return 11;
-    if (!manager.connectDevice(loopbackDevice)
-        || !boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)) return 12;
+    bool loopbackConnected = false;
+    QObject::connect(&manager, &CommunicationManager::deviceConnectionStateChanged,
+                     [&](const QString &id, bool connected) {
+        if (id == loopbackDevice.devId && connected) loopbackConnected = true;
+    });
+    if (!manager.connectDevice(loopbackDevice)) return 12;
+    if (!loopbackConnected) {
+        QEventLoop connectionLoop;
+        QTimer::singleShot(1000, &connectionLoop, &QEventLoop::quit);
+        QObject::connect(&manager, &CommunicationManager::deviceConnectionStateChanged,
+                         &connectionLoop, &QEventLoop::quit);
+        connectionLoop.exec();
+    }
+    if (!loopbackConnected
+        || !boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)) return 15;
     bool boundComplete = false;
     QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
                      [&](quint64, const Response &r) {
