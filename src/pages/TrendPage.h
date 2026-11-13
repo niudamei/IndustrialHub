@@ -12,6 +12,7 @@
 #include <QWidget>
 
 #include "ui_trendpage.h"
+#include "src/protocol/businessdatapoint.h"
 
 class BusinessDataManager;
 class CommunicationManager;
