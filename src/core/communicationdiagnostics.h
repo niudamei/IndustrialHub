@@ -19,6 +19,17 @@ struct CommunicationDiagnosticEvent
     QString message;
 };
 
+struct CommunicationTrendBucket
+{
+    QDateTime timestamp;
+    qint64 txFrames = 0;
+    qint64 rxFrames = 0;
+    qint64 txBytes = 0;
+    qint64 rxBytes = 0;
+    qint64 errors = 0;
+    qint64 reconnects = 0;
+};
+
 struct CommunicationDeviceStatistics
 {
     QString deviceId;
@@ -56,6 +67,10 @@ public:
                                                        const QDateTime &start = {},
                                                        const QDateTime &end = {}) const;
     QList<CommunicationDeviceStatistics> statistics() const;
+    QList<CommunicationTrendBucket> trendBuckets(const QString &deviceId,
+                                                  const QDateTime &start,
+                                                  const QDateTime &end,
+                                                  int bucketSeconds = 60) const;
     CommunicationDeviceStatistics statisticsFor(const QString &deviceId) const;
     void recordHealthTimeout(const QString &deviceId, qint64 silenceMs);
 
