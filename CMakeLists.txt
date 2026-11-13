@@ -43,6 +43,7 @@ qt_add_executable(hhh
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
     src/core/historymaintenance.h src/core/historymaintenance.cpp
+    src/core/historymaintenance.h src/core/historymaintenance.cpp
     src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
     src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
@@ -52,6 +53,7 @@ qt_add_executable(hhh
     src/protocol/jsonprotocolparser.h src/protocol/jsonprotocolparser.cpp
     src/protocol/protocolmanager.h src/protocol/protocolmanager.cpp
     src/protocol/modbuscodec.h src/protocol/modbuscodec.cpp
+    src/protocol/modbusmaster.h src/protocol/modbusmaster.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
@@ -240,6 +242,30 @@ if(BUILD_TESTING)
     target_include_directories(history_maintenance_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(history_maintenance_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME history_maintenance_test COMMAND history_maintenance_test)
+
+    add_executable(modbus_master_test
+        tests/modbus_master_test.cpp
+        src/protocol/modbusmaster.h
+        src/protocol/modbusmaster.cpp
+        src/protocol/modbuscodec.h
+        src/protocol/modbuscodec.cpp
+        src/communication/communicationmanager.h
+        src/communication/communicationmanager.cpp
+        src/communication/communicationworker.h
+        src/communication/communicationworker.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(modbus_master_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(modbus_master_test PRIVATE Qt6::Core Qt6::Network)
+    add_test(NAME modbus_master_test COMMAND modbus_master_test)
 
     add_executable(modbus_codec_test
         tests/modbus_codec_test.cpp
