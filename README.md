@@ -52,6 +52,27 @@
 - 支持导出当前页 CSV（UTF-8 BOM），便于使用 Excel 查看。
 - 当前保存的是通信原始帧，不会在缺少设备协议定义时臆测温度、电流、位置等业务字段。
 
+### 统一业务数据模型与协议解析基础
+
+- `BusinessDataPoint` 统一描述设备编号、变量编号、变量名称、数值、单位、时间戳、质量状态和来源协议。
+- `IProtocolParser` 定义协议解析接口；具体设备协议通过独立解析器实现，不耦合通信驱动。
+- `ProtocolManager` 支持注册解析器、按设备编号绑定解析器，并通过 Qt signal 发布解析结果。
+- 当前提供 `JsonProtocolParser` 作为通用 JSON 示例解析器，支持 ISO 8601 时间戳、多个业务变量和 Good/Uncertain/Bad 质量状态。
+- JSON 示例解析器不会自动套用到 CAN、CAN-FD 或私有 RS485 报文。真实设备必须在拿到协议文档后单独实现和绑定解析器。
+- 解析采用整帧校验：任意变量字段不合法时整帧失败，不输出半帧数据。
+
+JSON 示例：
+
+```json
+{
+  "timestamp": "2026-11-13T10:20:30.123Z",
+  "values": [
+    {"id": "temperature", "name": "温度", "value": 26.5, "unit": "°C", "quality": "good"},
+    {"id": "rpm", "name": "转速", "value": 1200, "unit": "rpm", "quality": "uncertain"}
+  ]
+}
+```
+
 ## 自动化测试
 
 启用 CMake 的 `BUILD_TESTING` 时构建：
@@ -64,6 +85,7 @@
 - `slcan_frame_codec_test`：SLCAN 经典 CAN/CAN-FD 帧编解码、DLC 映射和非法帧校验。
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
 - `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选和原始字节回读。
+- `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
 
 构建后运行：
 
