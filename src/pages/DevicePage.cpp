@@ -3,6 +3,7 @@
 #include "devicemanager.h"
 
 #include <QHeaderView>
+#include <QAbstractItemView>
 #include <QMessageBox>
 #include <QItemSelectionModel>
 #include <QStandardItem>
