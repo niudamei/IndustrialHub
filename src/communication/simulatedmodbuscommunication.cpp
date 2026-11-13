@@ -30,6 +30,7 @@ bool SimulatedModbusCommunication::open(const DeviceInfo &device, QString *error
         return true;
     if (m_open) close();
 
+    ++m_sessionGeneration;
     m_deviceId = id;
     m_unitId = static_cast<quint8>(configuredUnit);
     m_registers.clear();
@@ -50,6 +51,7 @@ void SimulatedModbusCommunication::close()
 {
     if (!m_open) return;
     m_open = false;
+    ++m_sessionGeneration;
     m_deviceId.clear();
     emit connectionStateChanged(false);
 }
@@ -132,8 +134,10 @@ bool SimulatedModbusCommunication::sendData(const QByteArray &data, QString *err
     if (response.isEmpty())
         return setError(QStringLiteral("无法生成 Modbus 模拟响应。"), errorMessage);
     if (errorMessage) errorMessage->clear();
-    QTimer::singleShot(5, this, [this, response]() {
-        if (m_open) emit dataReceived(response);
+    const quint64 generation = m_sessionGeneration;
+    QTimer::singleShot(5, this, [this, response, generation]() {
+        if (m_open && generation == m_sessionGeneration)
+            emit dataReceived(response);
     });
     return true;
 }
