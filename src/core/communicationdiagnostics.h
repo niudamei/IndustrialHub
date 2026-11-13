@@ -47,6 +47,7 @@ public:
                                                        const QDateTime &end = {}) const;
     QList<CommunicationDeviceStatistics> statistics() const;
     CommunicationDeviceStatistics statisticsFor(const QString &deviceId) const;
+    void recordHealthTimeout(const QString &deviceId, qint64 silenceMs);
 
 signals:
     void diagnosticsChanged();
