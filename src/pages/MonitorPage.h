@@ -33,6 +33,7 @@ private slots:
     void onPauseClicked();
     void exportEventsToCsv();
     void toggleDemoMode();
+    void onDemoIntervalChanged(int milliseconds);
     void generateDemoTraffic();
     void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
@@ -77,7 +78,6 @@ private:
     bool m_paused = false;
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;
-    int m_demoDeviceIndex = 0;
     static constexpr int MaxRows = 500;
     int m_receiveTimeoutMs = 3000;
 };
