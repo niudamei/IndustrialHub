@@ -93,6 +93,13 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
         m_txSeries->clear();
         m_rxSeries->clear();
         m_sampleIndex = 0;
+        m_lastBusinessTimestamp.clear();
+        for (int i = 0; i < m_businessSeries.size(); ++i) {
+            for (auto it = m_businessSeries[i].begin();
+                 it != m_businessSeries[i].end(); ++it) {
+                it.value()->clear();
+            }
+        }
         updateTrend();
     });
 
@@ -107,11 +114,6 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
                 this, &TrendPage::onCommunicationError);
     }
 
-    if (m_businessDataManager) {
-        connect(m_businessDataManager, &BusinessDataManager::valuesUpdated,
-                this, &TrendPage::onBusinessValuesUpdated);
-    }
-
     m_timer = new QTimer(this);
     m_timer->setInterval(250);
     connect(m_timer, &QTimer::timeout, this, &TrendPage::updateTrend);
@@ -122,11 +124,6 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
 TrendPage::~TrendPage()
 {
     delete ui;
-}
-
-void TrendPage::onBusinessValuesUpdated(const QString &, const QVector<BusinessDataPoint> &)
-{
-    // 数据缓存由 BusinessDataManager 维护；定时器按最新时间戳采样，避免重复点。
 }
 
 void TrendPage::onDataSent(const QString &deviceId, const QByteArray &data)
