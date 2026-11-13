@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QTimer>
 #include <QSslSocket>
+#include <QStringList>
 
 class MqttClient : public QObject
 {
@@ -37,12 +38,14 @@ private:
     static QByteArray encodeString(const QString &value);
     QByteArray packet(quint8 header, const QByteArray &body) const;
     void sendConnectPacket();
+    void sendSubscribePacket(const QString &topicFilter);
     void scheduleReconnect();
     QSslSocket *m_socket = nullptr;
     QTimer m_pingTimer;
     QTimer m_reconnectTimer;
     QByteArray m_buffer;
     QString m_host, m_clientId, m_username, m_password;
+    QStringList m_subscriptions;
     quint16 m_port = 1883;
     int m_keepAlive = 30;
     int m_reconnectAttempt = 0;
