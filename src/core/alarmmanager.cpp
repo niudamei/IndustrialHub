@@ -114,7 +114,7 @@ bool AlarmManager::initializeDatabase()
         return writeError(QStringLiteral("读取活动报警失败：%1").arg(query.lastError().text()));
     }
     while (query.next())
-        m_activeEventByRule.insert(query.value(0).toString(), query.value(1).toLongLong());
+        m_activeEventByRule.insert(normalized(query.value(0).toString()), query.value(1).toLongLong());
 
     m_lastError.clear();
     return true;
