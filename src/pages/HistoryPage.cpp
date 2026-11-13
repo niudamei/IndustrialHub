@@ -126,6 +126,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
 
     connect(m_businessQueryButton, &QPushButton::clicked, this, [this]() {
         m_businessOffset = 0;
+        m_businessCountValid = false;
         queryBusinessHistory();
     });
     connect(m_businessPreviousButton, &QPushButton::clicked,
@@ -170,6 +171,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
 
     connect(ui->queryButton, &QPushButton::clicked, this, [this]() {
         m_offset = 0;
+        m_communicationCountValid = false;
         queryHistory();
     });
     connect(ui->previousButton, &QPushButton::clicked,
@@ -220,11 +222,14 @@ void HistoryPage::queryHistory()
     QString error;
     if (!m_dataManager->queryCommunicationHistory(
             start, end, ui->deviceFilterEdit->text(), direction,
-            m_offset, PageSize, m_currentRecords, m_totalCount, &error)) {
+            m_offset, PageSize, m_currentRecords, m_totalCount, &error,
+            !m_communicationCountValid)) {
         QMessageBox::warning(this, QStringLiteral("查询失败"), error);
         return;
     }
 
+    m_communicationCountValid = true;
+    ui->historyTable->setUpdatesEnabled(false);
     ui->historyTable->setRowCount(m_currentRecords.size());
     for (int row = 0; row < m_currentRecords.size(); ++row) {
         const CommunicationHistoryRecord &record = m_currentRecords.at(row);
@@ -244,6 +249,7 @@ void HistoryPage::queryHistory()
         }
     }
 
+    ui->historyTable->setUpdatesEnabled(true);
     updatePageInfo();
 }
 
@@ -348,11 +354,13 @@ void HistoryPage::queryBusinessHistory()
             start, end, m_businessDeviceEdit->text(),
             m_businessVariableCombo->currentData().toString(),
             m_businessOffset, PageSize, m_businessRecords,
-            m_businessTotalCount, &error)) {
+            m_businessTotalCount, &error, !m_businessCountValid)) {
         QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), error);
         return;
     }
 
+    m_businessCountValid = true;
+    m_businessTable->setUpdatesEnabled(false);
     m_businessTable->setRowCount(m_businessRecords.size());
     for (int row = 0; row < m_businessRecords.size(); ++row) {
         const BusinessDataPoint &point = m_businessRecords.at(row).point;
@@ -368,6 +376,7 @@ void HistoryPage::queryBusinessHistory()
             m_businessTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
     }
 
+    m_businessTable->setUpdatesEnabled(true);
     updateBusinessPageInfo();
     renderBusinessChart();
 }
