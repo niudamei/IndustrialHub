@@ -240,14 +240,14 @@ void DataManager::flushPendingBusinessData()
 
     for (int i = 0; i < count; ++i) {
         const BusinessDataPoint &point = m_pendingBusinessData.at(i).point;
-        query.addBindValue(point.timestamp.toMSecsSinceEpoch());
-        query.addBindValue(point.deviceId.trimmed());
-        query.addBindValue(point.variableId.trimmed());
-        query.addBindValue(point.name);
-        query.addBindValue(point.value);
-        query.addBindValue(point.unit);
-        query.addBindValue(static_cast<int>(point.quality));
-        query.addBindValue(point.sourceProtocol);
+        query.bindValue(0, point.timestamp.toMSecsSinceEpoch());
+        query.bindValue(1, point.deviceId.trimmed());
+        query.bindValue(2, point.variableId.trimmed());
+        query.bindValue(3, point.name);
+        query.bindValue(4, point.value);
+        query.bindValue(5, point.unit);
+        query.bindValue(6, static_cast<int>(point.quality));
+        query.bindValue(7, point.sourceProtocol);
         if (!query.exec()) {
             m_database.rollback();
             const QString message = QStringLiteral("写入业务变量历史失败：%1")
@@ -410,6 +410,7 @@ void DataManager::flushPendingRecords()
 
     m_lastError.clear();
     emit recordsWritten(count);
+    flushPendingBusinessData();
 }
 
 bool DataManager::queryCommunicationHistory(
