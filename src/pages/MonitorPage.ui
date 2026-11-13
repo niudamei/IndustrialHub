@@ -25,7 +25,7 @@
    </item>
    <item>
     <widget class="QGroupBox" name="metricsGroup">
-     <property name="title"><string>设备通信状态与时间统计（250 ms 刷新，3 s 无接收数据判定超时）</string></property>
+     <property name="title"><string>设备通信状态与时间统计（250 ms 刷新，超时阈值可调整）</string></property>
      <layout class="QVBoxLayout" name="metricsLayout">
       <item>
        <widget class="QTableWidget" name="metricsTable">
@@ -46,6 +46,13 @@
       <item><widget class="QComboBox" name="deviceFilterCombo"><property name="minimumSize"><size><width>220</width><height>0</height></size></property></widget></item>
       <item><widget class="QLabel" name="directionFilterLabel"><property name="text"><string>事件类型：</string></property></widget></item>
       <item><widget class="QComboBox" name="directionFilterCombo"><property name="minimumSize"><size><width>130</width><height>0</height></size></property></widget></item>
+      <item><widget class="QLabel" name="timeoutLabel"><property name="text"><string>接收超时：</string></property></widget></item>
+      <item><widget class="QSpinBox" name="timeoutSpinBox">
+       <property name="minimum"><number>1</number></property>
+       <property name="maximum"><number>60</number></property>
+       <property name="value"><number>3</number></property>
+       <property name="suffix"><string> 秒</string></property>
+      </widget></item>
       <item><spacer name="filterSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
       <item><widget class="QPushButton" name="pauseButton"><property name="text"><string>暂停记录</string></property></widget></item>
       <item><widget class="QPushButton" name="clearButton"><property name="text"><string>清空记录</string></property></widget></item>
