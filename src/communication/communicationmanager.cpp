@@ -114,6 +114,7 @@ void CommunicationManager::disconnectDevice(const QString &deviceId)
     const QString key = deviceKey(deviceId);
     m_autoReconnectDevices.remove(key);
     stopReconnect(key);
+    m_reconnectAttempts.insert(key, 0);
     ICommunication *communication = communicationFor(deviceId);
     if (communication)
         communication->close();
