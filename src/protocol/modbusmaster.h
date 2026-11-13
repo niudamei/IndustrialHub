@@ -27,6 +27,7 @@ public:
     void unbindDevice();
     void setUnitId(quint8 unitId);
     quint8 unitId() const;
+    ModbusCodec::Transport transport() const;
     void setTimeoutMs(int timeoutMs);
     int timeoutMs() const;
     int pendingCount() const;
