@@ -2,6 +2,15 @@
 
 #include "mqttclient.h"
 #include "websocketclient.h"
+#include "httpclient.h"
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QComboBox>
+#include <QUrl>
+#include <QtMath>
 
 #include <QCheckBox>
 #include <QFormLayout>
@@ -15,7 +24,7 @@
 #include <QDateTime>
 
 RemotePage::RemotePage(QWidget *parent)
-    : QWidget(parent), m_mqtt(new MqttClient(this)), m_webSocket(new WebSocketClient(this))
+    : QWidget(parent), m_mqtt(new MqttClient(this)), m_webSocket(new WebSocketClient(this)), m_http(new HttpClient(this))
 {
     auto *root = new QVBoxLayout(this);
     auto *tabs = new QTabWidget(this);
@@ -92,6 +101,51 @@ RemotePage::RemotePage(QWidget *parent)
     m_wsLog->setPlaceholderText(QStringLiteral("WebSocket 握手、收发消息和错误将在此显示。"));
     wsLayout->addWidget(m_wsLog, 1);
     tabs->addTab(wsTab, QStringLiteral("WebSocket"));
+    auto *httpTab = new QWidget(tabs);
+    auto *httpLayout = new QVBoxLayout(httpTab);
+    auto *httpGroup = new QGroupBox(QStringLiteral("HTTP / HTTPS API 客户端"), httpTab);
+    auto *httpForm = new QFormLayout(httpGroup);
+    m_httpMethod = new QComboBox(httpGroup);
+    m_httpMethod->addItems({QStringLiteral("GET"), QStringLiteral("POST"),
+                            QStringLiteral("PUT"), QStringLiteral("PATCH"),
+                            QStringLiteral("DELETE")});
+    m_httpUrl = new QLineEdit(QStringLiteral("http://127.0.0.1:8080/api/telemetry"), httpGroup);
+    m_httpToken = new QLineEdit(httpGroup);
+    m_httpToken->setEchoMode(QLineEdit::Password);
+    m_httpBody = new QPlainTextEdit(httpGroup);
+    m_httpBody->setMaximumHeight(110);
+    m_httpBody->setPlainText(QStringLiteral("{\n  \"deviceId\": \"HTTP-DEMO-001\",\n  \"variableId\": \"temperature\",\n  \"name\": \"温度\",\n  \"value\": 25.3,\n  \"unit\": \"°C\"\n}"));
+    auto *httpSend = new QPushButton(QStringLiteral("发送 HTTP 请求"), httpGroup);
+    httpForm->addRow(QStringLiteral("方法："), m_httpMethod);
+    httpForm->addRow(QStringLiteral("URL："), m_httpUrl);
+    httpForm->addRow(QStringLiteral("Bearer Token："), m_httpToken);
+    httpForm->addRow(QStringLiteral("JSON 请求体："), m_httpBody);
+    httpForm->addRow(httpSend);
+    httpLayout->addWidget(httpGroup);
+    m_httpLog = new QPlainTextEdit(httpTab);
+    m_httpLog->setReadOnly(true);
+    m_httpLog->setPlaceholderText(QStringLiteral("HTTP 状态码、响应内容和错误将在此显示。"));
+    httpLayout->addWidget(m_httpLog, 1);
+    tabs->addTab(httpTab, QStringLiteral("HTTP / HTTPS"));
+
+    connect(httpSend, &QPushButton::clicked, this, [this]() {
+        const QString method = m_httpMethod->currentText();
+        const QByteArray body = m_httpBody->toPlainText().toUtf8();
+        if (!m_http->sendRequest(method, QUrl(m_httpUrl->text().trimmed()),
+                                 body, m_httpToken->text())) {
+            appendLog(m_httpLog, QStringLiteral("请求未启动，请检查 URL、方法或请求状态。"));
+        }
+    });
+    connect(m_http, &HttpClient::requestFinished, this, [this](int status, const QByteArray &body) {
+        appendLog(m_httpLog, QStringLiteral("HTTP %1\n%2")
+            .arg(status).arg(QString::fromUtf8(body)));
+        if (status >= 200 && status < 300)
+            handleRemotePayload(QStringLiteral("HTTP"), m_httpUrl->text(), body);
+    });
+    connect(m_http, &HttpClient::requestFailed, this, [this](const QString &message) {
+        appendLog(m_httpLog, QStringLiteral("错误：") + message);
+    });
+
 
     connect(mqttConnect, &QPushButton::clicked, this, [this]() {
         bool ok = false;
@@ -117,6 +171,7 @@ RemotePage::RemotePage(QWidget *parent)
     connect(m_mqtt, &MqttClient::errorOccurred, this, [this](const QString &s) { appendLog(m_mqttLog, QStringLiteral("错误：") + s); });
     connect(m_mqtt, &MqttClient::messageReceived, this, [this](const QString &topic, const QByteArray &payload) {
         appendLog(m_mqttLog, QStringLiteral("RX [%1] %2").arg(topic, QString::fromUtf8(payload)));
+        handleRemotePayload(QStringLiteral("MQTT"), topic, payload);
     });
     connect(m_mqtt, &MqttClient::connected, this, [this]() { appendLog(m_mqttLog, QStringLiteral("状态：已连接")); });
     connect(m_mqtt, &MqttClient::disconnected, this, [this]() { appendLog(m_mqttLog, QStringLiteral("状态：已断开")); });
@@ -133,6 +188,7 @@ RemotePage::RemotePage(QWidget *parent)
     connect(m_webSocket, &WebSocketClient::errorOccurred, this, [this](const QString &s) { appendLog(m_wsLog, QStringLiteral("错误：") + s); });
     connect(m_webSocket, &WebSocketClient::textMessageReceived, this, [this](const QString &s) {
         appendLog(m_wsLog, QStringLiteral("RX TEXT: ") + s);
+        handleRemotePayload(QStringLiteral("WebSocket"), m_wsUrl->text(), s.toUtf8());
     });
     connect(m_webSocket, &WebSocketClient::binaryMessageReceived, this, [this](const QByteArray &b) {
         appendLog(m_wsLog, QStringLiteral("RX BINARY: %1 bytes | %2").arg(b.size()).arg(QString::fromLatin1(b.toHex(' '))));
@@ -145,6 +201,7 @@ RemotePage::~RemotePage()
 {
     if (m_mqtt) m_mqtt->disconnectFromBroker();
     if (m_webSocket) m_webSocket->disconnectFromServer();
+    if (m_http) m_http->cancel();
 }
 
 void RemotePage::appendLog(QPlainTextEdit *view, const QString &message)
@@ -153,3 +210,90 @@ void RemotePage::appendLog(QPlainTextEdit *view, const QString &message)
     view->appendPlainText(QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss.zzz"))
                           + QStringLiteral("  ") + message);
 }
+
+void RemotePage::handleRemotePayload(const QString &protocol, const QString &channel,
+                                     const QByteArray &payload)
+{
+    if (payload.isEmpty() || payload.size() > 1024 * 1024)
+        return;
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
+                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
+                   QStringLiteral("收到非 JSON 数据，不进入业务变量链路。"));
+        return;
+    }
+
+    const QJsonObject root = document.object();
+    const QString deviceId = root.value(QStringLiteral("deviceId")).toString().trimmed();
+    if (deviceId.isEmpty()) {
+        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
+                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
+                   QStringLiteral("JSON 缺少 deviceId，已拒绝业务数据映射。"));
+        return;
+    }
+
+    QJsonArray pointsArray = root.value(QStringLiteral("points")).toArray();
+    if (pointsArray.isEmpty())
+        pointsArray = root.value(QStringLiteral("variables")).toArray();
+    if (pointsArray.isEmpty())
+        pointsArray.append(root);
+
+    if (pointsArray.size() > 500) {
+        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
+                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
+                   QStringLiteral("单条远程消息变量数超过 500，已拒绝。"));
+        return;
+    }
+
+    QVector<BusinessDataPoint> points;
+    points.reserve(pointsArray.size());
+    for (const QJsonValue &value : pointsArray) {
+        if (!value.isObject())
+            continue;
+        const QJsonObject object = value.toObject();
+        const QString variableId = object.value(QStringLiteral("variableId")).toString(
+            object.value(QStringLiteral("id")).toString()).trimmed();
+        const QJsonValue numericValue = object.value(QStringLiteral("value"));
+        if (variableId.isEmpty() || !numericValue.isDouble())
+            continue;
+        const double number = numericValue.toDouble();
+        if (!qIsFinite(number))
+            continue;
+
+        BusinessDataPoint point;
+        point.deviceId = deviceId;
+        point.variableId = variableId;
+        point.name = object.value(QStringLiteral("name")).toString(variableId);
+        point.value = number;
+        point.unit = object.value(QStringLiteral("unit")).toString();
+        point.timestamp = QDateTime::fromString(
+            object.value(QStringLiteral("timestamp")).toString(), Qt::ISODateWithMs);
+        if (!point.timestamp.isValid())
+            point.timestamp = QDateTime::fromString(
+                object.value(QStringLiteral("timestamp")).toString(), Qt::ISODate);
+        if (!point.timestamp.isValid())
+            point.timestamp = QDateTime::currentDateTime();
+        const QString quality = object.value(QStringLiteral("quality")).toString();
+        point.quality = quality.compare(QStringLiteral("Bad"), Qt::CaseInsensitive) == 0
+            ? DataQuality::Bad
+            : quality.compare(QStringLiteral("Uncertain"), Qt::CaseInsensitive) == 0
+                ? DataQuality::Uncertain : DataQuality::Good;
+        point.sourceProtocol = protocol + (channel.isEmpty() ? QString() : QStringLiteral(":") + channel);
+        points.append(point);
+    }
+
+    if (points.isEmpty()) {
+        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
+                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
+                   QStringLiteral("JSON 中没有有效业务变量（需要 variableId/id 和数值 value）。"));
+        return;
+    }
+    emit businessDataReceived(deviceId, points);
+    appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
+               : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
+               QStringLiteral("已解析 %1 个业务变量，设备：%2，已送入数据中心。")
+                   .arg(points.size()).arg(deviceId));
+}
+
