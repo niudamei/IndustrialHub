@@ -1,6 +1,6 @@
 #include <QCoreApplication>
 #include <QDebug>
-#include <QDir>
+#include <QDir>\n#include <QFile>
 #include <QStandardPaths>
 
 #include "src/communication/communicationmanager.h"
