@@ -70,10 +70,13 @@ int main(int argc, char *argv[])
         CHECK(events.first().state == QStringLiteral("ACKNOWLEDGED"));
         CHECK(events.first().acknowledgedBy == QStringLiteral("operator"));
 
+        // 禁用规则后不再触发新报警，但已有报警在数据恢复时仍应闭环。
+        CHECK(manager.setRuleEnabled(rule.ruleId, false, &error));
         manager.evaluateDataPoints(rule.deviceId, {point(70.0)});
         events = manager.events();
         CHECK(events.first().state == QStringLiteral("RECOVERED_ACK"));
         CHECK(events.first().recoveredAt.isValid());
+        CHECK(manager.setRuleEnabled(rule.ruleId, true, &error));
     }
 
     {
