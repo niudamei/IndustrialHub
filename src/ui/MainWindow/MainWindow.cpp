@@ -153,7 +153,8 @@ void MainWindow::init_class()
 {
     dashboardPage = new DashboardPage(this);
     devicePage = new DevicePage(m_deviceManager, this);
-    monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
+    monitorPage = new MonitorPage(m_deviceManager, m_communicationManager,
+                                    m_deviceHealthMonitor, this);
     connect(monitorPage, &MonitorPage::businessDataGenerated,
             m_businessDataManager, &BusinessDataManager::updateDataPoints);
     connect(monitorPage, &MonitorPage::businessDataGenerated,
