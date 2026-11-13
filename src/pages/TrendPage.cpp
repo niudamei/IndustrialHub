@@ -21,6 +21,11 @@
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QValueAxis>
+#include <QPushButton>
+#include <QFile>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QDateTimeAxis>
 #include <QDateTimeAxis>
 #include <QtMath>
 #include <QVBoxLayout>
@@ -34,7 +39,9 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
       m_businessDataManager(businessDataManager)
 {
     ui->setupUi(this);
+    m_diagnostics = new CommunicationDiagnostics(nullptr, this);
     setupBusinessTrend();
+    setupCommunicationHistoryTrend();
 
     auto *chart = new QChart();
     chart->setTitle(QStringLiteral("发送 / 接收帧率（最近 15 秒）"));
@@ -97,6 +104,7 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
             }
         }
         updateTrend();
+        refreshCommunicationHistoryTrend();
     });
 
     if (m_communicationManager) {
@@ -425,4 +433,160 @@ void TrendPage::updateTrend()
         QStringLiteral("累计 TX %1 帧 / %2 B    RX %3 帧 / %4 B    错误 %5")
             .arg(totalTxFrames).arg(totalTxBytes)
             .arg(totalRxFrames).arg(totalRxBytes).arg(totalErrors));
+}
+
+void TrendPage::setupCommunicationHistoryTrend()
+{
+    auto *group = new QGroupBox(QStringLiteral("历史通信趋势（来自 SQLite 诊断记录）"), this);
+    auto *layout = new QVBoxLayout(group);
+    auto *controls = new QHBoxLayout;
+    controls->addWidget(new QLabel(QStringLiteral("时间范围："), group));
+    m_historyRangeCombo = new QComboBox(group);
+    m_historyRangeCombo->addItem(QStringLiteral("最近 1 小时"), 1);
+    m_historyRangeCombo->addItem(QStringLiteral("最近 24 小时"), 24);
+    m_historyRangeCombo->addItem(QStringLiteral("最近 7 天"), 168);
+    m_historyRangeCombo->addItem(QStringLiteral("最近 30 天"), 720);
+    controls->addWidget(m_historyRangeCombo);
+    auto *refreshButton = new QPushButton(QStringLiteral("查询历史趋势"), group);
+    auto *exportButton = new QPushButton(QStringLiteral("导出趋势 CSV"), group);
+    controls->addWidget(refreshButton);
+    controls->addWidget(exportButton);
+    controls->addStretch(1);
+    layout->addLayout(controls);
+
+    m_historyChart = new QChart();
+    m_historyChart->setTitle(QStringLiteral("收发帧数、错误/超时与重连次数"));
+    m_historyChart->legend()->setVisible(true);
+    m_historyTxSeries = new QLineSeries(m_historyChart);
+    m_historyTxSeries->setName(QStringLiteral("TX 帧数"));
+    m_historyRxSeries = new QLineSeries(m_historyChart);
+    m_historyRxSeries->setName(QStringLiteral("RX 帧数"));
+    m_historyErrorSeries = new QLineSeries(m_historyChart);
+    m_historyErrorSeries->setName(QStringLiteral("错误/超时"));
+    m_historyReconnectSeries = new QLineSeries(m_historyChart);
+    m_historyReconnectSeries->setName(QStringLiteral("重连"));
+    for (QLineSeries *series : {m_historyTxSeries, m_historyRxSeries,
+                                m_historyErrorSeries, m_historyReconnectSeries})
+        m_historyChart->addSeries(series);
+
+    m_historyAxisX = new QDateTimeAxis(m_historyChart);
+    m_historyAxisX->setFormat(QStringLiteral("MM-dd HH:mm"));
+    m_historyAxisX->setTitleText(QStringLiteral("时间"));
+    m_historyChart->addAxis(m_historyAxisX, Qt::AlignBottom);
+    m_historyAxisY = new QValueAxis(m_historyChart);
+    m_historyAxisY->setTitleText(QStringLiteral("事件数量"));
+    m_historyAxisY->setRange(0, 10);
+    m_historyChart->addAxis(m_historyAxisY, Qt::AlignLeft);
+    for (QLineSeries *series : {m_historyTxSeries, m_historyRxSeries,
+                                m_historyErrorSeries, m_historyReconnectSeries}) {
+        series->attachAxis(m_historyAxisX);
+        series->attachAxis(m_historyAxisY);
+    }
+
+    auto *view = new QChartView(m_historyChart, group);
+    view->setRenderHint(QPainter::Antialiasing);
+    view->setMinimumHeight(280);
+    layout->addWidget(view);
+    m_historySummaryLabel = new QLabel(QStringLiteral("选择设备和时间范围后查询历史通信趋势。"), group);
+    m_historySummaryLabel->setWordWrap(true);
+    layout->addWidget(m_historySummaryLabel);
+
+    if (auto *mainLayout = qobject_cast<QVBoxLayout *>(this->layout()))
+        mainLayout->insertWidget(5, group);
+    connect(refreshButton, &QPushButton::clicked,
+            this, &TrendPage::refreshCommunicationHistoryTrend);
+    connect(exportButton, &QPushButton::clicked,
+            this, &TrendPage::exportCommunicationHistoryTrend);
+    connect(m_historyRangeCombo, &QComboBox::currentIndexChanged,
+            this, &TrendPage::refreshCommunicationHistoryTrend);
+    refreshCommunicationHistoryTrend();
+}
+
+void TrendPage::refreshCommunicationHistoryTrend()
+{
+    if (!m_diagnostics || !m_diagnostics->isReady() || !m_historyRangeCombo)
+        return;
+    const int hours = m_historyRangeCombo->currentData().toInt();
+    const int bucketSeconds = hours <= 1 ? 10 : (hours <= 24 ? 60 : (hours <= 168 ? 300 : 1800));
+    const QDateTime end = QDateTime::currentDateTime();
+    const QDateTime start = end.addSecs(-hours * 3600);
+    const QString deviceId = ui->deviceCombo->currentData().toString();
+    const auto buckets = m_diagnostics->trendBuckets(deviceId, start, end, bucketSeconds);
+
+    for (QLineSeries *series : {m_historyTxSeries, m_historyRxSeries,
+                                m_historyErrorSeries, m_historyReconnectSeries})
+        series->clear();
+
+    qint64 tx = 0, rx = 0, txBytes = 0, rxBytes = 0, errors = 0, reconnects = 0;
+    for (const CommunicationTrendBucket &bucket : buckets) {
+        const qreal x = static_cast<qreal>(bucket.timestamp.toMSecsSinceEpoch());
+        m_historyTxSeries->append(x, bucket.txFrames);
+        m_historyRxSeries->append(x, bucket.rxFrames);
+        m_historyErrorSeries->append(x, bucket.errors);
+        m_historyReconnectSeries->append(x, bucket.reconnects);
+        tx += bucket.txFrames;
+        rx += bucket.rxFrames;
+        txBytes += bucket.txBytes;
+        rxBytes += bucket.rxBytes;
+        errors += bucket.errors;
+        reconnects += bucket.reconnects;
+    }
+    m_historyAxisX->setRange(start, end);
+    const qint64 maxCount = qMax<qint64>(1, qMax<qint64>(qMax(tx, rx), qMax(errors, reconnects)));
+    m_historyAxisY->setRange(0, qMax<qreal>(10.0, static_cast<qreal>(maxCount)));
+    const QString scope = deviceId.isEmpty() ? QStringLiteral("全部设备") : deviceId;
+    m_historySummaryLabel->setText(
+        QStringLiteral("设备：%1 | 时间：%2 至 %3 | 时间桶：%4 秒 | TX：%5 帧 / %6 B | RX：%7 帧 / %8 B | 错误/超时：%9 | 重连：%10")
+            .arg(scope, start.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")),
+                 end.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")))
+            .arg(bucketSeconds).arg(tx).arg(txBytes).arg(rx).arg(rxBytes)
+            .arg(errors).arg(reconnects));
+    if (buckets.isEmpty())
+        m_historySummaryLabel->setText(m_historySummaryLabel->text()
+            + QStringLiteral("（当前时间范围没有诊断记录）"));
+}
+
+void TrendPage::exportCommunicationHistoryTrend()
+{
+    if (!m_diagnostics || !m_diagnostics->isReady())
+        return;
+    const int hours = m_historyRangeCombo->currentData().toInt();
+    const int bucketSeconds = hours <= 1 ? 10 : (hours <= 24 ? 60 : (hours <= 168 ? 300 : 1800));
+    const QDateTime end = QDateTime::currentDateTime();
+    const QDateTime start = end.addSecs(-hours * 3600);
+    const QString deviceId = ui->deviceCombo->currentData().toString();
+    const auto buckets = m_diagnostics->trendBuckets(deviceId, start, end, bucketSeconds);
+    if (buckets.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("没有数据"),
+                                 QStringLiteral("当前设备和时间范围没有可导出的通信趋势数据。"));
+        return;
+    }
+    const QString fileName = QStringLiteral("communication_trend_%1.csv")
+        .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("导出通信趋势"),
+                                                       fileName, QStringLiteral("CSV 文件 (*.csv)"));
+    if (path.isEmpty())
+        return;
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString());
+        return;
+    }
+    QByteArray output = QByteArray::fromHex("EFBBBF");
+    output += QStringLiteral("时间桶,TX帧数,RX帧数,TX字节,RX字节,错误超时数,重连数\r\n").toUtf8();
+    for (const CommunicationTrendBucket &bucket : buckets) {
+        const QStringList columns = {
+            bucket.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")),
+            QString::number(bucket.txFrames), QString::number(bucket.rxFrames),
+            QString::number(bucket.txBytes), QString::number(bucket.rxBytes),
+            QString::number(bucket.errors), QString::number(bucket.reconnects)
+        };
+        output += columns.join(QLatin1Char(',')).toUtf8() + "\r\n";
+    }
+    if (file.write(output) != output.size()) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString());
+        return;
+    }
+    QMessageBox::information(this, QStringLiteral("导出完成"),
+                             QStringLiteral("已导出 %1 个时间桶。").arg(buckets.size()));
 }
