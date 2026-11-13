@@ -57,7 +57,7 @@
 - `BusinessDataPoint` 统一描述设备编号、变量编号、变量名称、数值、单位、时间戳、质量状态和来源协议。
 - `IProtocolParser` 定义协议解析接口；具体设备协议通过独立解析器实现，不耦合通信驱动。
 - `ProtocolManager` 支持注册解析器、按设备编号绑定解析器，并通过 Qt signal 发布解析结果。
-- 新增 Modbus RTU/TCP 编解码基础：读保持寄存器（0x03）、读输入寄存器（0x04）、写单寄存器（0x06）、写多寄存器（0x10），包含 RTU CRC16、TCP MBAP 长度/事务 ID 校验、异常响应解析；当前为协议帧层，尚未接入串口/TCP 轮询 UI。
+- 新增 Modbus RTU/TCP 编解码和主站事务层：读保持寄存器（0x03）、读输入寄存器（0x04）、写单寄存器（0x06）、写多寄存器（0x10）；支持 RTU CRC16、TCP MBAP/事务 ID、串行请求队列、响应分帧、超时、异常响应和 CommunicationManager 设备绑定。当前尚未提供设备寄存器映射配置 UI 与周期轮询页面。
 - 当前提供 `JsonProtocolParser` 作为通用 JSON 示例解析器，支持 ISO 8601 时间戳、多个业务变量和 Good/Uncertain/Bad 质量状态。
 - JSON 示例解析器不会自动套用到 CAN、CAN-FD 或私有 RS485 报文。真实设备必须在拿到协议文档后单独实现和绑定解析器。
 - 解析采用整帧校验：任意变量字段不合法时整帧失败，不输出半帧数据。
@@ -96,7 +96,7 @@ JSON 示例：
 - `slcan_frame_codec_test`：SLCAN 经典 CAN/CAN-FD 帧编解码、DLC 映射和非法帧校验。
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
 - `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选、原始字节回读及复用总数的分页查询。
-- `modbus_codec_test`：检查 Modbus RTU/TCP 请求帧、CRC、MBAP、寄存器响应、异常响应和非法参数。
+- `modbus_codec_test`：检查 Modbus RTU/TCP 请求帧、CRC、MBAP、寄存器响应、异常响应和非法参数。\n- `modbus_master_test`：检查 Modbus 请求排队、分段响应拼接、写入回显、超时和 TCP 事务响应。\n- `history_maintenance_test`：检查历史数据清理预览、分批删除、截止时间保护和删除后数据保留。
 - `device_database_test`：检查设备分组、启用状态和通信配置字段的 SQLite 持久化。
 - `device_health_monitor_test`：检查每设备独立活动跟踪、首帧超时、在线超时、RX 恢复和手动断开。
 - `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
@@ -249,3 +249,12 @@ ctest --test-dir build --output-on-failure
 ## Modbus 协议帧基础
 
 新增独立 ModbusCodec，与具体通信驱动解耦。当前支持 RTU 与 TCP 请求帧编码、读保持寄存器（0x03）、读输入寄存器（0x04）、写单寄存器（0x06）、写多寄存器（0x10）；RTU 使用 CRC16，TCP 校验 MBAP 协议标识、长度和事务 ID。响应解析覆盖寄存器数据、写入回显和 Modbus 异常码。当前仅完成协议帧层及自动化测试目标，尚未接入 RS485/TCP 轮询界面，也不会假定任何真实设备的寄存器地址或数据缩放规则。
+
+
+## 历史数据保留与手动清理
+
+“历史数据”页面底部新增“历史数据维护”区域。用户选择清理截止日期后，必须先执行统计预览，查看通信/业务历史总量、符合清理条件的记录数、通信载荷字节量和数据库文件大小；再单独点击确认并通过二次确认框，才会开始清理。清理在后台线程执行，每批最多 1000 条、每批独立事务；默认不自动清理、不自动 VACUUM，也不删除截止日期当天及之后的数据。建议先通过全量 CSV 导出备份。未来日期和非法批次参数会被拒绝。SQLite 删除记录后数据库文件不一定立即缩小，空间回收需要另行评估和执行 VACUUM。
+
+## Modbus 主站事务层
+
+新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。当前尚未增加寄存器映射编辑器、轮询周期配置 UI 或真实设备联调；实际寄存器地址、字节序和缩放仍必须依据设备手册。
