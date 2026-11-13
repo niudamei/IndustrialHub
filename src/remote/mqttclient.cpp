@@ -163,9 +163,9 @@ void MqttClient::onReadyRead()
             m_waitingPingResponse = false;
             m_pingTimer.start(qMax(1000, m_keepAlive * 500));
             emit logMessage(QStringLiteral("MQTT 已连接，协议版本 3.1.1。"));
-            emit connected();
             for (const QString &filter : std::as_const(m_subscriptions))
                 sendSubscribePacket(filter);
+            emit connected();
         } else if (type == 3) {
             if (body.size() < 2) continue;
             const int topicLength = (quint8(body.at(0)) << 8) | quint8(body.at(1));
