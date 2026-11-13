@@ -56,7 +56,7 @@ RemotePage::RemotePage(QWidget *parent)
     auto *topicGroup = new QGroupBox(QStringLiteral("主题订阅与发布（QoS 0 发布 / QoS 0 订阅）"), mqttTab);
     auto *topicForm = new QFormLayout(topicGroup);
     m_mqttTopic = new QLineEdit(QStringLiteral("industrialhub/demo"), topicGroup);
-    m_mqttPayload = new QLineEdit(QStringLiteral("{\"source\":\"IndustrialHub\",\"value\":1}"), topicGroup);
+    m_mqttPayload = new QLineEdit(QStringLiteral("{\"deviceId\":\"MQTT-DEMO-001\",\"variableId\":\"temperature\",\"name\":\"温度\",\"value\":25.3,\"unit\":\"°C\"}"), topicGroup);
     topicForm->addRow(QStringLiteral("Topic / Filter："), m_mqttTopic);
     topicForm->addRow(QStringLiteral("发布内容："), m_mqttPayload);
     auto *topicButtons = new QHBoxLayout;
@@ -79,7 +79,7 @@ RemotePage::RemotePage(QWidget *parent)
     auto *wsGroup = new QGroupBox(QStringLiteral("WebSocket 服务端"), wsTab);
     auto *wsForm = new QFormLayout(wsGroup);
     m_wsUrl = new QLineEdit(QStringLiteral("ws://127.0.0.1:8080/"), wsGroup);
-    m_wsPayload = new QLineEdit(QStringLiteral("{\\"deviceId\\":\\"WS-DEMO-001\\",\\"variableId\\":\\"speed\\",\\"name\\":\\"转速\\",\\"value\\":1200,\\"unit\\":\\"rpm\\"}"), wsGroup);
+    m_wsPayload = new QLineEdit(QStringLiteral("{\"deviceId\":\"WS-DEMO-001\",\"variableId\":\"speed\",\"name\":\"转速\",\"value\":1200,\"unit\":\"rpm\"}"), wsGroup);
     wsForm->addRow(QStringLiteral("WebSocket URL："), m_wsUrl);
     wsForm->addRow(QStringLiteral("发送文本："), m_wsPayload);
     auto *wsButtons = new QHBoxLayout;
