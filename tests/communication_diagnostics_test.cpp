@@ -21,11 +21,11 @@ int main(int argc, char *argv[])
     }
 
     emit manager.deviceConnectionStateChanged(QStringLiteral("DEV-A"), true);
-    emit manager.deviceDataSent(QStringLiteral("DEV-A"), QByteArray(4, '\\x11'));
-    emit manager.deviceDataReceived(QStringLiteral("DEV-A"), QByteArray(7, '\\x22'));
+    emit manager.deviceDataSent(QStringLiteral("DEV-A"), QByteArray(4, char(0x11)));
+    emit manager.deviceDataReceived(QStringLiteral("DEV-A"), QByteArray(7, char(0x22)));
     emit manager.deviceErrorOccurred(QStringLiteral("DEV-A"), QStringLiteral("serial port timeout"));
     emit manager.deviceReconnecting(QStringLiteral("DEV-A"), 2, 2000);
-    emit manager.deviceDataSent(QStringLiteral("DEV-B"), QByteArray(2, '\\x33'));
+    emit manager.deviceDataSent(QStringLiteral("DEV-B"), QByteArray(2, char(0x33)));
 
     const auto a = diagnostics.statisticsFor(QStringLiteral("DEV-A"));
     const auto b = diagnostics.statisticsFor(QStringLiteral("DEV-B"));
