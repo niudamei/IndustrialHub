@@ -51,12 +51,12 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     ui->eventTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->eventTable->setAlternatingRowColors(true);
 
-    ui->metricsTable->setColumnCount(12);
+    ui->metricsTable->setColumnCount(13);
     ui->metricsTable->setHorizontalHeaderLabels({
         QStringLiteral("设备名称 / 编号"), QStringLiteral("通信类型"),
         QStringLiteral("连接状态"), QStringLiteral("接收状态"),
-        QStringLiteral("最后接收时间"), QStringLiteral("最近间隔"),
-        QStringLiteral("平均间隔"), QStringLiteral("最小间隔"),
+        QStringLiteral("最后接收时间"), QStringLiteral("距上次接收"),
+        QStringLiteral("最近帧间隔"), QStringLiteral("平均间隔"), QStringLiteral("最小间隔"),
         QStringLiteral("最大间隔"), QStringLiteral("TX帧数"),
         QStringLiteral("RX帧数"), QStringLiteral("错误数")
     });
@@ -204,6 +204,7 @@ void MonitorPage::onDataReceived(const QString &deviceId, const QByteArray &data
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (metrics.lastReceiveMs > 0) {
         const qint64 interval = qMax<qint64>(0, nowMs - metrics.lastReceiveMs);
+        metrics.lastIntervalMs = interval;
         metrics.intervalSumMs += interval;
         ++metrics.intervalCount;
         metrics.minIntervalMs = metrics.minIntervalMs < 0
@@ -275,8 +276,9 @@ void MonitorPage::refreshMetricsTable()
         const QString lastTime = metrics.lastReceiveTime.isValid()
             ? metrics.lastReceiveTime.toString(QStringLiteral("HH:mm:ss.zzz"))
             : QStringLiteral("--");
-        const QString latestInterval = metrics.lastReceiveMs > 0
+        const QString receiveAge = metrics.lastReceiveMs > 0
             ? intervalText(nowMs - metrics.lastReceiveMs) : QStringLiteral("--");
+        const QString latestInterval = intervalText(metrics.lastIntervalMs);
         const QString averageInterval = metrics.intervalCount > 0
             ? QStringLiteral("%1 ms").arg(
                   static_cast<double>(metrics.intervalSumMs) / metrics.intervalCount, 0, 'f', 1)
@@ -288,6 +290,7 @@ void MonitorPage::refreshMetricsTable()
             metrics.connected ? QStringLiteral("已连接") : QStringLiteral("未连接"),
             receiveStateText(metrics, nowMs),
             lastTime,
+            receiveAge,
             latestInterval,
             averageInterval,
             intervalText(metrics.minIntervalMs),
