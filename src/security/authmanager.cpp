@@ -341,6 +341,29 @@ QList<AuthUser> AuthManager::users(QString *error) const
     return result;
 }
 
+QList<AuthAuditRecord> AuthManager::auditEntries(int limit, QString *error) const
+{
+    QList<AuthAuditRecord> result;
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral("SELECT id,timestamp,username,action,target,detail FROM auth_audit_log ORDER BY id DESC LIMIT ?"));
+    q.addBindValue(qBound(1, limit, 5000));
+    if (!q.exec()) {
+        if (error) *error = q.lastError().text();
+        return result;
+    }
+    while (q.next()) {
+        AuthAuditRecord record;
+        record.id = q.value(0).toLongLong();
+        record.timestamp = q.value(1).toString();
+        record.username = q.value(2).toString();
+        record.action = q.value(3).toString();
+        record.target = q.value(4).toString();
+        record.detail = q.value(5).toString();
+        result.append(record);
+    }
+    return result;
+}
+
 void AuthManager::audit(const QString &action, const QString &target, const QString &detail)
 {
     if (!m_db.isOpen())
