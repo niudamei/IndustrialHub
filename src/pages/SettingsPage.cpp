@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QSettings>
+#include <QSystemTrayIcon>
 #include <QVBoxLayout>
 
 SettingsPage::SettingsPage(QWidget *parent)
@@ -19,6 +20,7 @@ SettingsPage::SettingsPage(QWidget *parent)
 
     m_trayCheckBox = new QCheckBox(QStringLiteral("点击窗口关闭按钮时最小化到系统托盘"), this);
     m_trayCheckBox->setChecked(minimizeToTray);
+    m_trayCheckBox->setEnabled(QSystemTrayIcon::isSystemTrayAvailable());
     ui->verticalLayout->addWidget(m_trayCheckBox);
 
     connect(ui->radioDarkTheme, &QRadioButton::toggled, this, [this](bool checked) {
