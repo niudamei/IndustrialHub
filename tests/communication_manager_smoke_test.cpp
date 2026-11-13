@@ -228,6 +228,13 @@ int main(int argc, char *argv[])
         return 19;
     }
     std::cout << "PASS: communication driver creation, open and send run off the UI thread." << std::endl;
+    error.clear();
+    if (manager.sendData(probeDevice.devId, QByteArray(1024 * 1024 + 1, 'X'), &error)
+        || !error.contains(QStringLiteral("1 MiB"))) {
+        std::cerr << "FAIL: oversized payload should be rejected before queueing." << std::endl;
+        return 25;
+    }
+    std::cout << "PASS: oversized transmit payload is rejected." << std::endl;
 
     ThreadProbeCommunication *probe2 = nullptr;
     manager.registerFactory(QStringLiteral("THREAD-PROBE-2"),
