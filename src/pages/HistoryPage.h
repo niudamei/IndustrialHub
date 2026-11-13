@@ -11,6 +11,7 @@ class QChartView;
 class QComboBox;
 class QDateTimeEdit;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QTableWidget;
 
