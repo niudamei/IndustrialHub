@@ -30,6 +30,8 @@ public:
     ModbusCodec::Transport transport() const;
     void setTimeoutMs(int timeoutMs);
     int timeoutMs() const;
+    void setInterRequestDelayMs(int delayMs);
+    int interRequestDelayMs() const;
     int pendingCount() const;
     bool isBusy() const;
 
@@ -65,6 +67,7 @@ private:
     quint64 enqueue(quint8 function, quint16 address,
                     quint16 valueOrQuantity, const QVector<quint16> &values = {});
     void sendNext();
+    void scheduleNext();
     bool extractOneFrame(QByteArray &frame);
     void processFrame(const QByteArray &frame);
     void finishActive(const ModbusCodec::Response &response);
@@ -74,6 +77,7 @@ private:
     SendFunction m_sender;
     quint8 m_unitId = 1;
     int m_timeoutMs = 1000;
+    int m_interRequestDelayMs = 5;
     quint64 m_nextRequestId = 1;
     quint16 m_nextTransactionId = 1;
     QQueue<Request> m_queue;
