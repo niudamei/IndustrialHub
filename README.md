@@ -159,3 +159,10 @@ ctest --test-dir build --output-on-failure
 ## 业务变量实时趋势
 
 “实时趋势”页面除原有通信帧率外，新增温度、转速、电流三个独立曲线页签。曲线从统一的 `BusinessDataManager` 读取最新业务数据，按设备筛选并展示最近 60 秒趋势，同时计算当前值、最大值、最小值和平均值。仅质量状态为 Good 且时间戳有效的数据参与曲线统计；无有效数据时会显示提示。模拟数据需先在“实时监控 → 模拟设备”中启动。
+
+
+## 业务变量历史存储
+
+业务变量在进入 `BusinessDataManager` 最新值缓存的同时，也会异步批量写入 SQLite 的独立 `business_data_history` 表。历史记录保留设备 ID、变量 ID/名称、数值、单位、时间戳、质量状态和来源协议，并建立时间及设备/变量/时间索引。通信原始帧仍保存在 `communication_history`，两类数据互不混用。
+
+`DataManager::queryBusinessDataHistory` 已提供按时间范围、设备 ID、变量 ID 查询和分页接口；本阶段先完成存储与查询 API，独立的业务历史可视化页面和 CSV 导出将在后续阶段接入。
