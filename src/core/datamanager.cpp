@@ -61,7 +61,7 @@ DataManager::~DataManager()
 
 bool DataManager::isReady() const
 {
-    return m_database.isValid() && m_database.isOpen();
+    return m_ready && m_database.isValid() && m_database.isOpen();
 }
 
 QString DataManager::databasePath() const
@@ -108,6 +108,7 @@ bool DataManager::initializeDatabase()
     }
 
     m_lastError.clear();
+    m_ready = true;
     return true;
 }
 
