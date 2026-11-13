@@ -1,9 +1,18 @@
 #include "TrendPage.h"
 
 #include "src/communication/communicationmanager.h"
+#include "src/core/businessdatamanager.h"
+#include "src/protocol/businessdatapoint.h"
 
 #include <QChart>
 #include <QChartView>
+#include <QGroupBox>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <limits>
+#include <QTabWidget>
+#include <QLabel>
 #include <QComboBox>
 #include <QDateTime>
 #include <QLabel>
@@ -19,12 +28,16 @@
 #include <QtMath>
 #include <QVBoxLayout>
 
-TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent)
+TrendPage::TrendPage(CommunicationManager *communicationManager,
+                     BusinessDataManager *businessDataManager,
+                     QWidget *parent)
     : QWidget(parent),
       ui(new Ui::TrendPage),
-      m_communicationManager(communicationManager)
+      m_communicationManager(communicationManager),
+      m_businessDataManager(businessDataManager)
 {
     ui->setupUi(this);
+    setupBusinessTrend();
 
     auto *chart = new QChart();
     chart->setTitle(QStringLiteral("发送 / 接收帧率（最近 15 秒）"));
@@ -93,6 +106,11 @@ TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent
                 this, &TrendPage::onCommunicationError);
     }
 
+    if (m_businessDataManager) {
+        connect(m_businessDataManager, &BusinessDataManager::valuesUpdated,
+                this, &TrendPage::onBusinessValuesUpdated);
+    }
+
     m_timer = new QTimer(this);
     m_timer->setInterval(250);
     connect(m_timer, &QTimer::timeout, this, &TrendPage::updateTrend);
@@ -103,6 +121,11 @@ TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent
 TrendPage::~TrendPage()
 {
     delete ui;
+}
+
+void TrendPage::onBusinessValuesUpdated(const QString &, const QVector<BusinessDataPoint> &)
+{
+    // 数据缓存由 BusinessDataManager 维护；定时器按最新时间戳采样，避免重复点。
 }
 
 void TrendPage::onDataSent(const QString &deviceId, const QByteArray &data)
@@ -186,9 +209,144 @@ int TrendPage::countRecent(const QQueue<qint64> &times, qint64 nowMs) const
     return count;
 }
 
+ 
+void TrendPage::setupBusinessTrend()
+{
+    auto *group = new QGroupBox(QStringLiteral("业务变量实时趋势（最近 60 秒）"), this);
+    auto *layout = new QVBoxLayout(group);
+    m_businessTabs = new QTabWidget(group);
+
+    const QStringList names = {
+        QStringLiteral("温度"), QStringLiteral("转速"), QStringLiteral("电流")
+    };
+    const QStringList ids = {
+        QStringLiteral("temperature"), QStringLiteral("rpm"), QStringLiteral("current")
+    };
+    const QStringList units = {
+        QStringLiteral("°C"), QStringLiteral("rpm"), QStringLiteral("A")
+    };
+
+    for (int i = 0; i < names.size(); ++i) {
+        auto *chart = new QChart();
+        chart->setTitle(names.at(i) + QStringLiteral("（") + units.at(i) + QStringLiteral("）"));
+        chart->legend()->setVisible(true);
+        auto *axisX = new QValueAxis(chart);
+        axisX->setTitleText(QStringLiteral("时间"));
+        axisX->setLabelFormat("%H:%M:%S");
+        axisX->setRange(QDateTime::currentMSecsSinceEpoch() / 1000.0 - 60.0,
+                        QDateTime::currentMSecsSinceEpoch() / 1000.0);
+        auto *axisY = new QValueAxis(chart);
+        axisY->setTitleText(units.at(i));
+        axisY->setRange(0.0, 100.0);
+        chart->addAxis(axisX, Qt::AlignBottom);
+        chart->addAxis(axisY, Qt::AlignLeft);
+        auto *view = new QChartView(chart, m_businessTabs);
+        view->setRenderHint(QPainter::Antialiasing);
+        m_businessTabs->addTab(view, names.at(i));
+        m_businessCharts.append(chart);
+        m_businessAxisY.append(axisY);
+        m_businessSeries.append({});
+        auto *stats = new QLabel(QStringLiteral("当前值：--    最大值：--    最小值：--    平均值：--"), group);
+        stats->setWordWrap(true);
+        m_businessStats.append(stats);
+    }
+
+    layout->addWidget(m_businessTabs);
+    for (QLabel *stats : m_businessStats)
+        layout->addWidget(stats);
+
+    if (auto *mainLayout = qobject_cast<QVBoxLayout *>(this->layout()))
+        mainLayout->insertWidget(4, group);
+}
+
+void TrendPage::updateBusinessTrend(qint64 nowMs)
+{
+    if (!m_businessDataManager)
+        return;
+
+    const QString selectedId = ui->deviceCombo->currentData().toString();
+    const QList<BusinessDataPoint> points =
+        m_businessDataManager->latestValues(selectedId);
+    const QStringList variableIds = {
+        QStringLiteral("temperature"), QStringLiteral("rpm"), QStringLiteral("current")
+    };
+    const qreal nowSeconds = nowMs / 1000.0;
+    const qreal leftSeconds = nowSeconds - 60.0;
+
+    for (const BusinessDataPoint &point : points) {
+        if (point.quality != DataQuality::Good || !point.timestamp.isValid())
+            continue;
+        const int index = variableIds.indexOf(point.variableId.toCaseFolded());
+        if (index < 0)
+            continue;
+
+        const QString seriesKey = point.deviceId + QLatin1Char('|') + point.variableId;
+        const qint64 timestamp = point.timestamp.toMSecsSinceEpoch();
+        if (m_lastBusinessTimestamp.value(seriesKey, -1) == timestamp)
+            continue;
+
+        QLineSeries *series = m_businessSeries[index].value(point.deviceId);
+        if (!series) {
+            series = new QLineSeries(m_businessCharts[index]);
+            series->setName(point.deviceId);
+            m_businessCharts[index]->addSeries(series);
+            series->attachAxis(m_businessCharts[index]->axes(Qt::Horizontal).first());
+            series->attachAxis(m_businessAxisY[index]);
+            m_businessSeries[index].insert(point.deviceId, series);
+        }
+        series->append(timestamp / 1000.0, point.value);
+        m_lastBusinessTimestamp.insert(seriesKey, timestamp);
+    }
+
+    for (int i = 0; i < m_businessCharts.size(); ++i) {
+        qreal minValue = std::numeric_limits<qreal>::max();
+        qreal maxValue = std::numeric_limits<qreal>::lowest();
+        qreal sum = 0.0;
+        int count = 0;
+        qreal currentValue = 0.0;
+        bool hasCurrent = false;
+
+        for (auto it = m_businessSeries[i].begin(); it != m_businessSeries[i].end(); ++it) {
+            QLineSeries *series = it.value();
+            QVector<QPointF> kept;
+            const auto oldPoints = series->points();
+            for (const QPointF &sample : oldPoints) {
+                if (sample.x() >= leftSeconds) {
+                    kept.append(sample);
+                    minValue = qMin(minValue, sample.y());
+                    maxValue = qMax(maxValue, sample.y());
+                    sum += sample.y();
+                    ++count;
+                    currentValue = sample.y();
+                    hasCurrent = true;
+                }
+            }
+            if (kept.size() != oldPoints.size())
+                series->replace(kept);
+        }
+
+        auto *axisX = qobject_cast<QValueAxis *>(m_businessCharts[i]->axes(Qt::Horizontal).first());
+        axisX->setRange(leftSeconds, nowSeconds);
+        if (count > 0) {
+            const qreal margin = qMax<qreal>(1.0, (maxValue - minValue) * 0.15);
+            m_businessAxisY[i]->setRange(minValue - margin, maxValue + margin);
+            m_businessStats[i]->setText(
+                QStringLiteral("当前值：%1    最大值：%2    最小值：%3    平均值：%4")
+                    .arg(currentValue, 0, 'f', 2)
+                    .arg(maxValue, 0, 'f', 2)
+                    .arg(minValue, 0, 'f', 2)
+                    .arg(sum / count, 0, 'f', 2));
+        } else {
+            m_businessAxisY[i]->setRange(0.0, 100.0);
+            m_businessStats[i]->setText(QStringLiteral("暂无有效数据（请在实时监控中启动模拟设备）"));
+        }
+    }
+}
+
 void TrendPage::updateTrend()
 {
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    updateBusinessTrend(nowMs);
     const QString selectedId = ui->deviceCombo->currentData().toString();
     int txRate = 0;
     int rxRate = 0;
