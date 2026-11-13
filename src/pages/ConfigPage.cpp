@@ -605,6 +605,10 @@ void ConfigPage::updateConnectionDisplay()
             stateText = QStringLiteral("串口已打开");
         } else if (m_deviceManager
                    && m_deviceManager->getDeviceById(id, selectedDevice)
+                   && selectedDevice.commType.compare(QStringLiteral("MODBUS-SIM"), Qt::CaseInsensitive) == 0) {
+            stateText = QStringLiteral("Modbus RTU 模拟设备已就绪");
+        } else if (m_deviceManager
+                   && m_deviceManager->getDeviceById(id, selectedDevice)
                    && (selectedDevice.commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
                        || selectedDevice.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0)) {
             stateText = selectedDevice.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0
@@ -697,8 +701,9 @@ void ConfigPage::refreshModbusMappings()
     DeviceInfo device;
     if (m_deviceManager && m_deviceManager->getDeviceById(deviceId, device)
         && device.commType.compare(QStringLiteral("MODBUS-SIM"), Qt::CaseInsensitive) == 0) {
-        bool ok = false;
-        const int unitId = device.devAddr.trimmed().toInt(&ok);
+        bool ok = true;
+        const int unitId = device.devAddr.trimmed().isEmpty()
+            ? 1 : device.devAddr.trimmed().toInt(&ok);
         if (ok && unitId >= 1 && unitId <= 247)
             m_modbusUnitIdSpin->setValue(unitId);
     }
