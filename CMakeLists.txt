@@ -55,6 +55,12 @@ qt_add_executable(hhh
     src/protocol/modbusmaster.h src/protocol/modbusmaster.cpp
     src/protocol/modbusregistermap.h src/protocol/modbusregistermap.cpp
     src/protocol/modbuspoller.h src/protocol/modbuspoller.cpp
+    src/security/authmanager.h src/security/authmanager.cpp
+    src/security/logindialog.h src/security/logindialog.cpp
+    src/security/usermanagementpage.h src/security/usermanagementpage.cpp
+    src/remote/mqttclient.h src/remote/mqttclient.cpp
+    src/remote/websocketclient.h src/remote/websocketclient.cpp
+    src/remote/remotepage.h src/remote/remotepage.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/simulatedmodbuscommunication.h src/communication/simulatedmodbuscommunication.cpp
@@ -338,6 +344,15 @@ if(BUILD_TESTING)
     target_include_directories(modbus_codec_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(modbus_codec_test PRIVATE Qt6::Core)
     add_test(NAME modbus_codec_test COMMAND modbus_codec_test)
+
+    add_executable(auth_manager_test
+        tests/auth_manager_test.cpp
+        src/security/authmanager.h
+        src/security/authmanager.cpp
+    )
+    target_include_directories(auth_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(auth_manager_test PRIVATE Qt6::Core Qt6::Sql)
+    add_test(NAME auth_manager_test COMMAND auth_manager_test)
 endif()
 
 
