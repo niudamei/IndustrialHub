@@ -42,6 +42,7 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
+    src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
     src/protocol/businessdatapoint.h
@@ -171,6 +172,15 @@ if(BUILD_TESTING)
     target_include_directories(device_database_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(device_database_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME device_database_test COMMAND device_database_test)
+
+    add_executable(device_health_monitor_test
+        tests/device_health_monitor_test.cpp
+        src/core/devicehealthmonitor.h
+        src/core/devicehealthmonitor.cpp
+    )
+    target_include_directories(device_health_monitor_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(device_health_monitor_test PRIVATE Qt6::Core)
+    add_test(NAME device_health_monitor_test COMMAND device_health_monitor_test)
 
     add_executable(datamanager_history_test
         tests/datamanager_history_test.cpp
