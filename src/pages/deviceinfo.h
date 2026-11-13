@@ -18,6 +18,8 @@ struct DeviceInfo
     QString devType;
     QString commType;
     QString devAddr;
+    QString groupName;
+    bool enabled = true;
 
     DeviceStatus status = DeviceStatus::Offline;
 
