@@ -302,6 +302,14 @@ int main(int argc, char *argv[])
         qCritical() << "FAIL: WebSocket local handshake/text frame.";
         return 2;
     }
-    if (!testHttp()) {\n        qCritical() << "FAIL: HTTP POST, bearer token and JSON response.";\n        return 3;\n    }\n    if (!testRemoteTelemetryParser()) {\n        qCritical() << "FAIL: remote telemetry JSON mapping and validation.";\n        return 4;\n    }\n    qInfo() << "PASS: MQTT, WebSocket, HTTP and telemetry parser local tests.";
+    if (!testHttp()) {
+        qCritical() << "FAIL: HTTP POST, bearer token and JSON response.";
+        return 3;
+    }
+    if (!testRemoteTelemetryParser()) {
+        qCritical() << "FAIL: remote telemetry JSON mapping and validation.";
+        return 4;
+    }
+    qInfo() << "PASS: MQTT, WebSocket, HTTP and telemetry parser local tests.";
     return 0;
 }
