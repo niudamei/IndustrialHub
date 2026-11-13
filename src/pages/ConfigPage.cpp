@@ -4,7 +4,8 @@
 #include "src/pages/devicemanager.h"
 #include "src/communication/communicationmanager.h"
 #include "src/protocol/protocolmanager.h"
-#include "src/protocol/businessdatapoint.h"\n#include "src/core/communicationdiagnostics.h"
+#include "src/protocol/businessdatapoint.h"
+#include "src/core/communicationdiagnostics.h"
 
 #include <QDateTime>
 #include <QComboBox>
@@ -13,7 +14,13 @@
 #include <QPushButton>
 #include <QMessageBox>
 #include <QRegularExpression>
-#include <QSignalBlocker>\n#include <QTableWidget>\n#include <QHeaderView>\n#include <QGroupBox>\n#include <QVBoxLayout>\n#include <QSplitter>\n#include <QAbstractItemView>
+#include <QSignalBlocker>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QGroupBox>
+#include <QVBoxLayout>
+#include <QSplitter>
+#include <QAbstractItemView>
 
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
@@ -25,7 +32,24 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
       m_communicationManager(communicationManager),
       m_protocolManager(protocolManager)
 {
-    ui->setupUi(this);\n\n    m_diagnostics = new CommunicationDiagnostics(m_communicationManager, this);\n    auto *diagnosticsGroup = new QGroupBox(QStringLiteral("通信诊断中心"), this);\n    auto *diagnosticsLayout = new QVBoxLayout(diagnosticsGroup);\n    auto *splitter = new QSplitter(Qt::Vertical, diagnosticsGroup);\n    m_statisticsTable = new QTableWidget(splitter);\n    m_statisticsTable->setColumnCount(7);\n    m_statisticsTable->setHorizontalHeaderLabels({QStringLiteral("设备"),QStringLiteral("TX 次数"),QStringLiteral("RX 次数"),QStringLiteral("TX 字节"),QStringLiteral("RX 字节"),QStringLiteral("错误"),QStringLiteral("重连")});\n    m_diagnosticsTable = new QTableWidget(splitter);\n    m_diagnosticsTable->setColumnCount(5);\n    m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});\n    for (QTableWidget *table : {m_statisticsTable,m_diagnosticsTable}) { table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows); table->setAlternatingRowColors(true); table->verticalHeader()->setVisible(false); table->horizontalHeader()->setStretchLastSection(true); }\n    splitter->addWidget(m_statisticsTable); splitter->addWidget(m_diagnosticsTable); splitter->setStretchFactor(0,1); splitter->setStretchFactor(1,2);\n    diagnosticsLayout->addWidget(splitter);\n    ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);\n    if (m_diagnostics) connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged, this, &ConfigPage::refreshDiagnostics);\n    refreshDiagnostics();
+    ui->setupUi(this);
+
+    m_diagnostics = new CommunicationDiagnostics(m_communicationManager, this);
+    auto *diagnosticsGroup = new QGroupBox(QStringLiteral("通信诊断中心"), this);
+    auto *diagnosticsLayout = new QVBoxLayout(diagnosticsGroup);
+    auto *splitter = new QSplitter(Qt::Vertical, diagnosticsGroup);
+    m_statisticsTable = new QTableWidget(splitter);
+    m_statisticsTable->setColumnCount(7);
+    m_statisticsTable->setHorizontalHeaderLabels({QStringLiteral("设备"),QStringLiteral("TX 次数"),QStringLiteral("RX 次数"),QStringLiteral("TX 字节"),QStringLiteral("RX 字节"),QStringLiteral("错误"),QStringLiteral("重连")});
+    m_diagnosticsTable = new QTableWidget(splitter);
+    m_diagnosticsTable->setColumnCount(5);
+    m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});
+    for (QTableWidget *table : {m_statisticsTable,m_diagnosticsTable}) { table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows); table->setAlternatingRowColors(true); table->verticalHeader()->setVisible(false); table->horizontalHeader()->setStretchLastSection(true); }
+    splitter->addWidget(m_statisticsTable); splitter->addWidget(m_diagnosticsTable); splitter->setStretchFactor(0,1); splitter->setStretchFactor(1,2);
+    diagnosticsLayout->addWidget(splitter);
+    ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);
+    if (m_diagnostics) connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged, this, &ConfigPage::refreshDiagnostics);
+    refreshDiagnostics();
 
     // 协议绑定是设备级配置：默认不解析，用户明确选择后才启用解析器。
     auto *parserLayout = new QHBoxLayout;
@@ -95,7 +119,8 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
                 this, &ConfigPage::onParseFailed);
     }
 
-    refreshDeviceList();\n    refreshDiagnostics();
+    refreshDeviceList();
+    refreshDiagnostics();
 }
 
 ConfigPage::~ConfigPage()
