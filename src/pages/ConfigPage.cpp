@@ -226,7 +226,7 @@ void ConfigPage::onSendClicked()
     const QString displayData = slcanMode
         ? QString::fromLatin1(data)
         : QString::fromLatin1(data.toHex(' ').toUpper());
-    appendLog(QStringLiteral("[TX][%1] %2").arg(id, displayData));
+    appendLog(QStringLiteral("[TX请求已入队][%1] %2").arg(id, displayData));
 }
 
 void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connected)
