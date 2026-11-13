@@ -54,19 +54,20 @@ void MainWindow::init_class()
 {
     dashboardPage = new DashboardPage(this);
     devicePage = new DevicePage(m_deviceManager, this);
+    monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
     alarmPage = new AlarmPage(this);
-    configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
     historyPage = new HistoryPage(this);
-    monitorPage = new MonitorPage(this);
+    configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
     settingsPage = new SettingsPage(this);
 
-    ui->stackedWidget->addWidget(dashboardPage);
-    ui->stackedWidget->addWidget(devicePage);
-    ui->stackedWidget->addWidget(alarmPage);
-    ui->stackedWidget->addWidget(configPage);
-    ui->stackedWidget->addWidget(historyPage);
-    ui->stackedWidget->addWidget(monitorPage);
-    ui->stackedWidget->addWidget(settingsPage);
+    // 页面添加顺序必须与左侧导航菜单顺序一致。
+    ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
+    ui->stackedWidget->addWidget(devicePage);    // 1 设备管理
+    ui->stackedWidget->addWidget(monitorPage);   // 2 实时监控
+    ui->stackedWidget->addWidget(alarmPage);     // 3 报警中心
+    ui->stackedWidget->addWidget(historyPage);   // 4 历史数据
+    ui->stackedWidget->addWidget(configPage);    // 5 通信配置
+    ui->stackedWidget->addWidget(settingsPage);  // 6 系统设置
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
