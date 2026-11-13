@@ -5,6 +5,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QLabel>
+#include <QHBoxLayout>
 
 namespace {
 QString statusToString(DeviceStatus s) {
