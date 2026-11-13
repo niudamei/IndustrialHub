@@ -12,6 +12,9 @@
 #include <QPainter>
 #include <QSignalBlocker>
 #include <QTimer>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QHeaderView>
 #include <QValueAxis>
 #include <QtMath>
 #include <QVBoxLayout>
@@ -69,6 +72,10 @@ TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent
                 this, &TrendPage::onDataSent);
         connect(m_communicationManager, &CommunicationManager::deviceDataReceived,
                 this, &TrendPage::onDataReceived);
+        connect(m_communicationManager, &CommunicationManager::deviceConnectionStateChanged,
+                this, &TrendPage::onConnectionStateChanged);
+        connect(m_communicationManager, &CommunicationManager::deviceErrorOccurred,
+                this, &TrendPage::onCommunicationError);
     }
 
     m_timer = new QTimer(this);
@@ -83,14 +90,38 @@ TrendPage::~TrendPage()
     delete ui;
 }
 
-void TrendPage::onDataSent(const QString &deviceId, const QByteArray &)
+void TrendPage::onDataSent(const QString &deviceId, const QByteArray &data)
 {
     recordTraffic(deviceId, true);
+    m_traffic[deviceId.trimmed()].txBytes += static_cast<quint64>(data.size());
 }
 
-void TrendPage::onDataReceived(const QString &deviceId, const QByteArray &)
+void TrendPage::onDataReceived(const QString &deviceId, const QByteArray &data)
 {
     recordTraffic(deviceId, false);
+    m_traffic[deviceId.trimmed()].rxBytes += static_cast<quint64>(data.size());
+}
+
+void TrendPage::onConnectionStateChanged(const QString &deviceId, bool connected)
+{
+    const QString id = deviceId.trimmed();
+    if (id.isEmpty())
+        return;
+    const bool isNewDevice = !m_traffic.contains(id);
+    m_traffic[id].connected = connected;
+    if (isNewDevice)
+        refreshDeviceList();
+}
+
+void TrendPage::onCommunicationError(const QString &deviceId, const QString &)
+{
+    const QString id = deviceId.trimmed();
+    if (id.isEmpty())
+        return;
+    const bool isNewDevice = !m_traffic.contains(id);
+    ++m_traffic[id].errors;
+    if (isNewDevice)
+        refreshDeviceList();
 }
 
 void TrendPage::recordTraffic(const QString &deviceId, bool isTx)
@@ -103,6 +134,12 @@ void TrendPage::recordTraffic(const QString &deviceId, bool isTx)
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     DeviceTraffic &traffic = m_traffic[id];
     (isTx ? traffic.txTimes : traffic.rxTimes).enqueue(nowMs);
+    if (isTx) {
+        ++traffic.txFrames;
+    } else {
+        ++traffic.rxFrames;
+        traffic.lastRxMs = nowMs;
+    }
     if (isNewDevice)
         refreshDeviceList();
 }
@@ -171,4 +208,55 @@ void TrendPage::updateTrend()
     ui->trendHintLabel->setText(selectedId.isEmpty()
         ? QStringLiteral("当前统计范围：全部设备")
         : QStringLiteral("当前统计设备：%1").arg(selectedId));
+
+    QStringList deviceIds = m_traffic.keys();
+    deviceIds.sort(Qt::CaseInsensitive);
+    QList<QString> visibleIds;
+    for (const QString &id : deviceIds) {
+        if (selectedId.isEmpty()
+            || id.compare(selectedId, Qt::CaseInsensitive) == 0)
+            visibleIds.append(id);
+    }
+
+    ui->analysisTable->setRowCount(visibleIds.size());
+    quint64 totalTxFrames = 0;
+    quint64 totalRxFrames = 0;
+    quint64 totalErrors = 0;
+    quint64 totalTxBytes = 0;
+    quint64 totalRxBytes = 0;
+    int row = 0;
+    for (const QString &id : visibleIds) {
+        const DeviceTraffic &traffic = m_traffic[id];
+        totalTxFrames += traffic.txFrames;
+        totalRxFrames += traffic.rxFrames;
+        totalErrors += traffic.errors;
+        totalTxBytes += traffic.txBytes;
+        totalRxBytes += traffic.rxBytes;
+        const QString lastRx = traffic.lastRxMs > 0
+            ? QDateTime::fromMSecsSinceEpoch(traffic.lastRxMs)
+                  .toString(QStringLiteral("HH:mm:ss.zzz"))
+            : QStringLiteral("--");
+        const QString rxAge = traffic.lastRxMs > 0
+            ? QStringLiteral("%1 ms").arg(nowMs - traffic.lastRxMs)
+            : QStringLiteral("--");
+        const QStringList values = {
+            id,
+            traffic.connected ? QStringLiteral("已连接") : QStringLiteral("未连接/未知"),
+            QString::number(traffic.txFrames),
+            QString::number(traffic.rxFrames),
+            QString::number(traffic.txBytes),
+            QString::number(traffic.rxBytes),
+            QString::number(traffic.errors),
+            lastRx,
+            rxAge
+        };
+        for (int column = 0; column < values.size(); ++column)
+            ui->analysisTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
+        ++row;
+    }
+
+    ui->analysisSummaryLabel->setText(
+        QStringLiteral("累计 TX %1 帧 / %2 B    RX %3 帧 / %4 B    错误 %5")
+            .arg(totalTxFrames).arg(totalTxBytes)
+            .arg(totalRxFrames).arg(totalRxBytes).arg(totalErrors));
 }
