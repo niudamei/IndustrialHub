@@ -166,3 +166,8 @@ ctest --test-dir build --output-on-failure
 业务变量在进入 `BusinessDataManager` 最新值缓存的同时，也会异步批量写入 SQLite 的独立 `business_data_history` 表。历史记录保留设备 ID、变量 ID/名称、数值、单位、时间戳、质量状态和来源协议，并建立时间及设备/变量/时间索引。通信原始帧仍保存在 `communication_history`，两类数据互不混用。
 
 `DataManager::queryBusinessDataHistory` 已提供按时间范围、设备 ID、变量 ID 查询和分页接口；本阶段先完成存储与查询 API，独立的业务历史可视化页面和 CSV 导出将在后续阶段接入。
+
+
+## 业务变量历史页面
+
+“历史数据”页面现分为“通信原始帧”和“业务变量历史”两个页签。业务变量历史支持开始/结束时间、设备编号、变量类型筛选，分页显示时间、设备、变量、数值、单位、质量状态和来源协议；当前页数据可绘制历史曲线并导出带 UTF-8 BOM 的 CSV。CSV 导出范围为当前页（每页最多 200 条），可通过翻页分批导出。
