@@ -6,6 +6,7 @@
 
 #include "src/protocol/modbusmaster.h"
 #include "src/protocol/modbuspoller.h"
+#include "src/core/businessdatamanager.h"
 
 using namespace ModbusCodec;
 
@@ -33,7 +34,9 @@ int main(int argc, char *argv[])
         return true;
     });
 
+    BusinessDataManager businessManager;
     ModbusPoller poller(&master, QStringLiteral("MODBUS-POLL-01"));
+    if (!poller.bindBusinessDataManager(&businessManager)) return 8;
     QVector<ModbusRegisterMap::Mapping> mappings;
     ModbusRegisterMap::Mapping temperature;
     temperature.variableId = QStringLiteral("temperature");
@@ -84,6 +87,10 @@ int main(int argc, char *argv[])
         || qAbs(points.at(1).value - 12.34) > 0.0001
         || points.at(0).deviceId != QStringLiteral("MODBUS-POLL-01")
         || points.at(0).sourceProtocol != QStringLiteral("Modbus RTU")) return 6;
+    BusinessDataPoint latest;
+    if (!businessManager.latestValue(QStringLiteral("MODBUS-POLL-01"),
+                                    QStringLiteral("temperature"), latest)
+        || qAbs(latest.value - 25.0) > 0.0001) return 9;
 
     poller.stop();
     if (poller.isRunning() || poller.isPolling()) return 7;
