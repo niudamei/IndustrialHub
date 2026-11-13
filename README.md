@@ -140,3 +140,10 @@ ctest --test-dir build --output-on-failure
 5. 增加 Modbus、MQTT、WebSocket；按真实设备协议逐步验证，不虚构寄存器或报文格式。
 6. 建设用户角色、操作审计和插件接口。
 7. 完善 GitHub Actions、自动化测试、安装包和部署文档。
+
+
+## 报警管理（当前阶段）
+
+业务解析输出的 `BusinessDataPoint` 会并行进入 `AlarmManager`。报警规则支持设备/变量匹配、低限/高限、启用状态和 Info/Warning/Critical 等级；仅 `Good` 质量且为有限数值的数据参与阈值判断。报警事件支持 ACTIVE、ACKNOWLEDGED、RECOVERED、RECOVERED_ACK 状态，并持久化到与通信历史共用的 SQLite 文件。报警中心可查看事件并填写确认人。
+
+当前规则由 `AlarmManager::addRule()` 在运行时配置，尚未提供规则编辑界面或规则持久化；JSON 示例协议仍需用户显式绑定到设备，不能将未知 CAN/RS485 报文当作业务变量解析。
