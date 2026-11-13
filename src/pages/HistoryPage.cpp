@@ -298,6 +298,19 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     connect(m_businessExportButton, &QPushButton::clicked,
             this, &HistoryPage::exportBusinessCurrentPage);
 
+    auto invalidateBusinessQuery = [this]() {
+        m_businessOffset = 0;
+        m_businessCountValid = false;
+    };
+    connect(m_businessStartEdit, &QDateTimeEdit::dateTimeChanged, this,
+            [invalidateBusinessQuery](const QDateTime &) { invalidateBusinessQuery(); });
+    connect(m_businessEndEdit, &QDateTimeEdit::dateTimeChanged, this,
+            [invalidateBusinessQuery](const QDateTime &) { invalidateBusinessQuery(); });
+    connect(m_businessDeviceEdit, &QLineEdit::textChanged, this,
+            [invalidateBusinessQuery](const QString &) { invalidateBusinessQuery(); });
+    connect(m_businessVariableCombo, &QComboBox::currentIndexChanged, this,
+            [invalidateBusinessQuery](int) { invalidateBusinessQuery(); });
+
     const QDate today = QDate::currentDate();
     ui->startDateTimeEdit->setCalendarPopup(true);
     ui->endDateTimeEdit->setCalendarPopup(true);
@@ -342,6 +355,19 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
             this, &HistoryPage::showNextPage);
     connect(ui->exportButton, &QPushButton::clicked,
             this, &HistoryPage::exportCurrentPage);
+
+    auto invalidateCommunicationQuery = [this]() {
+        m_offset = 0;
+        m_communicationCountValid = false;
+    };
+    connect(ui->startDateTimeEdit, &QDateTimeEdit::dateChanged, this,
+            [invalidateCommunicationQuery](const QDate &) { invalidateCommunicationQuery(); });
+    connect(ui->endDateTimeEdit, &QDateTimeEdit::dateChanged, this,
+            [invalidateCommunicationQuery](const QDate &) { invalidateCommunicationQuery(); });
+    connect(ui->deviceFilterEdit, &QLineEdit::textChanged, this,
+            [invalidateCommunicationQuery](const QString &) { invalidateCommunicationQuery(); });
+    connect(ui->directionCombo, &QComboBox::currentTextChanged, this,
+            [invalidateCommunicationQuery](const QString &) { invalidateCommunicationQuery(); });
 
     if (!m_dataManager || !m_dataManager->isReady()) {
         ui->resultLabel->setText(m_dataManager
