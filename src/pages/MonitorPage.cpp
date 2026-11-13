@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QHeaderView>
 #include <QSignalBlocker>
+#include <QStringList>
 #include <QTableWidgetItem>
 
 MonitorPage::MonitorPage(DeviceManager *deviceManager,
