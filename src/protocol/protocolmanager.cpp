@@ -1,5 +1,7 @@
 #include "protocolmanager.h"
 
+#include <utility>
+
 QString ProtocolManager::normalizedKey(const QString &value)
 {
     return value.trimmed().toCaseFolded();
