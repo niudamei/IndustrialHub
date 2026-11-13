@@ -3,13 +3,12 @@
 
 #include "modbusregistermap.h"
 #include "modbusmaster.h"
+#include "src/core/businessdatamanager.h"
 
 #include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QTimer>
-
-class BusinessDataManager;
 
 class ModbusPoller : public QObject
 {
