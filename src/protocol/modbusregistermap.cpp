@@ -55,6 +55,20 @@ bool validate(const Mapping &mapping, QString *error)
         return fail(QStringLiteral("Modbus 变量名称不能为空。"));
     if (mapping.function != 0x03 && mapping.function != 0x04)
         return fail(QStringLiteral("寄存器映射只支持 0x03 或 0x04 读取功能码。"));
+    switch (mapping.dataType) {
+    case DataType::UInt16: case DataType::Int16:
+    case DataType::UInt32: case DataType::Int32: case DataType::Float32:
+        break;
+    default:
+        return fail(QStringLiteral("不支持的 Modbus 数据类型。"));
+    }
+    switch (mapping.wordOrder) {
+    case WordOrder::ABCD: case WordOrder::CDAB:
+    case WordOrder::BADC: case WordOrder::DCBA:
+        break;
+    default:
+        return fail(QStringLiteral("不支持的 Modbus 字节/字序。"));
+    }
     if (static_cast<quint32>(mapping.address) + registerCount(mapping.dataType) > 65536U)
         return fail(QStringLiteral("寄存器映射地址超出 16 位地址范围。"));
     if (!qIsFinite(mapping.scale) || !qIsFinite(mapping.offset))
