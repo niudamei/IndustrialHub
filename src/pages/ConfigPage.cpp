@@ -61,8 +61,11 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
         });
         connect(m_deviceManager, &DeviceManager::deviceUpdated,
                 this, [this](const DeviceInfo &device) {
-            if (!device.enabled && m_communicationManager)
+            const QString key = device.commType.toCaseFolded() + QChar(0x1f) + device.devAddr;
+            const QString previous = m_communicationConfigByDevice.value(device.devId.toCaseFolded());
+            if ((!device.enabled || (!previous.isEmpty() && previous != key)) && m_communicationManager)
                 m_communicationManager->releaseDevice(device.devId);
+            m_communicationConfigByDevice.insert(device.devId.toCaseFolded(), key);
         });
     }
 
@@ -104,9 +107,12 @@ void ConfigPage::refreshDeviceList()
     const QSignalBlocker blocker(ui->deviceCombo);
     ui->deviceCombo->clear();
 
+    m_communicationConfigByDevice.clear();
     if (m_deviceManager) {
         const QList<DeviceInfo> devices = m_deviceManager->getAllDevices();
         for (const DeviceInfo &device : devices) {
+            m_communicationConfigByDevice.insert(device.devId.toCaseFolded(),
+                device.commType.toCaseFolded() + QChar(0x1f) + device.devAddr);
             if (!device.enabled) continue;
             const QString label = QStringLiteral("%1 | %2 | %3")
                                       .arg(device.devId, device.devName, device.commType);
