@@ -180,22 +180,22 @@ static bool testHttp()
     bool requestSeen = false;
     bool completed = false;
     QByteArray requestBuffer;
-    const QByteArray responseBody = QByteArrayLiteral("{\\"ok\\":true,\\"source\\":\\"local-test\\"}");
+    const QByteArray responseBody = QByteArrayLiteral("{\"ok\":true,\"source\":\"local-test\"}");
 
     QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
     QObject::connect(&server, &QTcpServer::newConnection, &server, [&]() {
         QTcpSocket *peer = server.nextPendingConnection();
         QObject::connect(peer, &QTcpSocket::readyRead, peer, [&, peer]() {
             requestBuffer += peer->readAll();
-            if (requestBuffer.contains("\\r\\n\\r\\n")) {
+            if (requestBuffer.contains("\r\n\r\n")) {
                 requestSeen = requestBuffer.startsWith("POST /api/test HTTP/1.1")
                     && requestBuffer.contains("Authorization: Bearer test-token")
                     && requestBuffer.contains("Content-Type: application/json")
-                    && requestBuffer.endsWith(QByteArrayLiteral("{\\"ping\\":1}"));
-                const QByteArray response = QByteArrayLiteral("HTTP/1.1 201 Created\\r\\n")
-                    + QByteArrayLiteral("Content-Type: application/json\\r\\n")
+                    && requestBuffer.endsWith(QByteArrayLiteral("{\"ping\":1}"));
+                const QByteArray response = QByteArrayLiteral("HTTP/1.1 201 Created\r\n")
+                    + QByteArrayLiteral("Content-Type: application/json\r\n")
                     + QByteArrayLiteral("Content-Length: ") + QByteArray::number(responseBody.size())
-                    + QByteArrayLiteral("\\r\\nConnection: close\\r\\n\\r\\n") + responseBody;
+                    + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + responseBody;
                 peer->write(response);
                 peer->flush();
             }
@@ -214,7 +214,7 @@ static bool testHttp()
 
     client.sendRequest(QStringLiteral("POST"),
         QUrl(QStringLiteral("http://127.0.0.1:%1/api/test").arg(server.serverPort())),
-        QByteArrayLiteral("{\\"ping\\":1}"), QStringLiteral("test-token"), 3000);
+        QByteArrayLiteral("{\"ping\":1}"), QStringLiteral("test-token"), 3000);
     timeout.start(5000);
     loop.exec();
     return requestSeen && completed;
