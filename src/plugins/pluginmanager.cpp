@@ -2,6 +2,7 @@
 
 #include <QFileInfo>
 #include <QJsonObject>
+#include <QLibrary>
 #include <QPluginLoader>
 #include <QDebug>
 
@@ -31,6 +32,7 @@ bool PluginManager::loadPlugin(const QString &filePath, QString *errorMessage)
     }
 
     auto *loader = new QPluginLoader(absolutePath, this);
+    loader->setLoadHints(QLibrary::LoadHints()); // 允许显式卸载动态插件
     const QJsonObject metadata = loader->metaData();
     if (metadata.isEmpty()) {
         const QString reason = loader->errorString();
