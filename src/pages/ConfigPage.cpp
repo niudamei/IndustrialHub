@@ -15,6 +15,7 @@
 #include <QDateTime>
 #include <QComboBox>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QMessageBox>
@@ -151,6 +152,7 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
             this, &ConfigPage::onApplyParserClicked);
 
     auto *modbusGroup = new QGroupBox(QStringLiteral("Modbus RTU / TCP 主站轮询"), this);
+    modbusGroup->setMaximumHeight(360);
     auto *modbusLayout = new QVBoxLayout(modbusGroup);
     auto *modbusOptions = new QGridLayout;
     m_modbusUnitIdSpin = new QSpinBox(modbusGroup);
