@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
         return 4;
     }
 
+    QTcpSocket *tcpPeer = nullptr;
     QObject::connect(&server, &QTcpServer::newConnection, &server, [&]() {
         tcpPeer = server.nextPendingConnection();
         QObject::connect(tcpPeer, &QTcpSocket::readyRead, tcpPeer, [peer = tcpPeer]() {
@@ -100,7 +101,6 @@ int main(int argc, char *argv[])
     bool tcpConnected = false;
     bool tcpDisconnected = false;
     int tcpConnectCount = 0;
-    QTcpSocket *tcpPeer = nullptr;
     QObject::connect(&manager, &CommunicationManager::deviceConnectionStateChanged,
                      [&](const QString &id, bool connected) {
         if (id == tcp.devId && connected) {
