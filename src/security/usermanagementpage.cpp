@@ -74,10 +74,11 @@ UserManagementPage::UserManagementPage(AuthManager *authManager, QWidget *parent
     connect(toggle, &QPushButton::clicked, this, &UserManagementPage::toggleSelectedUser);
     connect(refresh, &QPushButton::clicked, this, &UserManagementPage::refreshUsers);
     connect(auditRefresh, &QPushButton::clicked, this, &UserManagementPage::refreshAuditLog);
-    if (m_authManager) {
+    connect(tabs, &QTabWidget::currentChanged, this, [this](int index) {
+        if (index == 1) refreshAuditLog();
+    });
+    if (m_authManager)
         connect(m_authManager, &AuthManager::usersChanged, this, &UserManagementPage::refreshUsers);
-        connect(m_authManager, &AuthManager::auditWritten, this, &UserManagementPage::refreshAuditLog);
-    }
     refreshUsers();
     refreshAuditLog();
 }
