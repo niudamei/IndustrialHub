@@ -1,6 +1,7 @@
 #include "HistoryPage.h"
 
 #include <QDate>
+#include <QDateEdit>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -302,6 +303,12 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     m_exportWatcher = new QFutureWatcher<HistoryExportResult>(this);
     connect(m_exportWatcher, &QFutureWatcher<HistoryExportResult>::finished, this,
             [this]() { applyExportResult(m_exportWatcher->result()); });
+    m_retentionPreviewWatcher = new QFutureWatcher<HistoryStoragePreview>(this);
+    connect(m_retentionPreviewWatcher, &QFutureWatcher<HistoryStoragePreview>::finished,
+            this, [this]() { applyHistoryPreview(m_retentionPreviewWatcher->result()); });
+    m_retentionCleanupWatcher = new QFutureWatcher<HistoryCleanupResult>(this);
+    connect(m_retentionCleanupWatcher, &QFutureWatcher<HistoryCleanupResult>::finished,
+            this, [this]() { applyHistoryCleanup(m_retentionCleanupWatcher->result()); });
     connect(m_businessWatcher, &QFutureWatcher<BusinessPageResult>::finished,
             this, [this]() { applyBusinessResult(m_businessWatcher->result()); });
 
@@ -385,6 +392,34 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     businessLayout->addLayout(businessPagination);
     tabs->addTab(businessTab, QStringLiteral("业务变量历史"));
     rootLayout->addWidget(tabs);
+
+    auto *retentionGroup = new QGroupBox(QStringLiteral("历史数据维护（仅手动清理）"), this);
+    auto *retentionLayout = new QGridLayout(retentionGroup);
+    m_retentionCutoffEdit = new QDateEdit(QDate::currentDate().addDays(-180), retentionGroup);
+    m_retentionCutoffEdit->setCalendarPopup(true);
+    m_retentionCutoffEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
+    m_retentionPreviewButton = new QPushButton(QStringLiteral("统计并预览"), retentionGroup);
+    m_retentionCleanupButton = new QPushButton(QStringLiteral("确认清理过期数据"), retentionGroup);
+    m_retentionCleanupButton->setEnabled(false);
+    m_retentionStatusLabel = new QLabel(
+        QStringLiteral("默认不自动删除任何历史记录。请先预览，再单独确认清理。"), retentionGroup);
+    m_retentionStatusLabel->setWordWrap(true);
+    retentionLayout->addWidget(new QLabel(QStringLiteral("清理截止日期："), retentionGroup), 0, 0);
+    retentionLayout->addWidget(m_retentionCutoffEdit, 0, 1);
+    retentionLayout->addWidget(m_retentionPreviewButton, 0, 2);
+    retentionLayout->addWidget(m_retentionCleanupButton, 0, 3);
+    retentionLayout->addWidget(m_retentionStatusLabel, 1, 0, 1, 4);
+    rootLayout->addWidget(retentionGroup);
+
+    connect(m_retentionPreviewButton, &QPushButton::clicked,
+            this, &HistoryPage::previewHistoryCleanup);
+    connect(m_retentionCleanupButton, &QPushButton::clicked,
+            this, &HistoryPage::startHistoryCleanup);
+    connect(m_retentionCutoffEdit, &QDateEdit::dateChanged, this, [this](const QDate &) {
+        m_lastRetentionPreview = HistoryStoragePreview{};
+        m_retentionCleanupButton->setEnabled(false);
+        m_retentionStatusLabel->setText(QStringLiteral("截止日期已修改，请重新统计预览。"));
+    });
 
     connect(m_businessQueryButton, &QPushButton::clicked, this, [this]() {
         m_businessOffset = 0;
@@ -722,6 +757,98 @@ void HistoryPage::applyExportResult(const HistoryExportResult &result)
     }
     QMessageBox::information(this, QStringLiteral("导出完成"),
         QStringLiteral("已导出全部筛选结果，共 %1 条记录。").arg(result.rows));
+}
+
+
+void HistoryPage::previewHistoryCleanup()
+{
+    if (!m_dataManager || !m_dataManager->isReady()
+        || m_retentionPreviewWatcher->isRunning()
+        || m_retentionCleanupWatcher->isRunning())
+        return;
+    const QString databasePath = m_dataManager->databasePath();
+    const QDateTime cutoff(m_retentionCutoffEdit->date(), QTime(0, 0, 0));
+    m_retentionPreviewButton->setEnabled(false);
+    m_retentionCleanupButton->setEnabled(false);
+    m_retentionStatusLabel->setText(QStringLiteral("正在后台统计历史数据，请稍候…"));
+    m_retentionPreviewWatcher->setFuture(QtConcurrent::run([databasePath, cutoff]() {
+        return HistoryMaintenance::inspect(databasePath, cutoff);
+    }));
+}
+
+void HistoryPage::applyHistoryPreview(const HistoryStoragePreview &preview)
+{
+    m_retentionPreviewButton->setEnabled(true);
+    m_lastRetentionPreview = preview;
+    if (!preview.ok) {
+        m_retentionCleanupButton->setEnabled(false);
+        m_retentionStatusLabel->setText(QStringLiteral("统计失败：%1").arg(preview.error));
+        return;
+    }
+    const qint64 totalOld = preview.communicationRowsToDelete + preview.businessRowsToDelete;
+    const double payloadMiB = static_cast<double>(preview.communicationPayloadBytesToDelete) / (1024.0 * 1024.0);
+    const double dbMiB = static_cast<double>(preview.databaseFileBytes) / (1024.0 * 1024.0);
+    m_retentionStatusLabel->setText(
+        QStringLiteral("数据库文件约 %1 MiB；现有通信记录 %2 条、业务记录 %3 条。截止 %4 之前可清理：通信 %5 条（载荷约 %6 MiB）、业务 %7 条，共 %8 条。请核对后再点“确认清理过期数据”。")
+            .arg(dbMiB, 0, 'f', 2)
+            .arg(preview.communicationRows)
+            .arg(preview.businessRows)
+            .arg(preview.cutoff.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")))
+            .arg(preview.communicationRowsToDelete)
+            .arg(payloadMiB, 0, 'f', 2)
+            .arg(preview.businessRowsToDelete)
+            .arg(totalOld));
+    m_retentionCleanupButton->setEnabled(totalOld > 0
+        && preview.cutoff.date() == m_retentionCutoffEdit->date());
+}
+
+void HistoryPage::startHistoryCleanup()
+{
+    if (!m_dataManager || m_retentionCleanupWatcher->isRunning()
+        || !m_lastRetentionPreview.ok)
+        return;
+    const QDateTime cutoff(m_retentionCutoffEdit->date(), QTime(0, 0, 0));
+    if (cutoff != m_lastRetentionPreview.cutoff) {
+        m_retentionCleanupButton->setEnabled(false);
+        QMessageBox::warning(this, QStringLiteral("需要重新预览"),
+                             QStringLiteral("清理截止日期已变化，请先重新统计预览。"));
+        return;
+    }
+    const qint64 comm = m_lastRetentionPreview.communicationRowsToDelete;
+    const qint64 business = m_lastRetentionPreview.businessRowsToDelete;
+    const QString prompt = QStringLiteral(
+        "即将永久删除截止日期 %1 之前的历史数据：\n通信原始帧：%2 条\n业务变量：%3 条\n\n此操作不可撤销，建议先导出备份。确定继续吗？")
+        .arg(cutoff.toString(QStringLiteral("yyyy-MM-dd")))
+        .arg(comm).arg(business);
+    if (QMessageBox::question(this, QStringLiteral("确认永久清理"), prompt,
+                              QMessageBox::Yes | QMessageBox::No,
+                              QMessageBox::No) != QMessageBox::Yes)
+        return;
+
+    const QString databasePath = m_dataManager->databasePath();
+    m_retentionPreviewButton->setEnabled(false);
+    m_retentionCleanupButton->setEnabled(false);
+    m_retentionStatusLabel->setText(QStringLiteral("正在后台分批清理历史记录…"));
+    m_retentionCleanupWatcher->setFuture(QtConcurrent::run([databasePath, cutoff]() {
+        return HistoryMaintenance::cleanupOlderThan(databasePath, cutoff, 1000);
+    }));
+}
+
+void HistoryPage::applyHistoryCleanup(const HistoryCleanupResult &result)
+{
+    if (!result.ok) {
+        m_retentionStatusLabel->setText(
+            QStringLiteral("清理未能完整完成：%1；本次已删除通信 %2 条、业务 %3 条。请重新预览确认剩余数据。")
+                .arg(result.error).arg(result.communicationRowsDeleted)
+                .arg(result.businessRowsDeleted));
+        m_retentionPreviewButton->setEnabled(true);
+        m_retentionCleanupButton->setEnabled(false);
+        return;
+    }
+    m_retentionStatusLabel->setText(
+        QStringLiteral("清理完成：通信原始帧 %1 条，业务变量 %2 条。正在重新统计剩余数据…")
+            .arg(result.communicationRowsDeleted).arg(result.businessRowsDeleted));
+    previewHistoryCleanup();
 }
 
 void HistoryPage::queryBusinessHistory()
