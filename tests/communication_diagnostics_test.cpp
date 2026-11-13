@@ -35,10 +35,14 @@ int main(int argc, char *argv[])
     const auto a = diagnostics.statisticsFor(QStringLiteral("DEV-A"));
     const auto b = diagnostics.statisticsFor(QStringLiteral("DEV-B"));
     const auto events = diagnostics.recentEvents(100);
+    const auto deviceEvents = diagnostics.recentEvents(100, QStringLiteral("DEV-A"));
+    const auto timeEvents = diagnostics.recentEvents(100, QString(),
+        QDateTime::currentDateTime().addSecs(-60),
+        QDateTime::currentDateTime().addSecs(60));
 
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
-        || b.txCount != 1 || b.txBytes != 2 || events.size() != 6) {
+        || b.txCount != 1 || b.txBytes != 2 || events.size() != 6\n        || deviceEvents.size() != 5 || timeEvents.size() != 6) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
