@@ -34,6 +34,7 @@ public:
                   QString *errorMessage = nullptr);
 
     bool isConnected(const QString &deviceId) const;
+    QString communicationType(const QString &deviceId) const;
     QStringList managedDeviceIds() const;
     void releaseDevice(const QString &deviceId);
 
