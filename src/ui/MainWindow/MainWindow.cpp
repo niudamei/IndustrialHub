@@ -230,7 +230,8 @@ void MainWindow::applyPermissions()
         QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
         QStringLiteral("alarm.view"), QStringLiteral("history.view"),
         QStringLiteral("communication.view"), QStringLiteral("system.manage"),
-        QStringLiteral("remote.manage"), QStringLiteral("users.manage")
+        QStringLiteral("remote.manage"), QStringLiteral("users.manage"),
+        QStringLiteral("plugins.manage")
     };
     for (int i = 0; i < ui->listWidget->count() && i < required.size(); ++i) {
         const bool allowed = m_authManager->hasPermission(required.at(i));
