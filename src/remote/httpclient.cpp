@@ -74,6 +74,16 @@ bool HttpClient::sendRequest(const QString &method, const QUrl &url,
     }
 
     QNetworkReply *reply = m_reply;
+    connect(reply, &QNetworkReply::downloadProgress, this,
+            [this, reply](qint64 received, qint64 total) {
+        if (m_reply != reply || (received <= 1024 * 1024 && (total <= 0 || total <= 1024 * 1024)))
+            return;
+        m_timeout.stop();
+        m_reply = nullptr;
+        reply->abort();
+        reply->deleteLater();
+        emit requestFailed(QStringLiteral("HTTP 响应超过 1 MiB 限制，已中止下载。"));
+    });
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (m_reply != reply)
             return;
