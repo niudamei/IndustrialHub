@@ -7,7 +7,7 @@ namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 class DashboardPage; class DevicePage; class DeviceManager; class CommunicationManager;
 class DeviceHealthMonitor; class DataManager; class ProtocolManager; class BusinessDataManager; class AlarmManager; class AlarmPage; class ConfigPage; class HistoryPage; class MonitorPage;
-class TrendPage; class SettingsPage; class AuthManager; class RemotePage; class UserManagementPage;
+class TrendPage; class SettingsPage; class AuthManager; class RemotePage; class UserManagementPage;\nclass PluginManager; class PluginPage;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -30,7 +30,7 @@ private:
     AlarmManager *m_alarmManager = nullptr;
     AuthManager *m_authManager = nullptr;
     RemotePage *m_remotePage = nullptr;
-    UserManagementPage *m_userManagementPage = nullptr;
+    UserManagementPage *m_userManagementPage = nullptr;\n    PluginManager *m_pluginManager = nullptr;\n    PluginPage *m_pluginPage = nullptr;
     DashboardPage *dashboardPage = nullptr;
     DevicePage *devicePage = nullptr;
     AlarmPage *alarmPage = nullptr;
