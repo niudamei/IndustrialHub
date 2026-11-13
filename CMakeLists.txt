@@ -229,6 +229,15 @@ if(BUILD_TESTING)
     target_include_directories(datamanager_history_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(datamanager_history_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
     add_test(NAME datamanager_history_test COMMAND datamanager_history_test)
+
+    add_executable(modbus_codec_test
+        tests/modbus_codec_test.cpp
+        src/protocol/modbuscodec.h
+        src/protocol/modbuscodec.cpp
+    )
+    target_include_directories(modbus_codec_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(modbus_codec_test PRIVATE Qt6::Core)
+    add_test(NAME modbus_codec_test COMMAND modbus_codec_test)
 endif()
 
 
