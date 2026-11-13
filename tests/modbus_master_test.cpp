@@ -174,8 +174,10 @@ int main(int argc, char *argv[])
     loopbackDevice.devId = QStringLiteral("MODBUS-RTU-LOOPBACK");
     loopbackDevice.commType = QStringLiteral("MODBUS-LOOPBACK");
     ModbusMaster boundMaster(Transport::Rtu);
-    if (!boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)
-        || !manager.connectDevice(loopbackDevice)) return 11;
+    if (!manager.registerFactory(QStringLiteral("MODBUS-LOOPBACK"),
+            [](QObject *parent) { return new ModbusLoopbackCommunication(parent); })) return 11;
+    if (!manager.connectDevice(loopbackDevice)
+        || !boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)) return 12;
     bool boundComplete = false;
     QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
                      [&](quint64, const Response &r) {
@@ -183,13 +185,13 @@ int main(int argc, char *argv[])
             && r.registers.at(0) == 0x2A && r.registers.at(1) == 0x2B;
     });
     boundMaster.setTimeoutMs(500);
-    if (boundMaster.readHoldingRegisters(0, 2) == 0) return 12;
+    if (boundMaster.readHoldingRegisters(0, 2) == 0) return 13;
     QEventLoop boundLoop;
     QTimer::singleShot(1000, &boundLoop, &QEventLoop::quit);
     QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
                      &boundLoop, &QEventLoop::quit);
     boundLoop.exec();
-    if (!boundComplete) return 13;
+    if (!boundComplete) return 14;
     manager.disconnectAll();
     return 0;
 }
