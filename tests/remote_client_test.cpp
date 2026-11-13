@@ -1,5 +1,6 @@
 #include "src/remote/mqttclient.h"
 #include "src/remote/websocketclient.h"
+#include "src/remote/httpclient.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -165,6 +166,60 @@ static bool testWebSocket()
     return handshake && sent && received;
 }
 
+
+static bool testHttp()
+{
+    QTcpServer server;
+    if (!server.listen(QHostAddress::LocalHost, 0))
+        return false;
+
+    HttpClient client;
+    QEventLoop loop;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    bool requestSeen = false;
+    bool completed = false;
+    QByteArray requestBuffer;
+    const QByteArray responseBody = QByteArrayLiteral("{\\"ok\\":true,\\"source\\":\\"local-test\\"}");
+
+    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+    QObject::connect(&server, &QTcpServer::newConnection, &server, [&]() {
+        QTcpSocket *peer = server.nextPendingConnection();
+        QObject::connect(peer, &QTcpSocket::readyRead, peer, [&, peer]() {
+            requestBuffer += peer->readAll();
+            if (requestBuffer.contains("\\r\\n\\r\\n")) {
+                requestSeen = requestBuffer.startsWith("POST /api/test HTTP/1.1")
+                    && requestBuffer.contains("Authorization: Bearer test-token")
+                    && requestBuffer.contains("Content-Type: application/json")
+                    && requestBuffer.endsWith(QByteArrayLiteral("{\\"ping\\":1}"));
+                const QByteArray response = QByteArrayLiteral("HTTP/1.1 201 Created\\r\\n")
+                    + QByteArrayLiteral("Content-Type: application/json\\r\\n")
+                    + QByteArrayLiteral("Content-Length: ") + QByteArray::number(responseBody.size())
+                    + QByteArrayLiteral("\\r\\nConnection: close\\r\\n\\r\\n") + responseBody;
+                peer->write(response);
+                peer->flush();
+            }
+        });
+    });
+    QObject::connect(&client, &HttpClient::requestFinished, &loop,
+                     [&](int status, const QByteArray &body) {
+        completed = status == 201 && body == responseBody;
+        loop.quit();
+    });
+    QObject::connect(&client, &HttpClient::requestFailed, &loop,
+                     [&](const QString &error) {
+        qWarning() << "HTTP test request failed:" << error;
+        loop.quit();
+    });
+
+    client.sendRequest(QStringLiteral("POST"),
+        QUrl(QStringLiteral("http://127.0.0.1:%1/api/test").arg(server.serverPort())),
+        QByteArrayLiteral("{\\"ping\\":1}"), QStringLiteral("test-token"), 3000);
+    timeout.start(5000);
+    loop.exec();
+    return requestSeen && completed;
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -176,6 +231,6 @@ int main(int argc, char *argv[])
         qCritical() << "FAIL: WebSocket local handshake/text frame.";
         return 2;
     }
-    qInfo() << "PASS: MQTT and WebSocket local protocol smoke tests.";
+    if (!testHttp()) {\n        qCritical() << "FAIL: HTTP POST, bearer token and JSON response.";\n        return 3;\n    }\n    qInfo() << "PASS: MQTT, WebSocket and HTTP local protocol smoke tests.";
     return 0;
 }
