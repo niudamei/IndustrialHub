@@ -7,6 +7,10 @@
 #include "src/protocol/businessdatapoint.h"
 #include "src/core/communicationdiagnostics.h"
 #include "src/core/devicehealthmonitor.h"
+#include "src/core/businessdatamanager.h"
+#include "src/core/alarmmanager.h"
+#include "src/protocol/modbusmaster.h"
+#include "src/protocol/modbuspoller.h"
 
 #include <QDateTime>
 #include <QComboBox>
@@ -27,17 +31,28 @@
 #include <QLineEdit>
 #include <QFile>
 #include <QFileDialog>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSettings>
+#include <QTableWidgetItem>
 
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
                        ProtocolManager *protocolManager,
                        QWidget *parent,
-                       DeviceHealthMonitor *healthMonitor)
+                       DeviceHealthMonitor *healthMonitor,
+                       BusinessDataManager *businessDataManager,
+                       AlarmManager *alarmManager)
     : QWidget(parent),
       ui(new Ui::ConfigPage),
       m_deviceManager(deviceManager),
       m_communicationManager(communicationManager),
-      m_protocolManager(protocolManager)
+      m_protocolManager(protocolManager),
+      m_businessDataManager(businessDataManager),
+      m_alarmManager(alarmManager)
 {
     ui->setupUi(this);
 
@@ -135,6 +150,122 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     connect(applyParserButton, &QPushButton::clicked,
             this, &ConfigPage::onApplyParserClicked);
 
+    auto *modbusGroup = new QGroupBox(QStringLiteral("Modbus RTU / TCP 主站轮询"), this);
+    auto *modbusLayout = new QVBoxLayout(modbusGroup);
+    auto *modbusOptions = new QGridLayout;
+    m_modbusUnitIdSpin = new QSpinBox(modbusGroup);
+    m_modbusUnitIdSpin->setRange(1, 247);
+    m_modbusUnitIdSpin->setValue(1);
+    m_modbusIntervalSpin = new QSpinBox(modbusGroup);
+    m_modbusIntervalSpin->setRange(100, 60000);
+    m_modbusIntervalSpin->setValue(1000);
+    m_modbusIntervalSpin->setSuffix(QStringLiteral(" ms"));
+    m_modbusTimeoutSpin = new QSpinBox(modbusGroup);
+    m_modbusTimeoutSpin->setRange(50, 60000);
+    m_modbusTimeoutSpin->setValue(1000);
+    m_modbusTimeoutSpin->setSuffix(QStringLiteral(" ms"));
+    modbusOptions->addWidget(new QLabel(QStringLiteral("单元地址："), modbusGroup), 0, 0);
+    modbusOptions->addWidget(m_modbusUnitIdSpin, 0, 1);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("轮询间隔："), modbusGroup), 0, 2);
+    modbusOptions->addWidget(m_modbusIntervalSpin, 0, 3);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("响应超时："), modbusGroup), 0, 4);
+    modbusOptions->addWidget(m_modbusTimeoutSpin, 0, 5);
+
+    m_modbusVariableIdEdit = new QLineEdit(modbusGroup);
+    m_modbusVariableIdEdit->setPlaceholderText(QStringLiteral("temperature"));
+    m_modbusNameEdit = new QLineEdit(modbusGroup);
+    m_modbusNameEdit->setPlaceholderText(QStringLiteral("温度"));
+    m_modbusUnitEdit = new QLineEdit(modbusGroup);
+    m_modbusUnitEdit->setPlaceholderText(QStringLiteral("°C"));
+    m_modbusAddressSpin = new QSpinBox(modbusGroup);
+    m_modbusAddressSpin->setRange(0, 65535);
+    m_modbusFunctionCombo = new QComboBox(modbusGroup);
+    m_modbusFunctionCombo->addItem(QStringLiteral("03 保持寄存器"), 0x03);
+    m_modbusFunctionCombo->addItem(QStringLiteral("04 输入寄存器"), 0x04);
+    m_modbusDataTypeCombo = new QComboBox(modbusGroup);
+    m_modbusDataTypeCombo->addItem(QStringLiteral("UInt16"), static_cast<int>(ModbusRegisterMap::DataType::UInt16));
+    m_modbusDataTypeCombo->addItem(QStringLiteral("Int16"), static_cast<int>(ModbusRegisterMap::DataType::Int16));
+    m_modbusDataTypeCombo->addItem(QStringLiteral("UInt32"), static_cast<int>(ModbusRegisterMap::DataType::UInt32));
+    m_modbusDataTypeCombo->addItem(QStringLiteral("Int32"), static_cast<int>(ModbusRegisterMap::DataType::Int32));
+    m_modbusDataTypeCombo->addItem(QStringLiteral("Float32"), static_cast<int>(ModbusRegisterMap::DataType::Float32));
+    m_modbusWordOrderCombo = new QComboBox(modbusGroup);
+    m_modbusWordOrderCombo->addItem(QStringLiteral("ABCD"), static_cast<int>(ModbusRegisterMap::WordOrder::ABCD));
+    m_modbusWordOrderCombo->addItem(QStringLiteral("CDAB"), static_cast<int>(ModbusRegisterMap::WordOrder::CDAB));
+    m_modbusWordOrderCombo->addItem(QStringLiteral("BADC"), static_cast<int>(ModbusRegisterMap::WordOrder::BADC));
+    m_modbusWordOrderCombo->addItem(QStringLiteral("DCBA"), static_cast<int>(ModbusRegisterMap::WordOrder::DCBA));
+    m_modbusScaleSpin = new QDoubleSpinBox(modbusGroup);
+    m_modbusScaleSpin->setRange(-1000000000.0, 1000000000.0);
+    m_modbusScaleSpin->setDecimals(6);
+    m_modbusScaleSpin->setValue(1.0);
+    m_modbusOffsetSpin = new QDoubleSpinBox(modbusGroup);
+    m_modbusOffsetSpin->setRange(-1000000000.0, 1000000000.0);
+    m_modbusOffsetSpin->setDecimals(6);
+
+    modbusOptions->addWidget(new QLabel(QStringLiteral("变量 ID："), modbusGroup), 1, 0);
+    modbusOptions->addWidget(m_modbusVariableIdEdit, 1, 1);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("名称："), modbusGroup), 1, 2);
+    modbusOptions->addWidget(m_modbusNameEdit, 1, 3);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("单位："), modbusGroup), 1, 4);
+    modbusOptions->addWidget(m_modbusUnitEdit, 1, 5);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("寄存器地址："), modbusGroup), 2, 0);
+    modbusOptions->addWidget(m_modbusAddressSpin, 2, 1);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("功能码："), modbusGroup), 2, 2);
+    modbusOptions->addWidget(m_modbusFunctionCombo, 2, 3);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("数据类型："), modbusGroup), 2, 4);
+    modbusOptions->addWidget(m_modbusDataTypeCombo, 2, 5);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("字序："), modbusGroup), 3, 0);
+    modbusOptions->addWidget(m_modbusWordOrderCombo, 3, 1);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("缩放："), modbusGroup), 3, 2);
+    modbusOptions->addWidget(m_modbusScaleSpin, 3, 3);
+    modbusOptions->addWidget(new QLabel(QStringLiteral("偏移："), modbusGroup), 3, 4);
+    modbusOptions->addWidget(m_modbusOffsetSpin, 3, 5);
+    modbusLayout->addLayout(modbusOptions);
+
+    auto *modbusButtons = new QHBoxLayout;
+    m_modbusAddButton = new QPushButton(QStringLiteral("添加映射"), modbusGroup);
+    m_modbusRemoveButton = new QPushButton(QStringLiteral("删除选中映射"), modbusGroup);
+    m_modbusLoadSampleButton = new QPushButton(QStringLiteral("加载模拟示例映射"), modbusGroup);
+    m_modbusStartButton = new QPushButton(QStringLiteral("启动轮询"), modbusGroup);
+    m_modbusStopButton = new QPushButton(QStringLiteral("停止轮询"), modbusGroup);
+    modbusButtons->addWidget(m_modbusAddButton);
+    modbusButtons->addWidget(m_modbusRemoveButton);
+    modbusButtons->addWidget(m_modbusLoadSampleButton);
+    modbusButtons->addStretch(1);
+    modbusButtons->addWidget(m_modbusStartButton);
+    modbusButtons->addWidget(m_modbusStopButton);
+    modbusLayout->addLayout(modbusButtons);
+
+    m_modbusMappingTable = new QTableWidget(modbusGroup);
+    m_modbusMappingTable->setColumnCount(9);
+    m_modbusMappingTable->setHorizontalHeaderLabels({
+        QStringLiteral("变量 ID"), QStringLiteral("名称"), QStringLiteral("地址"),
+        QStringLiteral("功能码"), QStringLiteral("类型"), QStringLiteral("字序"),
+        QStringLiteral("缩放"), QStringLiteral("偏移"), QStringLiteral("单位")
+    });
+    m_modbusMappingTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_modbusMappingTable->horizontalHeader()->setStretchLastSection(true);
+    m_modbusMappingTable->verticalHeader()->setVisible(false);
+    m_modbusMappingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_modbusMappingTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_modbusMappingTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_modbusMappingTable->setMaximumHeight(150);
+    modbusLayout->addWidget(m_modbusMappingTable);
+
+    m_modbusStatusLabel = new QLabel(
+        QStringLiteral("请选择已连接的 TCP / RS485 / MODBUS-SIM 设备；真实设备映射请以设备手册为准。"),
+        modbusGroup);
+    m_modbusStatusLabel->setWordWrap(true);
+    modbusLayout->addWidget(m_modbusStatusLabel);
+    ui->verticalLayout->insertWidget(2, modbusGroup, 1);
+
+    connect(m_modbusAddButton, &QPushButton::clicked, this, &ConfigPage::addModbusMapping);
+    connect(m_modbusRemoveButton, &QPushButton::clicked, this, &ConfigPage::removeModbusMapping);
+    connect(m_modbusLoadSampleButton, &QPushButton::clicked, this, &ConfigPage::loadSimulatedModbusMappings);
+    connect(m_modbusStartButton, &QPushButton::clicked, this, &ConfigPage::startModbusPolling);
+    connect(m_modbusStopButton, &QPushButton::clicked, this, &ConfigPage::stopModbusPolling);
+    connect(m_modbusMappingTable, &QTableWidget::itemSelectionChanged,
+            this, &ConfigPage::updateModbusControls);
+
     ui->disconnectButton->setEnabled(false);
     ui->sendButton->setEnabled(false);
 
@@ -146,6 +277,8 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
             this, &ConfigPage::onSendClicked);
     connect(ui->deviceCombo, &QComboBox::currentIndexChanged,
             this, &ConfigPage::updateConnectionDisplay);
+    connect(ui->deviceCombo, &QComboBox::currentIndexChanged,
+            this, &ConfigPage::refreshModbusMappings);
 
     if (m_deviceManager) {
         connect(m_deviceManager, &DeviceManager::devicesChanged,
