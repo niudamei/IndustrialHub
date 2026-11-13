@@ -7,7 +7,7 @@ int main()
     QString error;
     SlcanFrame frame;
 
-    if (!SlcanFrameCodec::parseFrame("T18AABBCC03112233", false, frame, &error)
+    if (!SlcanFrameCodec::parseFrame("T18AABBCC3112233", false, frame, &error)
         || frame.id != 0x18AABBCC || !frame.extended || frame.fd
         || frame.data != QByteArray::fromHex("112233")) {
         std::cerr << "FAIL: extended classic CAN parse: " << error.toStdString() << std::endl;
@@ -16,7 +16,7 @@ int main()
 
     QByteArray encoded;
     if (!SlcanFrameCodec::encodeFrame(frame, encoded, &error)
-        || encoded != QByteArray("T18AABBCC03112233")) {
+        || encoded != QByteArray("T18AABBCC3112233")) {
         std::cerr << "FAIL: classic CAN encode: " << error.toStdString() << std::endl;
         return 2;
     }
