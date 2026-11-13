@@ -8,6 +8,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidgetItem>
+#include <QStringList>
+#include <QTime>
 
 namespace {
 QString csvEscape(const QString &value)
@@ -58,8 +60,10 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     ui->historyTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->historyTable->setAlternatingRowColors(true);
 
-    connect(ui->queryButton, &QPushButton::clicked,
-            this, &HistoryPage::queryHistory);
+    connect(ui->queryButton, &QPushButton::clicked, this, [this]() {
+        m_offset = 0;
+        queryHistory();
+    });
     connect(ui->previousButton, &QPushButton::clicked,
             this, &HistoryPage::showPreviousPage);
     connect(ui->nextButton, &QPushButton::clicked,
