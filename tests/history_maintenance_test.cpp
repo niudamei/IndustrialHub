@@ -24,6 +24,8 @@ int main(int argc, char *argv[])
         if (!q.exec("CREATE TABLE business_data_history (id INTEGER PRIMARY KEY, timestamp_ms INTEGER)")) return 3;
         if (!q.exec("INSERT INTO communication_history VALUES (1, 1000, 12), (2, 2000, 20), (3, 9000, 5)")) return 4;
         if (!q.exec("INSERT INTO business_data_history VALUES (1, 1000), (2, 9000), (3, 9500)")) return 5;
+        q.finish();
+        q = QSqlQuery();
         db.close();
         db = QSqlDatabase();
         QSqlDatabase::removeDatabase(connectionName);
