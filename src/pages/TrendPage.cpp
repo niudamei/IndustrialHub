@@ -192,6 +192,12 @@ void TrendPage::refreshDeviceList()
     ui->deviceCombo->addItem(QStringLiteral("全部设备"), QString());
 
     QStringList ids = m_traffic.keys();
+    if (m_diagnostics) {
+        for (const CommunicationDeviceStatistics &statistics : m_diagnostics->statistics()) {
+            if (!ids.contains(statistics.deviceId, Qt::CaseInsensitive))
+                ids.append(statistics.deviceId);
+        }
+    }
     ids.sort(Qt::CaseInsensitive);
     for (const QString &id : ids)
         ui->deviceCombo->addItem(id, id);
@@ -500,6 +506,11 @@ void TrendPage::setupCommunicationHistoryTrend()
     connect(m_historyRangeCombo, &QComboBox::currentIndexChanged,
             this, &TrendPage::refreshCommunicationHistoryTrend);
     refreshCommunicationHistoryTrend();
+    m_historyRefreshTimer = new QTimer(this);
+    m_historyRefreshTimer->setInterval(5000);
+    connect(m_historyRefreshTimer, &QTimer::timeout,
+            this, &TrendPage::refreshCommunicationHistoryTrend);
+    m_historyRefreshTimer->start();
 }
 
 void TrendPage::refreshCommunicationHistoryTrend()
