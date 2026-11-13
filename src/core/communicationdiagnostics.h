@@ -29,6 +29,16 @@ struct CommunicationDeviceStatistics
     qint64 errorCount = 0;
     qint64 reconnectCount = 0;
     QDateTime lastEvent;
+    double txPerSecond = 0.0;
+    double rxPerSecond = 0.0;
+    double txBytesPerSecond = 0.0;
+    double rxBytesPerSecond = 0.0;
+    qint64 recentErrorCount = 0;
+    QDateTime lastRx;
+    qint64 lastRxSilenceMs = -1;
+    double recentErrorRatePercent = 0.0;
+    QString quality;
+    QString qualityReason;
 };
 
 class CommunicationDiagnostics : public QObject
