@@ -143,6 +143,7 @@ quint64 ModbusMaster::enqueue(quint8 function, quint16 address,
         return 0;
     }
 
+    const bool wasIdle = !isBusy();
     Request request;
     request.id = m_nextRequestId++;
     request.function = function;
@@ -153,7 +154,7 @@ quint64 ModbusMaster::enqueue(quint8 function, quint16 address,
     request.transactionId = transaction;
     m_queue.enqueue(request);
     emit queueChanged(pendingCount());
-    QTimer::singleShot(0, this, &ModbusMaster::sendNext);
+    if (wasIdle) QTimer::singleShot(0, this, &ModbusMaster::sendNext);
     return request.id;
 }
 
