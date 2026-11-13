@@ -192,17 +192,33 @@ static bool testHttp()
         QTcpSocket *peer = server.nextPendingConnection();
         QObject::connect(peer, &QTcpSocket::readyRead, peer, [&, peer]() {
             requestBuffer += peer->readAll();
-            if (requestBuffer.contains("\r\n\r\n")) {
-                requestSeen = requestBuffer.startsWith("POST /api/test HTTP/1.1")
-                    && requestBuffer.contains("Authorization: Bearer test-token")
-                    && requestBuffer.contains("Content-Type: application/json")
-                    && requestBuffer.endsWith(QByteArrayLiteral("{\"ping\":1}"));
+            const int headerEnd = requestBuffer.indexOf("\r\n\r\n");
+            if (headerEnd >= 0) {
+                const QByteArray headers = requestBuffer.left(headerEnd);
+                const QByteArray lowerHeaders = headers.toLower();
+                const int lengthPos = lowerHeaders.indexOf("content-length:");
+                int contentLength = 0;
+                if (lengthPos >= 0) {
+                    const int lineEnd = lowerHeaders.indexOf("\r\n", lengthPos);
+                    const QByteArray line = headers.mid(lengthPos,
+                        lineEnd >= 0 ? lineEnd - lengthPos : headers.size() - lengthPos);
+                    contentLength = line.mid(line.indexOf(':') + 1).trimmed().toInt();
+                }
+                const QByteArray requestBody = requestBuffer.mid(headerEnd + 4);
+                if (requestBody.size() < contentLength)
+                    return;
+                requestSeen = headers.startsWith("POST /api/test HTTP/1.1")
+                    && headers.contains("Authorization: Bearer test-token")
+                    && headers.contains("Content-Type: application/json")
+                    && requestBody.left(contentLength) == QByteArrayLiteral("{\"ping\":1}");
+                requestBuffer.clear();
                 const QByteArray response = QByteArrayLiteral("HTTP/1.1 201 Created\r\n")
                     + QByteArrayLiteral("Content-Type: application/json\r\n")
                     + QByteArrayLiteral("Content-Length: ") + QByteArray::number(responseBody.size())
                     + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + responseBody;
                 peer->write(response);
                 peer->flush();
+                peer->disconnectFromHost();
             }
         });
     });
