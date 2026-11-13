@@ -302,3 +302,35 @@ ctest --test-dir build --output-on-failure
 
 - `auth_manager_test`：初始管理员登录、强制改密、PBKDF2 密码验证、角色权限隔离和禁用用户拒绝登录。
 - `remote_client_test`：本机临时 MQTT Broker 与 WebSocket 服务端回环，检查 MQTT CONNECT/CONNACK、订阅、消息收发及 WebSocket Upgrade/文本帧。
+
+
+## HTTP / HTTPS 与远程业务数据接入
+
+- 新增基于 `QNetworkAccessManager` 的异步 HTTP 客户端，支持 GET、POST、PUT、PATCH、DELETE、HTTPS、Bearer Token、超时和取消。
+- 请求体与响应体限制为 1 MiB；同一客户端同一时刻执行一个请求，避免 UI 请求状态相互覆盖。
+- MQTT、WebSocket 文本消息、HTTP 2xx JSON 响应统一经过 `RemoteTelemetryParser`，映射为 `BusinessDataPoint`。
+- 远程 JSON 必须包含 `deviceId`，支持单变量对象或 `points` / `variables` 数组；变量包含 `variableId`（或 `id`）和数值 `value`，可选 name/unit/timestamp/quality。
+- 单条消息最多 500 个变量；非 JSON、缺少设备编号、非法数值和超限消息不会进入业务链路。
+- 远程业务数据进入 `BusinessDataManager`，再由现有数据持久化与报警链路处理；Bad 质量数据不会触发报警。
+- 远程通信页面提供 MQTT、WebSocket、HTTP/HTTPS 三个 Tab，并预置可修改的 JSON 遥测示例。
+
+远程遥测 JSON 示例：
+
+```json
+{
+  "deviceId": "MQTT-DEMO-001",
+  "points": [
+    {"variableId": "temperature", "name": "温度", "value": 25.3, "unit": "°C", "quality": "Good"},
+    {"variableId": "current", "name": "电流", "value": 1.25, "unit": "A", "quality": "Good"}
+  ]
+}
+```
+
+## Qt 动态插件系统
+
+- 新增版本化接口 `IIndustrialPlugin/1.0`，包含插件 ID、名称、版本、initialize/shutdown 生命周期。
+- `PluginManager` 基于 `QPluginLoader` 加载、检查接口、拒绝重复 ID、初始化和卸载动态库。
+- 新增管理员专属“插件管理”页面，可选择 DLL/SO/DYLIB 文件、查看插件信息、卸载插件。
+- 插件运行在主进程内，拥有主程序权限；只允许加载可信来源的动态库。当前版本不提供进程隔离或热更新。
+- 新增独立 Qt 插件样例和 `plugin_manager_test`，覆盖动态库加载、元数据、重复加载拒绝和卸载生命周期。
+
