@@ -37,6 +37,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    if (!m_deviceManager->isDatabaseReady()) {
+        QMessageBox::critical(this, QStringLiteral("数据库初始化失败"),
+                               m_deviceManager->lastError());
+        QTimer::singleShot(0, this, &QWidget::close);
+        return;
+    }
     m_authManager = new AuthManager(m_deviceManager->databasePath(), this);
     if (!m_authManager->isReady()) {
         QMessageBox::critical(this, QStringLiteral("权限服务初始化失败"), m_authManager->lastError());
@@ -308,7 +314,7 @@ void MainWindow::init_class()
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.9.0 | SQLite + TCP/UDP/RS485/CAN-FD"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.9.0 | SQLite + TCP/UDP/RS485/CAN-FD/MQTT/WebSocket"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
