@@ -140,10 +140,11 @@ void ConfigPage::onConnectClicked()
     }
 
     QString error;
-    if (!m_communicationManager->connectDevice(device, &error))
+    if (!m_communicationManager->connectDevice(device, &error)) {
         appendLog(QStringLiteral("[错误] %1").arg(error));
         QMessageBox::warning(this, QStringLiteral("连接失败"), error);
         return;
+    }
     }
 
     appendLog(QStringLiteral("[连接请求] %1 -> %2").arg(device.devId, device.devAddr));
