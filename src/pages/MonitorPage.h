@@ -14,6 +14,7 @@
 class DeviceManager;
 class CommunicationManager;
 class QTimer;
+class QCheckBox;
 
 class MonitorPage : public QWidget
 {
@@ -88,7 +89,7 @@ private:
     QHash<QString, quint64> m_demoFrameCounters;
     QSet<QString> m_demoDisconnectedDevices;
     int m_demoDropEvery = 3;
-    class QCheckBox *m_demoOverTemperatureCheckBox = nullptr;
+    QCheckBox *m_demoOverTemperatureCheckBox = nullptr;
     static constexpr int MaxRows = 500;
     int m_receiveTimeoutMs = 3000;
 };
