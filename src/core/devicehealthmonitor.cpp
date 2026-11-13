@@ -30,6 +30,8 @@ void DeviceHealthMonitor::registerDevice(const QString &deviceId)
     const QString key = keyFor(id);
     if (key.isEmpty())
         return;
+    if (m_states.contains(key))
+        return;
     m_deviceIds.insert(key, id);
     m_states.insert(key, DeviceState{});
 }
@@ -59,10 +61,12 @@ void DeviceHealthMonitor::setConnected(const QString &deviceId, bool connected)
         state.connectedAtMs = QDateTime::currentMSecsSinceEpoch();
         state.lastSeenMs = 0;
         state.lastSeenTime = QDateTime();
+        state.timeoutReported = false;
     } else {
         state.connectedAtMs = 0;
         state.lastSeenMs = 0;
         state.lastSeenTime = QDateTime();
+        state.timeoutReported = false;
         setOnline(key, false);
     }
 }
@@ -82,6 +86,7 @@ void DeviceHealthMonitor::markActivity(const QString &deviceId)
 
     state.lastSeenMs = QDateTime::currentMSecsSinceEpoch();
     state.lastSeenTime = QDateTime::currentDateTime();
+    state.timeoutReported = false;
     setOnline(key, true);
 }
 
@@ -112,14 +117,15 @@ void DeviceHealthMonitor::checkTimeouts()
 
         const qint64 referenceMs = state.lastSeenMs > 0
             ? state.lastSeenMs : state.connectedAtMs;
-        if (referenceMs <= 0 || now - referenceMs <= m_timeoutMs)
+        if (referenceMs <= 0 || now - referenceMs <= m_timeoutMs
+            || state.timeoutReported)
             continue;
 
         const qint64 silenceMs = now - referenceMs;
-        if (state.online) {
+        state.timeoutReported = true;
+        if (state.online)
             setOnline(it.key(), false);
-            emit deviceTimedOut(m_deviceIds.value(it.key()), silenceMs);
-        }
+        emit deviceTimedOut(m_deviceIds.value(it.key()), silenceMs);
     }
 }
 
