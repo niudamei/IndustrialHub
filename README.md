@@ -341,3 +341,13 @@ ctest --test-dir build --output-on-failure
 - 系统设置提供深色/浅色主题切换，使用 QSS 应用到整个 Widgets 应用，并通过 QSettings 持久化。
 - 支持窗口关闭时最小化到系统托盘；托盘菜单支持恢复窗口和退出程序，双击托盘图标恢复。
 - 没有系统托盘的桌面环境会自动禁用最小化到托盘选项，关闭窗口时正常退出。
+
+
+## 工程化交付
+
+- CMake 使用 CPack 生成 ZIP 发布包，安装阶段执行 Qt 生成的运行时依赖部署脚本。
+- GitHub Actions 提供 Windows 2022 + Qt 6.10.3 MinGW 自动配置、构建、CTest 和打包工作流。
+- 根目录 `.clang-format` 统一 C++17 格式；`docs/Doxyfile` 用于生成 API 文档。
+- 本地打包：`cmake --build build/Desktop_Qt_6_10_3_MinGW_64_bit_Debug --target package`。
+- 生成 Doxygen 文档：在安装 Doxygen 后，从项目根目录执行 `doxygen docs/Doxyfile`。
+
