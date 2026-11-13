@@ -6,7 +6,10 @@
 
 #include <QComboBox>
 #include <QDateTime>
+#include <QFile>
+#include <QFileDialog>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -18,6 +21,13 @@ namespace {
 QString metricKey(const QString &deviceId)
 {
     return deviceId.trimmed().toCaseFolded();
+}
+
+QString csvEscape(const QString &value)
+{
+    QString escaped = value;
+    escaped.replace(QStringLiteral("\""), QStringLiteral("\"\""));
+    return QStringLiteral("\"%1\"").arg(escaped);
 }
 
 QString intervalText(qint64 value)
@@ -87,6 +97,8 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     });
     connect(ui->pauseButton, &QPushButton::clicked,
             this, &MonitorPage::onPauseClicked);
+    connect(ui->exportButton, &QPushButton::clicked,
+            this, &MonitorPage::exportEventsToCsv);
     ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
     connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onReceiveTimeoutChanged);
@@ -268,6 +280,56 @@ void MonitorPage::onPauseClicked()
     ui->monitorStateLabel->setText(m_paused
         ? QStringLiteral("事件记录已暂停（统计继续）")
         : QStringLiteral("实时统计中"));
+}
+
+void MonitorPage::exportEventsToCsv()
+{
+    const QString defaultName = QStringLiteral("communication_events_%1.csv")
+        .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString fileName = QFileDialog::getSaveFileName(
+        this, QStringLiteral("导出通信事件记录"), defaultName,
+        QStringLiteral("CSV 文件 (*.csv)"));
+    if (fileName.isEmpty())
+        return;
+
+    QStringList lines;
+    lines << QStringList{
+        csvEscape(QStringLiteral("时间")),
+        csvEscape(QStringLiteral("设备编号")),
+        csvEscape(QStringLiteral("方向/事件")),
+        csvEscape(QStringLiteral("数据/详情"))
+    }.join(QLatin1Char(','));
+
+    int exportedRows = 0;
+    // 表格最新事件在最上方，导出时反向遍历，保持时间正序。
+    // 仅导出当前筛选后可见的记录，方便按设备或事件类型生成报表。
+    for (int row = ui->eventTable->rowCount() - 1; row >= 0; --row) {
+        if (ui->eventTable->isRowHidden(row))
+            continue;
+
+        QStringList fields;
+        for (int column = 0; column < ui->eventTable->columnCount(); ++column) {
+            const QTableWidgetItem *item = ui->eventTable->item(row, column);
+            fields << csvEscape(item ? item->text() : QString());
+        }
+        lines << fields.join(QLatin1Char(','));
+        ++exportedRows;
+    }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"),
+                             QStringLiteral("无法写入文件：%1").arg(file.errorString()));
+        return;
+    }
+
+    // UTF-8 BOM 便于 Excel 正确识别中文。
+    file.write(QByteArray::fromHex("efbbbf"));
+    file.write((lines.join(QStringLiteral("\r\n")) + QStringLiteral("\r\n")).toUtf8());
+    file.close();
+
+    QMessageBox::information(this, QStringLiteral("导出完成"),
+        QStringLiteral("已导出 %1 条当前可见事件记录。").arg(exportedRows));
 }
 
 void MonitorPage::onReceiveTimeoutChanged(int seconds)
