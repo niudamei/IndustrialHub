@@ -1,6 +1,11 @@
 #include "HistoryPage.h"
 
 #include <QDate>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QUuid>
 #include <QChart>
 #include <QChartView>
 #include <QDateTimeAxis>
@@ -36,6 +41,157 @@ QString csvEscape(const QString &value)
     escaped.replace(QStringLiteral("\""), QStringLiteral("\"\""));
     return QStringLiteral("\"%1\"").arg(escaped);
 }
+
+struct ScopedHistoryDatabase
+{
+    QString connectionName = QStringLiteral("HistoryQuery_%1").arg(
+        QUuid::createUuid().toString(QUuid::WithoutBraces));
+    QSqlDatabase database;
+    ~ScopedHistoryDatabase()
+    {
+        if (database.isValid()) {
+            database.close();
+            database = QSqlDatabase();
+            QSqlDatabase::removeDatabase(connectionName);
+        }
+    }
+};
+
+CommunicationPageResult loadCommunicationPage(
+    const QString &databasePath, const QDateTime &start, const QDateTime &end,
+    const QString &deviceId, const QString &direction, int offset, int limit,
+    int cachedCount, bool refreshCount)
+{
+    CommunicationPageResult result;
+    ScopedHistoryDatabase connection;
+    connection.database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection.connectionName);
+    connection.database.setDatabaseName(databasePath);
+    connection.database.setConnectOptions(QStringLiteral("QSQLITE_BUSY_TIMEOUT=5000"));
+    if (!connection.database.open()) {
+        result.error = QStringLiteral("打开历史查询连接失败：%1").arg(connection.database.lastError().text());
+        return result;
+    }
+
+    QString where = QStringLiteral(" WHERE timestamp_ms >= :start AND timestamp_ms <= :end");
+    const QString normalizedDevice = deviceId.trimmed();
+    if (!normalizedDevice.isEmpty()) where += QStringLiteral(" AND device_id = :device");
+    if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
+        where += QStringLiteral(" AND direction = :direction");
+
+    if (refreshCount) {
+        QSqlQuery countQuery(connection.database);
+        countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM communication_history") + where);
+        countQuery.bindValue(QStringLiteral(":start"), start.toMSecsSinceEpoch());
+        countQuery.bindValue(QStringLiteral(":end"), end.toMSecsSinceEpoch());
+        if (!normalizedDevice.isEmpty()) countQuery.bindValue(QStringLiteral(":device"), normalizedDevice);
+        if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
+            countQuery.bindValue(QStringLiteral(":direction"), direction);
+        if (!countQuery.exec() || !countQuery.next()) {
+            result.error = QStringLiteral("统计通信历史失败：%1").arg(countQuery.lastError().text());
+            return result;
+        }
+        result.totalCount = countQuery.value(0).toInt();
+    } else {
+        result.totalCount = cachedCount;
+    }
+
+    QSqlQuery query(connection.database);
+    query.prepare(QStringLiteral(
+        "SELECT id, timestamp_ms, device_id, direction, payload FROM communication_history")
+        + where + QStringLiteral(" ORDER BY timestamp_ms DESC, id DESC LIMIT :limit OFFSET :offset"));
+    query.bindValue(QStringLiteral(":start"), start.toMSecsSinceEpoch());
+    query.bindValue(QStringLiteral(":end"), end.toMSecsSinceEpoch());
+    if (!normalizedDevice.isEmpty()) query.bindValue(QStringLiteral(":device"), normalizedDevice);
+    if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
+        query.bindValue(QStringLiteral(":direction"), direction);
+    query.bindValue(QStringLiteral(":limit"), qMax(1, limit));
+    query.bindValue(QStringLiteral(":offset"), qMax(0, offset));
+    if (!query.exec()) {
+        result.error = QStringLiteral("查询通信历史失败：%1").arg(query.lastError().text());
+        return result;
+    }
+    while (query.next()) {
+        CommunicationHistoryRecord record;
+        record.id = query.value(0).toLongLong();
+        record.timestamp = QDateTime::fromMSecsSinceEpoch(query.value(1).toLongLong());
+        record.deviceId = query.value(2).toString();
+        record.direction = query.value(3).toString();
+        record.payload = query.value(4).toByteArray();
+        result.records.append(record);
+    }
+    result.ok = true;
+    return result;
+}
+
+BusinessPageResult loadBusinessPage(
+    const QString &databasePath, const QDateTime &start, const QDateTime &end,
+    const QString &deviceId, const QString &variableId, int offset, int limit,
+    int cachedCount, bool refreshCount)
+{
+    BusinessPageResult result;
+    ScopedHistoryDatabase connection;
+    connection.database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection.connectionName);
+    connection.database.setDatabaseName(databasePath);
+    connection.database.setConnectOptions(QStringLiteral("QSQLITE_BUSY_TIMEOUT=5000"));
+    if (!connection.database.open()) {
+        result.error = QStringLiteral("打开业务历史查询连接失败：%1").arg(connection.database.lastError().text());
+        return result;
+    }
+
+    QString where = QStringLiteral(" WHERE timestamp_ms >= ? AND timestamp_ms <= ?");
+    if (!deviceId.trimmed().isEmpty()) where += QStringLiteral(" AND device_id = ?");
+    if (!variableId.trimmed().isEmpty()) where += QStringLiteral(" AND variable_id = ?");
+
+    if (refreshCount) {
+        QSqlQuery countQuery(connection.database);
+        countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM business_data_history") + where);
+        int bind = 0;
+        countQuery.bindValue(bind++, start.toMSecsSinceEpoch());
+        countQuery.bindValue(bind++, end.toMSecsSinceEpoch());
+        if (!deviceId.trimmed().isEmpty()) countQuery.bindValue(bind++, deviceId.trimmed());
+        if (!variableId.trimmed().isEmpty()) countQuery.bindValue(bind++, variableId.trimmed());
+        if (!countQuery.exec() || !countQuery.next()) {
+            result.error = QStringLiteral("统计业务变量历史失败：%1").arg(countQuery.lastError().text());
+            return result;
+        }
+        result.totalCount = countQuery.value(0).toInt();
+    } else {
+        result.totalCount = cachedCount;
+    }
+
+    QSqlQuery query(connection.database);
+    query.prepare(QStringLiteral(
+        "SELECT id, timestamp_ms, device_id, variable_id, variable_name, value, unit, quality, source_protocol "
+        "FROM business_data_history") + where
+        + QStringLiteral(" ORDER BY timestamp_ms DESC, id DESC LIMIT ? OFFSET ?"));
+    int bind = 0;
+    query.bindValue(bind++, start.toMSecsSinceEpoch());
+    query.bindValue(bind++, end.toMSecsSinceEpoch());
+    if (!deviceId.trimmed().isEmpty()) query.bindValue(bind++, deviceId.trimmed());
+    if (!variableId.trimmed().isEmpty()) query.bindValue(bind++, variableId.trimmed());
+    query.bindValue(bind++, qMax(1, limit));
+    query.bindValue(bind, qMax(0, offset));
+    if (!query.exec()) {
+        result.error = QStringLiteral("查询业务变量历史失败：%1").arg(query.lastError().text());
+        return result;
+    }
+    while (query.next()) {
+        BusinessDataHistoryRecord record;
+        record.id = query.value(0).toLongLong();
+        record.point.timestamp = QDateTime::fromMSecsSinceEpoch(query.value(1).toLongLong());
+        record.point.deviceId = query.value(2).toString();
+        record.point.variableId = query.value(3).toString();
+        record.point.name = query.value(4).toString();
+        record.point.value = query.value(5).toDouble();
+        record.point.unit = query.value(6).toString();
+        record.point.quality = static_cast<DataQuality>(query.value(7).toInt());
+        record.point.sourceProtocol = query.value(8).toString();
+        result.records.append(record);
+    }
+    result.ok = true;
+    return result;
+}
+
 }
 
 HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
@@ -44,6 +200,12 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
       m_dataManager(dataManager)
 {
     ui->setupUi(this);
+    m_communicationWatcher = new QFutureWatcher<CommunicationPageResult>(this);
+    connect(m_communicationWatcher, &QFutureWatcher<CommunicationPageResult>::finished,
+            this, [this]() { applyCommunicationResult(m_communicationWatcher->result()); });
+    m_businessWatcher = new QFutureWatcher<BusinessPageResult>(this);
+    connect(m_businessWatcher, &QFutureWatcher<BusinessPageResult>::finished,
+            this, [this]() { applyBusinessResult(m_businessWatcher->result()); });
 
     // 将原有通信帧查询区放入独立页签，新增业务变量历史页签。
     auto *tabs = new QTabWidget(this);
@@ -202,7 +364,7 @@ HistoryPage::~HistoryPage()
 
 void HistoryPage::queryHistory()
 {
-    if (!m_dataManager)
+    if (!m_dataManager || (m_communicationWatcher && m_communicationWatcher->isRunning()))
         return;
 
     const QDate startDate = ui->startDateTimeEdit->date();
@@ -215,19 +377,35 @@ void HistoryPage::queryHistory()
 
     const QDateTime start(startDate, QTime(0, 0, 0));
     const QDateTime end(endDate, QTime(23, 59, 59, 999));
-    const QString direction = ui->directionCombo->currentText()
-                                  == QStringLiteral("全部方向")
-                              ? QString() : ui->directionCombo->currentText();
+    const QString direction = ui->directionCombo->currentText() == QStringLiteral("全部方向")
+        ? QString() : ui->directionCombo->currentText();
+    const QString path = m_dataManager->databasePath();
+    const QString device = ui->deviceFilterEdit->text();
+    const int cachedCount = m_totalCount;
+    const bool refreshCount = !m_communicationCountValid;
 
-    QString error;
-    if (!m_dataManager->queryCommunicationHistory(
-            start, end, ui->deviceFilterEdit->text(), direction,
-            m_offset, PageSize, m_currentRecords, m_totalCount, &error,
-            !m_communicationCountValid)) {
-        QMessageBox::warning(this, QStringLiteral("查询失败"), error);
+    ui->queryButton->setEnabled(false);
+    ui->previousButton->setEnabled(false);
+    ui->nextButton->setEnabled(false);
+    ui->resultLabel->setText(QStringLiteral("正在查询历史数据…"));
+    m_communicationWatcher->setFuture(QtConcurrent::run(
+        [path, start, end, device, direction, offset = m_offset, cachedCount, refreshCount]() {
+            return loadCommunicationPage(path, start, end, device, direction,
+                                          offset, 200, cachedCount, refreshCount);
+        }));
+}
+
+void HistoryPage::applyCommunicationResult(const CommunicationPageResult &result)
+{
+    ui->queryButton->setEnabled(true);
+    if (!result.ok) {
+        QMessageBox::warning(this, QStringLiteral("查询失败"), result.error);
+        updatePageInfo();
         return;
     }
 
+    m_currentRecords = result.records;
+    m_totalCount = result.totalCount;
     m_communicationCountValid = true;
     ui->historyTable->setUpdatesEnabled(false);
     ui->historyTable->setRowCount(m_currentRecords.size());
@@ -235,20 +413,16 @@ void HistoryPage::queryHistory()
         const CommunicationHistoryRecord &record = m_currentRecords.at(row);
         const QStringList values = {
             record.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz")),
-            record.deviceId,
-            record.direction,
+            record.deviceId, record.direction,
             QString::number(record.payload.size()),
             QString::fromLatin1(record.payload.toHex(' ').toUpper())
         };
-
         for (int column = 0; column < values.size(); ++column) {
             auto *item = new QTableWidgetItem(values.at(column));
-            if (column == 3)
-                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            if (column == 3) item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             ui->historyTable->setItem(row, column, item);
         }
     }
-
     ui->historyTable->setUpdatesEnabled(true);
     updatePageInfo();
 }
@@ -338,7 +512,8 @@ void HistoryPage::exportCurrentPage()
 
 void HistoryPage::queryBusinessHistory()
 {
-    if (!m_dataManager || !m_businessStartEdit || !m_businessEndEdit)
+    if (!m_dataManager || !m_businessStartEdit || !m_businessEndEdit
+        || (m_businessWatcher && m_businessWatcher->isRunning()))
         return;
 
     const QDateTime start = m_businessStartEdit->dateTime();
@@ -349,33 +524,49 @@ void HistoryPage::queryBusinessHistory()
         return;
     }
 
-    QString error;
-    if (!m_dataManager->queryBusinessDataHistory(
-            start, end, m_businessDeviceEdit->text(),
-            m_businessVariableCombo->currentData().toString(),
-            m_businessOffset, PageSize, m_businessRecords,
-            m_businessTotalCount, &error, !m_businessCountValid)) {
-        QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), error);
+    const QString path = m_dataManager->databasePath();
+    const QString device = m_businessDeviceEdit->text();
+    const QString variable = m_businessVariableCombo->currentData().toString();
+    const int cachedCount = m_businessTotalCount;
+    const bool refreshCount = !m_businessCountValid;
+    m_businessQueryButton->setEnabled(false);
+    m_businessPreviousButton->setEnabled(false);
+    m_businessNextButton->setEnabled(false);
+    m_businessResultLabel->setText(QStringLiteral("正在查询业务变量历史…"));
+    m_businessWatcher->setFuture(QtConcurrent::run(
+        [path, start, end, device, variable, offset = m_businessOffset, cachedCount, refreshCount]() {
+            return loadBusinessPage(path, start, end, device, variable,
+                                    offset, 200, cachedCount, refreshCount);
+        }));
+}
+
+void HistoryPage::applyBusinessResult(const BusinessPageResult &result)
+{
+    m_businessQueryButton->setEnabled(true);
+    if (!result.ok) {
+        QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), result.error);
+        updateBusinessPageInfo();
         return;
     }
 
+    m_businessRecords = result.records;
+    m_businessTotalCount = result.totalCount;
     m_businessCountValid = true;
     m_businessTable->setUpdatesEnabled(false);
     m_businessTable->setRowCount(m_businessRecords.size());
     for (int row = 0; row < m_businessRecords.size(); ++row) {
         const BusinessDataPoint &point = m_businessRecords.at(row).point;
         const QString quality = point.quality == DataQuality::Good
-            ? QStringLiteral("Good") : QStringLiteral("非 Good (%1)").arg(static_cast<int>(point.quality));
+            ? QStringLiteral("Good")
+            : QStringLiteral("非 Good (%1)").arg(static_cast<int>(point.quality));
         const QStringList values = {
             point.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz")),
-            point.deviceId, point.name,
-            QString::number(point.value, 'g', 12), point.unit,
-            quality, point.sourceProtocol
+            point.deviceId, point.name, QString::number(point.value, 'g', 12),
+            point.unit, quality, point.sourceProtocol
         };
         for (int column = 0; column < values.size(); ++column)
             m_businessTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
     }
-
     m_businessTable->setUpdatesEnabled(true);
     updateBusinessPageInfo();
     renderBusinessChart();
