@@ -93,8 +93,6 @@ if(BUILD_TESTING)
         src/communication/simulatedmodbuscommunication.cpp
         src/protocol/modbuscodec.h
         src/protocol/modbuscodec.cpp
-        src/communication/simulatedmodbuscommunication.h
-        src/communication/simulatedmodbuscommunication.cpp
         src/pages/deviceinfo.h
     )
     target_include_directories(communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
@@ -279,8 +277,6 @@ if(BUILD_TESTING)
         src/communication/simulatedcommunication.cpp
         src/communication/simulatedmodbuscommunication.h
         src/communication/simulatedmodbuscommunication.cpp
-        src/protocol/modbuscodec.h
-        src/protocol/modbuscodec.cpp
         src/communication/tcpcommunication.h
         src/communication/tcpcommunication.cpp
         src/communication/udpcommunication.h
@@ -321,8 +317,6 @@ if(BUILD_TESTING)
         src/communication/simulatedcommunication.cpp
         src/communication/simulatedmodbuscommunication.h
         src/communication/simulatedmodbuscommunication.cpp
-        src/protocol/modbuscodec.h
-        src/protocol/modbuscodec.cpp
         src/communication/tcpcommunication.h
         src/communication/tcpcommunication.cpp
         src/communication/udpcommunication.h
