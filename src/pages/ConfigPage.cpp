@@ -6,6 +6,7 @@
 #include "src/protocol/protocolmanager.h"
 #include "src/protocol/businessdatapoint.h"
 #include "src/core/communicationdiagnostics.h"
+#include "src/core/devicehealthmonitor.h"
 
 #include <QDateTime>
 #include <QComboBox>
@@ -30,7 +31,8 @@
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
                        ProtocolManager *protocolManager,
-                       QWidget *parent)
+                       QWidget *parent,
+                       DeviceHealthMonitor *healthMonitor)
     : QWidget(parent),
       ui(new Ui::ConfigPage),
       m_deviceManager(deviceManager),
@@ -100,6 +102,12 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     if (m_diagnostics) {
         connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged,
                 this, [this]() { m_diagnosticsRefreshTimer->start(); });
+    }
+    if (healthMonitor) {
+        connect(healthMonitor, &DeviceHealthMonitor::deviceTimedOut, m_diagnostics,
+                [this](const QString &deviceId, qint64 silenceMs) {
+            m_diagnostics->recordHealthTimeout(deviceId, silenceMs);
+        });
     }
     refreshDiagnostics();
 
