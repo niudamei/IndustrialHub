@@ -1,5 +1,7 @@
 #include "modbuspoller.h"
 
+#include "src/core/businessdatamanager.h"
+
 #include <QSet>
 #include <utility>
 
@@ -14,6 +16,20 @@ ModbusPoller::ModbusPoller(ModbusMaster *master, QString deviceId, QObject *pare
         connect(master, &ModbusMaster::requestFailed,
                 this, &ModbusPoller::onRequestFailed);
     }
+}
+
+bool ModbusPoller::bindBusinessDataManager(BusinessDataManager *manager)
+{
+    if (m_businessConnection)
+        disconnect(m_businessConnection);
+    m_businessDataManager = manager;
+    if (!manager) {
+        m_businessConnection = {};
+        return false;
+    }
+    m_businessConnection = connect(this, &ModbusPoller::pointsReady,
+        manager, &BusinessDataManager::updateDataPoints);
+    return static_cast<bool>(m_businessConnection);
 }
 
 bool ModbusPoller::setMappings(
