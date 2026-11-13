@@ -64,8 +64,14 @@ int main(int argc, char *argv[])
     device.devAddr = QStringLiteral("127.0.0.1:%1").arg(server.localPort());
 
     QString error;
-    if (!communication.open(device, &error) || !connected || !communication.isOpen()) {
-        std::cerr << "FAIL: UDP open failed: " << error.toStdString() << std::endl;
+    const bool opened = communication.open(device, &error);
+    const bool openState = communication.isOpen();
+    if (!opened || !connected || !openState) {
+        std::cerr << "FAIL: UDP open validation failed."
+                  << " open()=" << (opened ? "true" : "false")
+                  << ", connectionStateChanged(true)=" << (connected ? "received" : "missing")
+                  << ", isOpen()=" << (openState ? "true" : "false")
+                  << ", error=" << error.toStdString() << std::endl;
         return 2;
     }
 
