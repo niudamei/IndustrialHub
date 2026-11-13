@@ -42,6 +42,10 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
+    src/protocol/businessdatapoint.h
+    src/protocol/iprotocolparser.h
+    src/protocol/jsonprotocolparser.h src/protocol/jsonprotocolparser.cpp
+    src/protocol/protocolmanager.h src/protocol/protocolmanager.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
@@ -122,6 +126,19 @@ if(BUILD_TESTING)
     target_include_directories(communication_manager_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(communication_manager_smoke_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME communication_manager_smoke_test COMMAND communication_manager_smoke_test)
+
+    add_executable(json_protocol_parser_test
+        tests/json_protocol_parser_test.cpp
+        src/protocol/businessdatapoint.h
+        src/protocol/iprotocolparser.h
+        src/protocol/jsonprotocolparser.h
+        src/protocol/jsonprotocolparser.cpp
+        src/protocol/protocolmanager.h
+        src/protocol/protocolmanager.cpp
+    )
+    target_include_directories(json_protocol_parser_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(json_protocol_parser_test PRIVATE Qt6::Core)
+    add_test(NAME json_protocol_parser_test COMMAND json_protocol_parser_test)
 
     add_executable(datamanager_history_test
         tests/datamanager_history_test.cpp
