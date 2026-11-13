@@ -145,7 +145,6 @@ void ConfigPage::onConnectClicked()
         QMessageBox::warning(this, QStringLiteral("连接失败"), error);
         return;
     }
-    }
 
     appendLog(QStringLiteral("[连接请求] %1 -> %2").arg(device.devId, device.devAddr));
     updateConnectionDisplay();
