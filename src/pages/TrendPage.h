@@ -39,8 +39,6 @@ private slots:
     void onDataReceived(const QString &deviceId, const QByteArray &data);
     void onConnectionStateChanged(const QString &deviceId, bool connected);
     void onCommunicationError(const QString &deviceId, const QString &message);
-    void onBusinessValuesUpdated(const QString &deviceId,
-                                 const QVector<BusinessDataPoint> &points);
     void updateTrend();
 
 private:
