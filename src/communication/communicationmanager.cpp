@@ -77,6 +77,7 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
     if (communication && m_commTypes.value(key) != commType) {
         stopReconnect(key);
         m_autoReconnectDevices.remove(key);
+        m_reconnectAttempts.insert(key, 0);
         m_deviceConfigs.remove(key);
         communication->close();
         communication->deleteLater();
