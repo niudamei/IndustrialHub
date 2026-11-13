@@ -1,6 +1,7 @@
 #include "pluginmanager.h"
 
-#include <QFileInfo>\n#include <QJsonObject>
+#include <QFileInfo>
+#include <QJsonObject>
 #include <QPluginLoader>
 
 PluginManager::PluginManager(QObject *parent)
