@@ -76,7 +76,8 @@ int main(int argc, char *argv[])
     {
         CommunicationDiagnostics reopened(nullptr);
         if (!reopened.isReady() || reopened.statisticsFor(QStringLiteral("DEV-A")).txCount != 1
-            || reopened.recentEvents(100).size() != 7\n            || reopened.statisticsFor(QStringLiteral("DEV-A")).quality != QStringLiteral("警告")) {
+            || reopened.recentEvents(100).size() != 7
+            || reopened.statisticsFor(QStringLiteral("DEV-A")).quality != QStringLiteral("警告")) {
             qCritical() << "FAIL: diagnostic events were not persisted across reopen";
             return 1;
         }
