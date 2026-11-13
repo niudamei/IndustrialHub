@@ -2,6 +2,9 @@
 #include "ui_devicedialog.h"
 #include <QDateTime>
 #include <QMessageBox>
+#include <QCheckBox>
+#include <QLineEdit>
+#include <QLabel>
 
 namespace {
 QString statusToString(DeviceStatus s) {
@@ -21,6 +24,19 @@ DeviceStatus stringToStatus(const QString &s) {
 DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::DeviceDialog)
 {
     ui->setupUi(this);
+    auto *groupRow = new QHBoxLayout();
+    groupRow->addWidget(new QLabel(QStringLiteral("设备分组："), this));
+    auto *groupEdit = new QLineEdit(this);
+    groupEdit->setObjectName(QStringLiteral("edtGroupName"));
+    groupEdit->setPlaceholderText(QStringLiteral("例如：产线一 / 测试台 / 伺服电机"));
+    groupRow->addWidget(groupEdit);
+    ui->verticalLayout->insertLayout(6, groupRow);
+    auto *enabledRow = new QHBoxLayout();
+    auto *enabledCheck = new QCheckBox(QStringLiteral("启用该设备配置"), this);
+    enabledCheck->setObjectName(QStringLiteral("chkDeviceEnabled"));
+    enabledCheck->setChecked(true);
+    enabledRow->addWidget(enabledCheck);
+    ui->verticalLayout->insertLayout(7, enabledRow);
     setWindowTitle(QStringLiteral("设备信息"));
     ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "Modbus"});
     connect(ui->cmbCommType_C, &QComboBox::currentTextChanged,
@@ -54,6 +70,8 @@ DeviceDialog::~DeviceDialog() { delete ui; }
 void DeviceDialog::setInfo(const DeviceInfo &d)
 {
     ui->edtDevId_L->setText(d.devId);
+    if (auto *group = findChild<QLineEdit *>(QStringLiteral("edtGroupName"))) group->setText(d.groupName);
+    if (auto *enabled = findChild<QCheckBox *>(QStringLiteral("chkDeviceEnabled"))) enabled->setChecked(d.enabled);
     ui->edtDevName_L->setText(d.devName);
     ui->edtDevType_L->setText(d.devType);
     ui->cmbCommType_C->setCurrentText(d.commType);
@@ -71,6 +89,8 @@ DeviceInfo DeviceDialog::getInfo() const
     d.devType = ui->edtDevType_L->text().trimmed();
     d.commType = ui->cmbCommType_C->currentText().trimmed();
     d.devAddr = ui->edtAddr_L->text().trimmed();
+    if (auto *group = findChild<QLineEdit *>(QStringLiteral("edtGroupName"))) d.groupName = group->text().trimmed();
+    if (auto *enabled = findChild<QCheckBox *>(QStringLiteral("chkDeviceEnabled"))) d.enabled = enabled->isChecked();
     d.status = stringToStatus(ui->cmbStatus_C->currentText());
     d.addTime = QDateTime::fromString(ui->edtAddTime_L->text().trimmed(), "yyyy-MM-dd HH:mm:ss");
     if (!d.addTime.isValid()) d.addTime = QDateTime::currentDateTime();
