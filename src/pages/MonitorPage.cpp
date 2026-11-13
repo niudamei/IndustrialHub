@@ -52,14 +52,15 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     ui->eventTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->eventTable->setAlternatingRowColors(true);
 
-    ui->metricsTable->setColumnCount(13);
+    ui->metricsTable->setColumnCount(16);
     ui->metricsTable->setHorizontalHeaderLabels({
         QStringLiteral("设备名称 / 编号"), QStringLiteral("通信类型"),
         QStringLiteral("连接状态"), QStringLiteral("接收状态"),
         QStringLiteral("最后接收时间"), QStringLiteral("距上次接收"),
         QStringLiteral("最近帧间隔"), QStringLiteral("平均间隔"), QStringLiteral("最小间隔"),
         QStringLiteral("最大间隔"), QStringLiteral("TX帧数"),
-        QStringLiteral("RX帧数"), QStringLiteral("错误数")
+        QStringLiteral("RX帧数"), QStringLiteral("接收帧率 FPS"),
+        QStringLiteral("超时次数"), QStringLiteral("恢复次数"), QStringLiteral("错误数")
     });
     ui->metricsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->metricsTable->horizontalHeader()->setStretchLastSection(true);
@@ -215,6 +216,15 @@ void MonitorPage::onDataReceived(const QString &deviceId, const QByteArray &data
             ? interval : qMin(metrics.minIntervalMs, interval);
         metrics.maxIntervalMs = qMax(metrics.maxIntervalMs, interval);
     }
+    if (metrics.receiveTimedOut) {
+        metrics.receiveTimedOut = false;
+        ++metrics.recoveryCount;
+        appendEvent(deviceId, QStringLiteral("状态"), QStringLiteral("数据接收已恢复"));
+    }
+    metrics.receiveTimestamps.enqueue(nowMs);
+    while (!metrics.receiveTimestamps.isEmpty()
+           && nowMs - metrics.receiveTimestamps.head() > 1000)
+        metrics.receiveTimestamps.dequeue();
     metrics.lastReceiveMs = nowMs;
     metrics.lastReceiveTime = QDateTime::currentDateTime();
     ++metrics.rxCount;
@@ -249,6 +259,18 @@ void MonitorPage::onReceiveTimeoutChanged(int seconds)
 
 void MonitorPage::updateLiveStatistics()
 {
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    for (auto it = m_deviceMetrics.begin(); it != m_deviceMetrics.end(); ++it) {
+        DeviceMetrics &metrics = it.value();
+        if (metrics.connected && metrics.lastReceiveMs > 0
+            && !metrics.receiveTimedOut
+            && nowMs - metrics.lastReceiveMs > m_receiveTimeoutMs) {
+            metrics.receiveTimedOut = true;
+            ++metrics.timeoutCount;
+            appendEvent(it.key(), QStringLiteral("错误"),
+                        QStringLiteral("接收数据超时（阈值 %1 ms）").arg(m_receiveTimeoutMs));
+        }
+    }
     refreshMetricsTable();
 
     quint64 totalTx = 0;
@@ -307,6 +329,9 @@ void MonitorPage::refreshMetricsTable()
             metrics.intervalCount > 0 ? intervalText(metrics.maxIntervalMs) : QStringLiteral("--"),
             QString::number(metrics.txCount),
             QString::number(metrics.rxCount),
+            QStringLiteral("%1").arg(receiveRate(metrics, nowMs), 0, 'f', 1),
+            QString::number(metrics.timeoutCount),
+            QString::number(metrics.recoveryCount),
             QString::number(metrics.errorCount)
         };
 
@@ -318,6 +343,12 @@ void MonitorPage::refreshMetricsTable()
         }
         ++row;
     }
+}
+
+double MonitorPage::receiveRate(const DeviceMetrics &metrics, qint64 nowMs) const
+{
+    Q_UNUSED(nowMs);
+    return static_cast<double>(metrics.receiveTimestamps.size());
 }
 
 QString MonitorPage::receiveStateText(const DeviceMetrics &metrics, qint64 nowMs) const
