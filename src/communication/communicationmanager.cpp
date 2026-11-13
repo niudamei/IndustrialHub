@@ -2,6 +2,7 @@
 
 #include "communicationworker.h"
 #include "simulatedcommunication.h"
+#include "simulatedmodbuscommunication.h"
 #include "tcpcommunication.h"
 #include "udpcommunication.h"
 #ifdef INDUSTRIALHUB_HAS_SERIALPORT
@@ -41,6 +42,9 @@ CommunicationManager::CommunicationManager(QObject *parent)
     });
     registerFactory(QStringLiteral("SIM"), [](QObject *parent) {
         return new SimulatedCommunication(parent);
+    });
+    registerFactory(QStringLiteral("MODBUS-SIM"), [](QObject *parent) {
+        return new SimulatedModbusCommunication(parent);
     });
 }
 
