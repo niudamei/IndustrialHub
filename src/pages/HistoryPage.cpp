@@ -8,7 +8,6 @@
 #include <QValueAxis>
 #include <QComboBox>
 #include <QDateTimeEdit>
-#include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -26,6 +25,7 @@
 #include <QStringList>
 #include <QTime>
 #include <QGridLayout>
+#include <QHash>
 #include <QPainter>
 #include <limits>
 
