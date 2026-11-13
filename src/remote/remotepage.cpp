@@ -79,7 +79,7 @@ RemotePage::RemotePage(QWidget *parent)
     auto *wsGroup = new QGroupBox(QStringLiteral("WebSocket 服务端"), wsTab);
     auto *wsForm = new QFormLayout(wsGroup);
     m_wsUrl = new QLineEdit(QStringLiteral("ws://127.0.0.1:8080/"), wsGroup);
-    m_wsPayload = new QLineEdit(QStringLiteral("Hello IndustrialHub"), wsGroup);
+    m_wsPayload = new QLineEdit(QStringLiteral("{\\"deviceId\\":\\"WS-DEMO-001\\",\\"variableId\\":\\"speed\\",\\"name\\":\\"转速\\",\\"value\\":1200,\\"unit\\":\\"rpm\\"}"), wsGroup);
     wsForm->addRow(QStringLiteral("WebSocket URL："), m_wsUrl);
     wsForm->addRow(QStringLiteral("发送文本："), m_wsPayload);
     auto *wsButtons = new QHBoxLayout;
