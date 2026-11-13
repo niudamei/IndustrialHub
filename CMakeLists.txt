@@ -41,6 +41,7 @@ qt_add_executable(hhh
     src/pages/deviceinfo.h
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
+    src/core/datamanager.h src/core/datamanager.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
