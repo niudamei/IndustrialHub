@@ -1,8 +1,7 @@
 #include "modbuspoller.h"
 
-#include "modbusmaster.h"
-
 #include <QSet>
+#include <utility>
 
 ModbusPoller::ModbusPoller(ModbusMaster *master, QString deviceId, QObject *parent)
     : QObject(parent), m_master(master), m_deviceId(std::move(deviceId))
@@ -121,7 +120,7 @@ void ModbusPoller::onRequestCompleted(
         ++m_failedPoints;
         emit pollError(m_deviceId, mapping.variableId,
             response.error.isEmpty() ? QStringLiteral("Modbus 设备返回异常响应。") : response.error);
-        finishOne(false);
+        finishOne();
         return;
     }
 
@@ -138,7 +137,7 @@ void ModbusPoller::onRequestCompleted(
     }
     ++m_successfulPoints;
     emit pointsReady(m_deviceId, {point});
-    finishOne(true);
+    finishOne();
 }
 
 void ModbusPoller::onRequestFailed(quint64 requestId, const QString &reason)
@@ -152,7 +151,7 @@ void ModbusPoller::onRequestFailed(quint64 requestId, const QString &reason)
     finishOne(false);
 }
 
-void ModbusPoller::finishOne(bool)
+void ModbusPoller::finishOne()
 {
     if (m_cyclePending > 0) --m_cyclePending;
     if (m_cyclePending == 0) finishCycle();
