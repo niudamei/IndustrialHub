@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QDebug>
 #include "src/protocol/modbuscodec.h"
 
 using namespace ModbusCodec;
