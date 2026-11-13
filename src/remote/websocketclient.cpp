@@ -127,7 +127,7 @@ void WebSocketClient::onReadyRead()
         const int acceptStart = lowerHeaders.indexOf("sec-websocket-accept:");
         bool acceptMatches = false;
         if (acceptStart >= 0) {
-            const int lineEnd = headers.indexOf("\\r\\n", acceptStart);
+            const int lineEnd = headers.indexOf("\r\n", acceptStart);
             const QByteArray acceptLine = headers.mid(acceptStart, lineEnd >= 0
                 ? lineEnd - acceptStart : headers.size() - acceptStart);
             const int colon = acceptLine.indexOf(':');
