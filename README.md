@@ -259,4 +259,4 @@ ctest --test-dir build --output-on-failure
 
 ## Modbus 主站事务层
 
-新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。当前尚未增加寄存器映射编辑器、轮询周期配置 UI 或真实设备联调；实际寄存器地址、字节序和缩放仍必须依据设备手册。
+新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。新增 ModbusRegisterMap，支持 UInt16/Int16/UInt32/Int32/Float32、ABCD/CDAB/BADC/DCBA 字序、缩放和偏移；新增 ModbusPoller，可按显式映射周期读取并输出 BusinessDataPoint。当前尚未增加寄存器映射编辑器和轮询周期配置 UI，也未进行真实设备联调；实际寄存器地址、字节序和缩放仍必须依据设备手册。
