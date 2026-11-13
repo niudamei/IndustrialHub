@@ -7,8 +7,10 @@
 #include <QObject>
 #include <QQueue>
 #include <QString>
-
+#include <QVector>
 #include <QSqlDatabase>
+
+#include "src/protocol/businessdatapoint.h"
 
 class CommunicationManager;
 class QTimer;
@@ -22,7 +24,13 @@ struct CommunicationHistoryRecord
     QByteArray payload;
 };
 
-// 统一通信数据入口：接收通信管理器的 TX/RX 事件，批量写入 SQLite。
+struct BusinessDataHistoryRecord
+{
+    qint64 id = 0;
+    BusinessDataPoint point;
+};
+
+// 统一数据入口：通信原始帧与业务变量分别存储在同一 SQLite 数据库。
 class DataManager : public QObject
 {
     Q_OBJECT
@@ -46,7 +54,19 @@ public:
                                    int &totalCount,
                                    QString *errorMessage = nullptr);
 
+    bool queryBusinessDataHistory(const QDateTime &start,
+                                  const QDateTime &end,
+                                  const QString &deviceId,
+                                  const QString &variableId,
+                                  int offset,
+                                  int limit,
+                                  QList<BusinessDataHistoryRecord> &records,
+                                  int &totalCount,
+                                  QString *errorMessage = nullptr);
+
 public slots:
+    void appendBusinessDataPoints(const QString &deviceId,
+                                  const QVector<BusinessDataPoint> &points);
     void flushPendingRecords();
 
 signals:
@@ -61,6 +81,7 @@ private:
     void appendRecord(const QString &deviceId,
                       const QString &direction,
                       const QByteArray &payload);
+    void flushPendingBusinessData();
     bool initializeDatabase();
     bool setError(const QString &message, QString *errorMessage = nullptr);
 
@@ -71,8 +92,10 @@ private:
     QString m_lastError;
     bool m_ready = false;
     QQueue<CommunicationHistoryRecord> m_pendingRecords;
+    QQueue<BusinessDataHistoryRecord> m_pendingBusinessData;
     QTimer *m_flushTimer = nullptr;
     static constexpr int MaxPendingRecords = 10000;
+    static constexpr int MaxPendingBusinessData = 20000;
     static constexpr int BatchSize = 200;
 };
 
