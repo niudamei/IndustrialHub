@@ -2,6 +2,7 @@
 #define MONITORPAGE_H
 
 #include <QDateTime>
+#include "src/protocol/businessdatapoint.h"
 #include <QHash>
 #include <QQueue>
 #include <QSet>
@@ -39,6 +40,10 @@ private slots:
     void generateDemoTraffic();
     void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
+
+signals:
+    void businessDataGenerated(const QString &deviceId,
+                               const QVector<BusinessDataPoint> &points);
 
 private:
     struct DeviceMetrics
@@ -83,6 +88,7 @@ private:
     QHash<QString, quint64> m_demoFrameCounters;
     QSet<QString> m_demoDisconnectedDevices;
     int m_demoDropEvery = 3;
+    class QCheckBox *m_demoOverTemperatureCheckBox = nullptr;
     static constexpr int MaxRows = 500;
     int m_receiveTimeoutMs = 3000;
 };
