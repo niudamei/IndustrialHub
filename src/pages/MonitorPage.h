@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QHash>
 #include <QQueue>
+#include <QSet>
 #include <QVector>
 #include <QWidget>
 
@@ -34,6 +35,7 @@ private slots:
     void exportEventsToCsv();
     void toggleDemoMode();
     void onDemoIntervalChanged(int milliseconds);
+    void applyDemoFaultSettings();
     void generateDemoTraffic();
     void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
@@ -78,6 +80,9 @@ private:
     bool m_paused = false;
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;
+    QHash<QString, quint64> m_demoFrameCounters;
+    QSet<QString> m_demoDisconnectedDevices;
+    int m_demoDropEvery = 3;
     static constexpr int MaxRows = 500;
     int m_receiveTimeoutMs = 3000;
 };
