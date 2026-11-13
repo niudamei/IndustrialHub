@@ -162,7 +162,7 @@ void ModbusPoller::onRequestFailed(quint64 requestId, const QString &reason)
     m_requestMapping.erase(it);
     ++m_failedPoints;
     emit pollError(m_deviceId, m_mappings.at(mappingIndex).variableId, reason);
-    finishOne(false);
+    finishOne();
 }
 
 void ModbusPoller::finishOne()
