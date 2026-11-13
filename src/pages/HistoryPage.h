@@ -6,11 +6,13 @@
 #include <QWidget>
 
 #include "src/core/datamanager.h"
+#include "src/core/historymaintenance.h"
 #include "ui_historypage.h"
 
 class QChartView;
 class QComboBox;
 class QDateTimeEdit;
+class QDateEdit;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -40,6 +42,10 @@ private slots:
     void exportCommunicationAll();
     void exportBusinessAll();
     void applyExportResult(const HistoryExportResult &result);
+    void previewHistoryCleanup();
+    void startHistoryCleanup();
+    void applyHistoryPreview(const HistoryStoragePreview &preview);
+    void applyHistoryCleanup(const HistoryCleanupResult &result);
 
 private:
     void updatePageInfo();
@@ -76,6 +82,13 @@ private:
     QFutureWatcher<HistoryExportResult> *m_exportWatcher = nullptr;
     QPushButton *m_communicationExportAllButton = nullptr;
     QPushButton *m_businessExportAllButton = nullptr;
+    QDateEdit *m_retentionCutoffEdit = nullptr;
+    QPushButton *m_retentionPreviewButton = nullptr;
+    QPushButton *m_retentionCleanupButton = nullptr;
+    QLabel *m_retentionStatusLabel = nullptr;
+    QFutureWatcher<HistoryStoragePreview> *m_retentionPreviewWatcher = nullptr;
+    QFutureWatcher<HistoryCleanupResult> *m_retentionCleanupWatcher = nullptr;
+    HistoryStoragePreview m_lastRetentionPreview;
 };
 
 #endif // HISTORYPAGE_H
