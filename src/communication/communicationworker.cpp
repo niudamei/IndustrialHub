@@ -11,8 +11,10 @@ CommunicationWorker::CommunicationWorker(Factory factory, QObject *parent)
     m_thread.start();
 
     QObject *context = m_context;
-    const bool invoked = QMetaObject::invokeMethod(context, [this, factory]() {
+    bool created = false;
+    const bool invoked = QMetaObject::invokeMethod(context, [this, factory, &created]() {
         m_communication = factory ? factory(nullptr) : nullptr;
+        created = m_communication != nullptr;
         if (!m_communication)
             return;
 
@@ -37,7 +39,7 @@ CommunicationWorker::CommunicationWorker(Factory factory, QObject *parent)
         }, Qt::DirectConnection);
     }, Qt::BlockingQueuedConnection);
 
-    m_ready.storeRelease(invoked && m_communication != nullptr);
+    m_ready.storeRelease(invoked && created);
 }
 
 CommunicationWorker::~CommunicationWorker()
