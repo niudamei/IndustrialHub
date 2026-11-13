@@ -267,6 +267,18 @@ bool AuthManager::setUserRole(qint64 userId, const QString &role, QString *error
 {
     if (!roleExists(role))
         return setError(QStringLiteral("角色不存在。"), error);
+    QSqlQuery current(m_db);
+    current.prepare(QStringLiteral("SELECT role FROM auth_users WHERE id=?"));
+    current.addBindValue(userId);
+    if (!current.exec() || !current.next())
+        return setError(QStringLiteral("用户不存在。"), error);
+    if (current.value(0).toString().compare(QStringLiteral("admin"), Qt::CaseInsensitive) == 0
+        && role.compare(QStringLiteral("admin"), Qt::CaseInsensitive) != 0) {
+        QSqlQuery count(m_db);
+        if (!count.exec(QStringLiteral("SELECT COUNT(*) FROM auth_users WHERE role='admin' COLLATE NOCASE AND enabled=1"))
+            || !count.next() || count.value(0).toInt() <= 1)
+            return setError(QStringLiteral("系统至少需要保留一个启用状态的管理员账户。"), error);
+    }
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("UPDATE auth_users SET role=?,updated_at=? WHERE id=?"));
     q.addBindValue(role);
@@ -283,6 +295,18 @@ bool AuthManager::setUserEnabled(qint64 userId, bool enabled, QString *error)
 {
     if (userId == m_currentUser.id && !enabled)
         return setError(QStringLiteral("不能禁用当前登录账户。"), error);
+    if (!enabled) {
+        QSqlQuery current(m_db);
+        current.prepare(QStringLiteral("SELECT role FROM auth_users WHERE id=?"));
+        current.addBindValue(userId);
+        if (current.exec() && current.next()
+            && current.value(0).toString().compare(QStringLiteral("admin"), Qt::CaseInsensitive) == 0) {
+            QSqlQuery count(m_db);
+            if (!count.exec(QStringLiteral("SELECT COUNT(*) FROM auth_users WHERE role='admin' COLLATE NOCASE AND enabled=1"))
+                || !count.next() || count.value(0).toInt() <= 1)
+                return setError(QStringLiteral("不能禁用最后一个启用状态的管理员账户。"), error);
+        }
+    }
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("UPDATE auth_users SET enabled=?,updated_at=? WHERE id=?"));
     q.addBindValue(enabled ? 1 : 0);
