@@ -122,6 +122,26 @@ if(BUILD_TESTING)
     target_include_directories(communication_manager_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(communication_manager_smoke_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME communication_manager_smoke_test COMMAND communication_manager_smoke_test)
+
+    add_executable(datamanager_history_test
+        tests/datamanager_history_test.cpp
+        src/core/datamanager.h
+        src/core/datamanager.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
+        src/communication/communicationmanager.h
+        src/communication/communicationmanager.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(datamanager_history_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(datamanager_history_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
+    add_test(NAME datamanager_history_test COMMAND datamanager_history_test)
 endif()
 
 
