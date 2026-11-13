@@ -15,10 +15,10 @@
 #include "src/pages/HistoryPage.h"
 #include "src/pages/MonitorPage.h"
 #include "src/pages/TrendPage.h"
-#include "src/pages/SettingsPage.h"
+#include "src/pages/SettingsPage.h"\n#include "src/security/authmanager.h"\n#include "src/security/logindialog.h"\n#include "src/security/usermanagementpage.h"\n#include "src/remote/remotepage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <QDebug>
+#include <QDebug>\n#include <QPushButton>\n#include <QLabel>\n#include <QTimer>\n#include <QToolBar>
 #include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -145,8 +145,90 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::onNavigationClicked(int index)
 {
-    if (index >= 0 && index < ui->stackedWidget->count())
-        ui->stackedWidget->setCurrentIndex(index);
+    static const QStringList required = {
+        QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
+        QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
+        QStringLiteral("alarm.view"), QStringLiteral("history.view"),
+        QStringLiteral("communication.view"), QStringLiteral("system.manage"),
+        QStringLiteral("remote.manage"), QStringLiteral("users.manage")
+    };
+    if (index < 0 || index >= ui->stackedWidget->count()
+        || index >= required.size() || !m_authManager
+        || !m_authManager->hasPermission(required.at(index))) {
+        if (m_authManager)
+            m_authManager->audit(QStringLiteral("permission.denied"),
+                                 QString::number(index), QStringLiteral("navigation"));
+        return;
+    }
+    ui->stackedWidget->setCurrentIndex(index);
+    m_authManager->audit(QStringLiteral("navigation"), required.at(index));
+}
+
+void MainWindow::showLoginDialog()
+{
+    if (!m_authManager)
+        return;
+    m_authManager->logout();
+    LoginDialog dialog(m_authManager, this);
+    if (dialog.exec() != QDialog::Accepted) {
+        close();
+        return;
+    }
+    applyPermissions();
+}
+
+void MainWindow::applyPermissions()
+{
+    if (!m_authManager || !ui)
+        return;
+    static const QStringList required = {
+        QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
+        QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
+        QStringLiteral("alarm.view"), QStringLiteral("history.view"),
+        QStringLiteral("communication.view"), QStringLiteral("system.manage"),
+        QStringLiteral("remote.manage"), QStringLiteral("users.manage")
+    };
+    for (int i = 0; i < ui->listWidget->count() && i < required.size(); ++i) {
+        const bool allowed = m_authManager->hasPermission(required.at(i));
+        ui->listWidget->item(i)->setHidden(!allowed);
+    }
+
+    const bool canManageDevices = m_authManager->hasPermission(QStringLiteral("device.manage"));
+    if (devicePage) {
+        for (QPushButton *button : devicePage->findChildren<QPushButton *>())
+            button->setEnabled(canManageDevices);
+    }
+    const bool canManageCommunication = m_authManager->hasPermission(QStringLiteral("communication.manage"));
+    if (configPage) {
+        for (QPushButton *button : configPage->findChildren<QPushButton *>())
+            button->setEnabled(canManageCommunication);
+    }
+    const bool canOperateMonitor = m_authManager->hasPermission(QStringLiteral("device.manage"));
+    if (monitorPage && !canOperateMonitor) {
+        for (QPushButton *button : monitorPage->findChildren<QPushButton *>())
+            button->setEnabled(false);
+    }
+    const bool canAcknowledge = m_authManager->hasPermission(QStringLiteral("alarm.acknowledge"));
+    if (alarmPage && !canAcknowledge) {
+        for (QPushButton *button : alarmPage->findChildren<QPushButton *>())
+            button->setEnabled(false);
+    }
+    const bool canMaintainHistory = m_authManager->hasPermission(QStringLiteral("history.maintenance"));
+    if (historyPage && !canMaintainHistory) {
+        for (QPushButton *button : historyPage->findChildren<QPushButton *>()) {
+            const QString text = button->text();
+            if (text.contains(QStringLiteral("清理")) || text.contains(QStringLiteral("维护")))
+                button->setEnabled(false);
+        }
+    }
+
+    for (int i = 0; i < ui->listWidget->count(); ++i) {
+        if (!ui->listWidget->item(i)->isHidden()) {
+            ui->listWidget->setCurrentRow(i);
+            ui->stackedWidget->setCurrentIndex(i);
+            break;
+        }
+    }
 }
 
 void MainWindow::init_class()
@@ -165,7 +247,7 @@ void MainWindow::init_class()
     configPage = new ConfigPage(m_deviceManager, m_communicationManager,
                                 m_protocolManager, this, m_deviceHealthMonitor,
                                 m_businessDataManager, m_alarmManager);
-    settingsPage = new SettingsPage(this);
+    settingsPage = new SettingsPage(this);\n    m_remotePage = new RemotePage(this);\n    m_userManagementPage = new UserManagementPage(m_authManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
@@ -175,13 +257,13 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(alarmPage);     // 4 报警中心
     ui->stackedWidget->addWidget(historyPage);   // 5 历史数据
     ui->stackedWidget->addWidget(configPage);    // 6 通信配置
-    ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置
+    ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置\n    ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket\n    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
     ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
         QStringLiteral("实时监控"), QStringLiteral("实时趋势"), QStringLiteral("报警中心"),
-        QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置")});
+        QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置"),\n        QStringLiteral("远程通信"), QStringLiteral("用户与权限")});
     for (int i = 0; i < ui->listWidget->count(); ++i)
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
