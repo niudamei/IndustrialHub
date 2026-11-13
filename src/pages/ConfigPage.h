@@ -15,6 +15,7 @@ class CommunicationManager;
 class ProtocolManager;
 class QComboBox;
 class QTableWidget;
+class QTimer;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
@@ -56,6 +57,7 @@ private:
     CommunicationDiagnostics *m_diagnostics = nullptr;
     QTableWidget *m_diagnosticsTable = nullptr;
     QTableWidget *m_statisticsTable = nullptr;
+    QTimer *m_diagnosticsRefreshTimer = nullptr;
 };
 
 #endif // CONFIGPAGE_H
