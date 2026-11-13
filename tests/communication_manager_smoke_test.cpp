@@ -7,6 +7,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
+#include <QAtomicPointer>
 #include <iostream>
 #include <functional>
 
@@ -36,7 +37,7 @@ public:
 
     bool sendData(const QByteArray &data, QString *) override
     {
-        m_sendThread = QThread::currentThread();
+        m_sendThread.storeRelease(QThread::currentThread());
         if (!m_open)
             return false;
         emit dataReceived(data);
@@ -45,12 +46,12 @@ public:
 
     QThread *ownerThread() const { return m_ownerThread; }
     QThread *openThread() const { return m_openThread; }
-    QThread *sendThread() const { return m_sendThread; }
+    QThread *sendThread() const { return m_sendThread.loadAcquire(); }
 
 private:
     QThread *m_ownerThread = nullptr;
     QThread *m_openThread = nullptr;
-    QThread *m_sendThread = nullptr;
+    QAtomicPointer<QThread> m_sendThread{nullptr};
     bool m_open = false;
 };
 
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 
     const QByteArray simulatedPayload = QByteArray::fromHex("11223344");
     if (!manager.sendData(simulated.devId, simulatedPayload, &error)
-        || simulatedTx != simulatedPayload
+        || !waitUntil([&]() { return simulatedTx == simulatedPayload; }, 1000)
         || !waitUntil([&]() { return simulatedRx == simulatedPayload; }, 1000)) {
         std::cerr << "FAIL: simulated TX/RX routing failed: " << error.toStdString() << std::endl;
         return 3;
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 
     const QByteArray tcpPayload = QByteArray::fromHex("A1B2C3D4");
     if (!manager.sendData(tcp.devId, tcpPayload, &error)
-        || tcpTx != tcpPayload
+        || !waitUntil([&]() { return tcpTx == tcpPayload; }, 1000)
         || !waitUntil([&]() { return tcpRx == tcpPayload; }, 2000)) {
         std::cerr << "FAIL: manager TCP TX/RX routing failed: " << error.toStdString() << std::endl;
         return 6;
@@ -223,6 +224,7 @@ int main(int argc, char *argv[])
         return 18;
     }
     if (!manager.sendData(probeDevice.devId, QByteArray::fromHex("CAFE"), &error)
+        || !waitUntil([&]() { return probe->sendThread() != nullptr; }, 1000)
         || probe->sendThread() != probe->ownerThread()) {
         std::cerr << "FAIL: sendData did not execute in the device I/O thread." << std::endl;
         return 19;
