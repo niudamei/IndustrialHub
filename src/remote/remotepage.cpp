@@ -3,14 +3,10 @@
 #include "mqttclient.h"
 #include "websocketclient.h"
 #include "httpclient.h"
+#include "remotetelemetryparser.h"
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonParseError>
 #include <QComboBox>
 #include <QUrl>
-#include <QtMath>
 
 #include <QCheckBox>
 #include <QFormLayout>
@@ -214,86 +210,18 @@ void RemotePage::appendLog(QPlainTextEdit *view, const QString &message)
 void RemotePage::handleRemotePayload(const QString &protocol, const QString &channel,
                                      const QByteArray &payload)
 {
-    if (payload.isEmpty() || payload.size() > 1024 * 1024)
-        return;
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
-                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
-                   QStringLiteral("收到非 JSON 数据，不进入业务变量链路。"));
-        return;
-    }
-
-    const QJsonObject root = document.object();
-    const QString deviceId = root.value(QStringLiteral("deviceId")).toString().trimmed();
-    if (deviceId.isEmpty()) {
-        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
-                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
-                   QStringLiteral("JSON 缺少 deviceId，已拒绝业务数据映射。"));
-        return;
-    }
-
-    QJsonArray pointsArray = root.value(QStringLiteral("points")).toArray();
-    if (pointsArray.isEmpty())
-        pointsArray = root.value(QStringLiteral("variables")).toArray();
-    if (pointsArray.isEmpty())
-        pointsArray.append(root);
-
-    if (pointsArray.size() > 500) {
-        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
-                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
-                   QStringLiteral("单条远程消息变量数超过 500，已拒绝。"));
-        return;
-    }
-
+    QString deviceId;
     QVector<BusinessDataPoint> points;
-    points.reserve(pointsArray.size());
-    for (const QJsonValue &value : pointsArray) {
-        if (!value.isObject())
-            continue;
-        const QJsonObject object = value.toObject();
-        const QString variableId = object.value(QStringLiteral("variableId")).toString(
-            object.value(QStringLiteral("id")).toString()).trimmed();
-        const QJsonValue numericValue = object.value(QStringLiteral("value"));
-        if (variableId.isEmpty() || !numericValue.isDouble())
-            continue;
-        const double number = numericValue.toDouble();
-        if (!qIsFinite(number))
-            continue;
-
-        BusinessDataPoint point;
-        point.deviceId = deviceId;
-        point.variableId = variableId;
-        point.name = object.value(QStringLiteral("name")).toString(variableId);
-        point.value = number;
-        point.unit = object.value(QStringLiteral("unit")).toString();
-        point.timestamp = QDateTime::fromString(
-            object.value(QStringLiteral("timestamp")).toString(), Qt::ISODateWithMs);
-        if (!point.timestamp.isValid())
-            point.timestamp = QDateTime::fromString(
-                object.value(QStringLiteral("timestamp")).toString(), Qt::ISODate);
-        if (!point.timestamp.isValid())
-            point.timestamp = QDateTime::currentDateTime();
-        const QString quality = object.value(QStringLiteral("quality")).toString();
-        point.quality = quality.compare(QStringLiteral("Bad"), Qt::CaseInsensitive) == 0
-            ? DataQuality::Bad
-            : quality.compare(QStringLiteral("Uncertain"), Qt::CaseInsensitive) == 0
-                ? DataQuality::Uncertain : DataQuality::Good;
-        point.sourceProtocol = protocol + (channel.isEmpty() ? QString() : QStringLiteral(":") + channel);
-        points.append(point);
-    }
-
-    if (points.isEmpty()) {
-        appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
-                   : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
-                   QStringLiteral("JSON 中没有有效业务变量（需要 variableId/id 和数值 value）。"));
+    QString error;
+    if (!RemoteTelemetryParser::parse(protocol, channel, payload, deviceId, points, &error)) {
+        QPlainTextEdit *log = protocol == QStringLiteral("MQTT") ? m_mqttLog
+            : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog;
+        appendLog(log, QStringLiteral("远程数据解析失败：") + error);
         return;
     }
     emit businessDataReceived(deviceId, points);
-    appendLog(protocol == QStringLiteral("MQTT") ? m_mqttLog
-               : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog,
-               QStringLiteral("已解析 %1 个业务变量，设备：%2，已送入数据中心。")
-                   .arg(points.size()).arg(deviceId));
+    QPlainTextEdit *log = protocol == QStringLiteral("MQTT") ? m_mqttLog
+        : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog;
+    appendLog(log, QStringLiteral("已解析 %1 个业务变量，设备：%2，已送入数据中心。")
+        .arg(points.size()).arg(deviceId));
 }
-
