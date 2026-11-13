@@ -176,7 +176,7 @@ if(BUILD_TESTING)
     target_link_libraries(device_database_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME device_database_test COMMAND device_database_test)
 
-    add_executable(device_health_monitor_test
+    add_executable(communication_diagnostics_test\n        tests/communication_diagnostics_test.cpp\n        src/core/communicationdiagnostics.h\n        src/core/communicationdiagnostics.cpp\n        src/communication/communicationmanager.h\n        src/communication/communicationmanager.cpp\n        src/communication/communicationworker.h\n        src/communication/communicationworker.cpp\n        src/communication/icommunication.h\n        src/communication/icommunication.cpp\n        src/communication/simulatedcommunication.h\n        src/communication/simulatedcommunication.cpp\n        src/communication/tcpcommunication.h\n        src/communication/tcpcommunication.cpp\n        src/communication/udpcommunication.h\n        src/communication/udpcommunication.cpp\n        src/pages/deviceinfo.h\n    )\n    target_include_directories(communication_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})\n    target_link_libraries(communication_diagnostics_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)\n    add_test(NAME communication_diagnostics_test COMMAND communication_diagnostics_test)\n\n    add_executable(device_health_monitor_test
         tests/device_health_monitor_test.cpp
         src/core/devicehealthmonitor.h
         src/core/devicehealthmonitor.cpp
