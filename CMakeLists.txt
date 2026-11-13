@@ -42,6 +42,7 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
+    src/core/historymaintenance.h src/core/historymaintenance.cpp
     src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
     src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
@@ -230,6 +231,15 @@ if(BUILD_TESTING)
     target_include_directories(datamanager_history_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(datamanager_history_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
     add_test(NAME datamanager_history_test COMMAND datamanager_history_test)
+
+    add_executable(history_maintenance_test
+        tests/history_maintenance_test.cpp
+        src/core/historymaintenance.h
+        src/core/historymaintenance.cpp
+    )
+    target_include_directories(history_maintenance_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(history_maintenance_test PRIVATE Qt6::Core Qt6::Sql)
+    add_test(NAME history_maintenance_test COMMAND history_maintenance_test)
 
     add_executable(modbus_codec_test
         tests/modbus_codec_test.cpp
