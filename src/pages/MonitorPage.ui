@@ -55,21 +55,32 @@
         </item>
         <item><widget class="QLabel" name="demoStatusLabel"><property name="text"><string>状态：未启动</string></property></widget></item>
         <item><spacer name="demoControlSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
+        <item>
+         <widget class="QPushButton" name="demoButton">
+          <property name="minimumSize"><size><width>130</width><height>34</height></size></property>
+          <property name="text"><string>开始模拟</string></property>
+          <property name="toolTip"><string>启动或停止三台虚拟设备的数据模拟</string></property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="demoFaultLayout">
         <item><widget class="QLabel" name="demoFaultModeLabel"><property name="text"><string>故障注入：</string></property></widget></item>
         <item>
          <widget class="QComboBox" name="demoFaultModeCombo">
-          <item><property name="text"><string>正常</string></property><property name="data" stdset="0"><string>normal</string></property></item>
-          <item><property name="text"><string>丢帧</string></property><property name="data" stdset="0"><string>drop</string></property></item>
-          <item><property name="text"><string>断线</string></property><property name="data" stdset="0"><string>disconnect</string></property></item>
+          <item><property name="text"><string>正常</string></property><property name="userData" stdset="0><string>normal</string></property></item>
+          <item><property name="text"><string>丢帧</string></property><property name="userData" stdset="0><string>drop</string></property></item>
+          <item><property name="text"><string>断线</string></property><property name="userData" stdset="0><string>disconnect</string></property></item>
          </widget>
         </item>
         <item><widget class="QLabel" name="demoFaultTargetLabel"><property name="text"><string>作用设备：</string></property></widget></item>
         <item>
          <widget class="QComboBox" name="demoFaultTargetCombo">
-          <item><property name="text"><string>全部模拟设备</string></property><property name="data" stdset="0"><string/></property></item>
-          <item><property name="text"><string>CAN 采集盒 1</string></property><property name="data" stdset="0"><string>DEMO-CAN-001</string></property></item>
-          <item><property name="text"><string>CAN-FD 采集盒 2</string></property><property name="data" stdset="0"><string>DEMO-CANFD-002</string></property></item>
-          <item><property name="text"><string>导航控制器</string></property><property name="data" stdset="0"><string>DEMO-TCP-003</string></property></item>
+          <item><property name="text"><string>全部模拟设备</string></property><property name="userData" stdset="0><string/></property></item>
+          <item><property name="text"><string>CAN 采集盒 1</string></property><property name="userData" stdset="0><string>DEMO-CAN-001</string></property></item>
+          <item><property name="text"><string>CAN-FD 采集盒 2</string></property><property name="userData" stdset="0><string>DEMO-CANFD-002</string></property></item>
+          <item><property name="text"><string>导航控制器</string></property><property name="userData" stdset="0><string>DEMO-TCP-003</string></property></item>
          </widget>
         </item>
         <item><widget class="QLabel" name="demoDropEveryLabel"><property name="text"><string>每</string></property></widget></item>
@@ -82,13 +93,7 @@
          </widget>
         </item>
         <item><widget class="QLabel" name="demoFaultHintLabel"><property name="text"><string>故障注入：关闭</string></property></widget></item>
-        <item>
-         <widget class="QPushButton" name="demoButton">
-          <property name="minimumSize"><size><width>130</width><height>34</height></size></property>
-          <property name="text"><string>开始模拟</string></property>
-          <property name="toolTip"><string>启动或停止三台虚拟设备的数据模拟</string></property>
-         </widget>
-        </item>
+
        </layout>
       </item>
      </layout>
