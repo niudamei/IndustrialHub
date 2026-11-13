@@ -229,10 +229,10 @@ static bool testHttp()
 static bool testRemoteTelemetryParser()
 {
     const QByteArray json = QByteArrayLiteral(
-        "{\\"deviceId\\":\\"MQTT-DEVICE-01\\","
-        "\\"points\\":["
-        "{\\"variableId\\":\\"temperature\\",\\"name\\":\\"温度\\",\\"value\\":26.5,\\"unit\\":\\"°C\\",\\"quality\\":\\"Good\\"},"
-        "{\\"id\\":\\"current\\",\\"value\\":1.25,\\"unit\\":\\"A\\",\\"quality\\":\\"Bad\\"}"
+        "{\"deviceId\":\"MQTT-DEVICE-01\","
+        "\"points\":["
+        "{\"variableId\":\"temperature\",\"name\":\"温度\",\"value\":26.5,\"unit\":\"°C\",\"quality\":\"Good\"},"
+        "{\"id\":\"current\",\"value\":1.25,\"unit\":\"A\",\"quality\":\"Bad\"}"
         "]}");
     QString deviceId;
     QVector<BusinessDataPoint> points;
@@ -247,8 +247,8 @@ static bool testRemoteTelemetryParser()
         return false;
 
     const QByteArray single = QByteArrayLiteral(
-        "{\\"deviceId\\":\\"HTTP-DEVICE-02\\",\\"variableId\\":\\"speed\\","
-        "\\"value\\":1200,\\"unit\\":\\"rpm\\"}");
+        "{\"deviceId\":\"HTTP-DEVICE-02\",\"variableId\":\"speed\","
+        "\"value\":1200,\"unit\":\"rpm\"}");
     if (!RemoteTelemetryParser::parse(QStringLiteral("HTTP"), QString(), single,
                                       deviceId, points, &error)
         || deviceId != QStringLiteral("HTTP-DEVICE-02") || points.size() != 1
