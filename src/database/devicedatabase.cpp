@@ -84,9 +84,12 @@ bool DeviceDatabase::initialize(QString *errorMessage)
         QSqlQuery info(m_database);
         if (!info.exec(QStringLiteral("PRAGMA table_info(devices)")))
             return setError(QStringLiteral("检查设备表结构失败：%1").arg(info.lastError().text()), error);
+        bool found = false;
         while (info.next()) {
-            if (info.value(1).toString().compare(name, Qt::CaseInsensitive) == 0) return true;
+            if (info.value(1).toString().compare(name, Qt::CaseInsensitive) == 0) { found = true; break; }
         }
+        info.finish();
+        if (found) return true;
         QSqlQuery alter(m_database);
         if (!alter.exec(QStringLiteral("ALTER TABLE devices ADD COLUMN ") + definition))
             return setError(QStringLiteral("升级设备表字段 %1 失败：%2").arg(name, alter.lastError().text()), error);
@@ -95,7 +98,7 @@ bool DeviceDatabase::initialize(QString *errorMessage)
     if (!ensureColumn(QStringLiteral("group_name"), QStringLiteral("group_name TEXT NOT NULL DEFAULT ''"), errorMessage)
         || !ensureColumn(QStringLiteral("enabled"), QStringLiteral("enabled INTEGER NOT NULL DEFAULT 1"), errorMessage)) return false;
 
-    if (!query.exec(QStringLiteral("PRAGMA user_version = 1")))
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 2")))
         return setError(QStringLiteral("设置数据库版本失败：%1")
                             .arg(query.lastError().text()), errorMessage);
 
