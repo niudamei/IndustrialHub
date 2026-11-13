@@ -221,7 +221,18 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 支持 UInt16、Int16、UInt32、Int32、Float32；32 位数据支持 ABCD/CDAB/BADC/DCBA 四种字序。
 - [x] 映射值转换后统一输出 BusinessDataPoint，质量状态标记 Good，来源标记 Modbus RTU/TCP。
 - [x] 新增 ModbusPoller，按配置周期串行读取映射并输出数据点，报告单变量错误。
-- [x] 支持将 ModbusPoller 输出直接绑定到 BusinessDataManager，复用现有最新值与 SQLite 历史持久化链路。
+- [x] 支持将 ModbusPoller 输出按周期批量绑定到 BusinessDataManager，复用现有最新值与 SQLite 历史持久化链路，并联动 AlarmManager。
 - [x] 新增寄存器映射和轮询自动化测试。
 - [ ] 增加可视化寄存器映射配置、轮询周期 UI，并接入 BusinessDataManager/DataManager。
 - [ ] 真实设备寄存器地址、字序、比例和周期需按设备手册及现场测试确认。
+
+
+### Modbus 离线模拟与可视化配置（本阶段）
+
+- [x] 新增 MODBUS-SIM 通信驱动，无需串口或真实设备即可模拟 RTU 读写寄存器。
+- [x] 提供温度、电流、转速、状态及 Float32 示例寄存器；设备地址为 RTU 单元地址。
+- [x] 设备管理支持创建 MODBUS-SIM；通信配置页可加载专用示例映射。
+- [x] 通信配置页支持自定义变量 ID/名称/单位、寄存器地址、03/04 功能码、数值类型、字序、缩放、偏移、单元地址、轮询间隔和超时。
+- [x] 映射和单元地址按设备 ID 持久化到 QSettings；示例映射覆盖前会二次确认。
+- [x] 轮询结果批量进入 BusinessDataManager、AlarmManager 和现有 SQLite 历史存储链路。
+- [ ] 本机编译、模拟设备端到端验证和真实 TCP/RS485 设备联调。
