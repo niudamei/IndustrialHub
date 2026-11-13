@@ -15,7 +15,9 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 private slots:
-    void onNavigationClicked(int index);\n    void applyPermissions();\n    void showLoginDialog();
+    void onNavigationClicked(int index);
+    void applyPermissions();
+    void showLoginDialog();
 private:
     void init_class();
     Ui::MainWindow *ui = nullptr;
@@ -25,7 +27,10 @@ private:
     DataManager *m_dataManager = nullptr;
     ProtocolManager *m_protocolManager = nullptr;
     BusinessDataManager *m_businessDataManager = nullptr;
-    AlarmManager *m_alarmManager = nullptr;\n    AuthManager *m_authManager = nullptr;\n    RemotePage *m_remotePage = nullptr;\n    UserManagementPage *m_userManagementPage = nullptr;
+    AlarmManager *m_alarmManager = nullptr;
+    AuthManager *m_authManager = nullptr;
+    RemotePage *m_remotePage = nullptr;
+    UserManagementPage *m_userManagementPage = nullptr;
     DashboardPage *dashboardPage = nullptr;
     DevicePage *devicePage = nullptr;
     AlarmPage *alarmPage = nullptr;
