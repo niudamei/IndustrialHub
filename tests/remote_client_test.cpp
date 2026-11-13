@@ -1,6 +1,11 @@
 #include "src/remote/mqttclient.h"
 #include "src/remote/websocketclient.h"
 #include "src/remote/httpclient.h"
+#include "src/remote/remotetelemetryparser.h"
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -220,6 +225,56 @@ static bool testHttp()
     return requestSeen && completed;
 }
 
+
+static bool testRemoteTelemetryParser()
+{
+    const QByteArray json = QByteArrayLiteral(
+        "{\\"deviceId\\":\\"MQTT-DEVICE-01\\","
+        "\\"points\\":["
+        "{\\"variableId\\":\\"temperature\\",\\"name\\":\\"温度\\",\\"value\\":26.5,\\"unit\\":\\"°C\\",\\"quality\\":\\"Good\\"},"
+        "{\\"id\\":\\"current\\",\\"value\\":1.25,\\"unit\\":\\"A\\",\\"quality\\":\\"Bad\\"}"
+        "]}");
+    QString deviceId;
+    QVector<BusinessDataPoint> points;
+    QString error;
+    if (!RemoteTelemetryParser::parse(QStringLiteral("MQTT"), QStringLiteral("plant/line1"),
+                                      json, deviceId, points, &error))
+        return false;
+    if (deviceId != QStringLiteral("MQTT-DEVICE-01") || points.size() != 2
+        || points.at(0).value != 26.5
+        || points.at(0).sourceProtocol != QStringLiteral("MQTT:plant/line1")
+        || points.at(1).quality != DataQuality::Bad)
+        return false;
+
+    const QByteArray single = QByteArrayLiteral(
+        "{\\"deviceId\\":\\"HTTP-DEVICE-02\\",\\"variableId\\":\\"speed\\","
+        "\\"value\\":1200,\\"unit\\":\\"rpm\\"}");
+    if (!RemoteTelemetryParser::parse(QStringLiteral("HTTP"), QString(), single,
+                                      deviceId, points, &error)
+        || deviceId != QStringLiteral("HTTP-DEVICE-02") || points.size() != 1
+        || points.first().variableId != QStringLiteral("speed"))
+        return false;
+
+    if (RemoteTelemetryParser::parse(QStringLiteral("MQTT"), QString(), QByteArrayLiteral("{"),
+                                     deviceId, points, &error) || error.isEmpty())
+        return false;
+
+    QJsonArray tooMany;
+    for (int i = 0; i < 501; ++i) {
+        QJsonObject point;
+        point.insert(QStringLiteral("variableId"), QStringLiteral("v%1").arg(i));
+        point.insert(QStringLiteral("value"), i);
+        tooMany.append(point);
+    }
+    QJsonObject root;
+    root.insert(QStringLiteral("deviceId"), QStringLiteral("LIMIT-DEVICE"));
+    root.insert(QStringLiteral("points"), tooMany);
+    if (RemoteTelemetryParser::parse(QStringLiteral("WebSocket"), QString(),
+            QJsonDocument(root).toJson(QJsonDocument::Compact), deviceId, points, &error))
+        return false;
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -231,6 +286,6 @@ int main(int argc, char *argv[])
         qCritical() << "FAIL: WebSocket local handshake/text frame.";
         return 2;
     }
-    if (!testHttp()) {\n        qCritical() << "FAIL: HTTP POST, bearer token and JSON response.";\n        return 3;\n    }\n    qInfo() << "PASS: MQTT, WebSocket and HTTP local protocol smoke tests.";
+    if (!testHttp()) {\n        qCritical() << "FAIL: HTTP POST, bearer token and JSON response.";\n        return 3;\n    }\n    if (!testRemoteTelemetryParser()) {\n        qCritical() << "FAIL: remote telemetry JSON mapping and validation.";\n        return 4;\n    }\n    qInfo() << "PASS: MQTT, WebSocket, HTTP and telemetry parser local tests.";
     return 0;
 }
