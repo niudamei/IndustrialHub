@@ -357,6 +357,56 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
     }
     return result;
 }
+
+QList<CommunicationTrendBucket> CommunicationDiagnostics::trendBuckets(
+    const QString &deviceId, const QDateTime &start, const QDateTime &end,
+    int bucketSeconds) const
+{
+    QList<CommunicationTrendBucket> result;
+    if (!isReady() || !start.isValid() || !end.isValid()
+        || start > end || bucketSeconds < 1 || bucketSeconds > 86400)
+        return result;
+
+    const qint64 bucketMs = static_cast<qint64>(bucketSeconds) * 1000;
+    const qint64 startMs = start.toMSecsSinceEpoch();
+    const qint64 endMs = end.toMSecsSinceEpoch();
+    QSqlQuery q(m_database);
+    QString sql = QStringLiteral(
+        "SELECT (timestamp_ms / ?) * ? AS bucket_ms,"
+        "SUM(CASE WHEN category='TX' THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN category='RX' THEN 1 ELSE 0 END),"
+        "SUM(tx_bytes),SUM(rx_bytes),"
+        "SUM(CASE WHEN severity='Error' OR category='超时' THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN category='重连' THEN 1 ELSE 0 END) "
+        "FROM communication_diagnostics WHERE timestamp_ms>=? AND timestamp_ms<=?");
+    if (!deviceId.trimmed().isEmpty())
+        sql += QStringLiteral(" AND device_id=?");
+    sql += QStringLiteral(" GROUP BY bucket_ms ORDER BY bucket_ms ASC");
+    q.prepare(sql);
+    q.addBindValue(bucketMs);
+    q.addBindValue(bucketMs);
+    q.addBindValue(startMs);
+    q.addBindValue(endMs);
+    if (!deviceId.trimmed().isEmpty())
+        q.addBindValue(deviceId.trimmed());
+    if (!q.exec()) {
+        m_lastError = QStringLiteral("读取通信趋势数据失败：%1").arg(q.lastError().text());
+        return result;
+    }
+    while (q.next()) {
+        CommunicationTrendBucket bucket;
+        bucket.timestamp = QDateTime::fromMSecsSinceEpoch(q.value(0).toLongLong());
+        bucket.txFrames = q.value(1).toLongLong();
+        bucket.rxFrames = q.value(2).toLongLong();
+        bucket.txBytes = q.value(3).toLongLong();
+        bucket.rxBytes = q.value(4).toLongLong();
+        bucket.errors = q.value(5).toLongLong();
+        bucket.reconnects = q.value(6).toLongLong();
+        result.append(bucket);
+    }
+    return result;
+}
+
 CommunicationDeviceStatistics CommunicationDiagnostics::statisticsFor(const QString &deviceId) const
 {
     for (const auto &s : statistics())
