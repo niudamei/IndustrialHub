@@ -43,6 +43,7 @@ private:
     QList<CommunicationHistoryRecord> m_currentRecords;
     int m_totalCount = 0;
     int m_offset = 0;
+    bool m_communicationCountValid = false;
     static constexpr int PageSize = 200;
 
     QDateTimeEdit *m_businessStartEdit = nullptr;
@@ -59,6 +60,7 @@ private:
     QList<BusinessDataHistoryRecord> m_businessRecords;
     int m_businessTotalCount = 0;
     int m_businessOffset = 0;
+    bool m_businessCountValid = false;
 };
 
 #endif // HISTORYPAGE_H
