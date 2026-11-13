@@ -289,6 +289,10 @@ void MainWindow::init_class()
                                 m_businessDataManager, m_alarmManager);
     settingsPage = new SettingsPage(this);
     m_remotePage = new RemotePage(this);
+    connect(m_remotePage, &RemotePage::businessDataReceived,
+            m_businessDataManager, &BusinessDataManager::updateDataPoints);
+    connect(m_remotePage, &RemotePage::businessDataReceived,
+            m_alarmManager, &AlarmManager::evaluateDataPoints);
     m_userManagementPage = new UserManagementPage(m_authManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
@@ -313,7 +317,7 @@ void MainWindow::init_class()
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.9.0 | SQLite + TCP/UDP/RS485/CAN-FD/MQTT/WebSocket"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.10.0 | SQLite + TCP/UDP/RS485/CAN-FD/Modbus/MQTT/WebSocket/HTTP"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
