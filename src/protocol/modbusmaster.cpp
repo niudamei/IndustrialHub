@@ -227,6 +227,10 @@ bool ModbusMaster::extractOneFrame(QByteArray &frame)
 void ModbusMaster::feedReceivedData(const QByteArray &data)
 {
     if (data.isEmpty()) return;
+    if (!m_hasActive) {
+        m_receiveBuffer.clear();
+        return;
+    }
     m_receiveBuffer.append(data);
     if (m_receiveBuffer.size() > 65536)
         m_receiveBuffer = m_receiveBuffer.right(4096);
