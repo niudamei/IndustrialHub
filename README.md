@@ -1,6 +1,6 @@
 # IndustrialHub
 
-基于 Qt 6 Widgets + Qt Designer + CMake 的工业设备管理上位机项目。
+基于 Qt 6 Widgets + Qt Designer + CMake 的工业设备管理上位机项目。历史查询使用 Qt Concurrent 在线程池执行。
 
 ## 当前版本
 
@@ -94,7 +94,8 @@ JSON 示例：
 - `rs485_communication_smoke_test`：Qt SerialPort 可用时，检查串口参数格式。
 - `slcan_frame_codec_test`：SLCAN 经典 CAN/CAN-FD 帧编解码、DLC 映射和非法帧校验。
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
-- `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选和原始字节回读。
+- `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选、原始字节回读及复用总数的分页查询。
+- `device_database_test`：检查设备分组、启用状态和通信配置字段的 SQLite 持久化。
 - `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
 - `business_data_manager_test`：检查业务变量最新值、大小写不敏感查询、旧时间戳保护和清理。
 
