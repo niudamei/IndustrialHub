@@ -2,6 +2,8 @@
 #define AUTHMANAGER_H
 
 #include <QObject>
+#include <QList>
+#include <QByteArray>
 #include <QSqlDatabase>
 #include <QStringList>
 
