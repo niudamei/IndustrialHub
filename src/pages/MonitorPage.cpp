@@ -5,16 +5,11 @@
 #include "src/pages/devicemanager.h"
 
 #include <QComboBox>
-#include <QChart>
-#include <QChartView>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QMessageBox>
-#include <QLineSeries>
-#include <QLegend>
-#include <QValueAxis>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPaintEvent>
