@@ -54,6 +54,8 @@ public:
     QString lastError() const;
     bool addRule(const AlarmRule &rule, QString *errorMessage = nullptr);
     bool removeRule(const QString &ruleId);
+    bool setRuleEnabled(const QString &ruleId, bool enabled,
+                        QString *errorMessage = nullptr);
     QList<AlarmRule> rules() const;
     QList<AlarmEvent> events(int limit = 500, QString *errorMessage = nullptr) const;
     bool acknowledge(qint64 eventId, const QString &user,
