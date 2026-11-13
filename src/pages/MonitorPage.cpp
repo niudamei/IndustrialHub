@@ -110,6 +110,15 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
             this, &MonitorPage::toggleDemoMode);
     connect(ui->demoIntervalSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onDemoIntervalChanged);
+    connect(ui->demoFaultModeCombo, &QComboBox::currentIndexChanged,
+            this, &MonitorPage::applyDemoFaultSettings);
+    connect(ui->demoFaultTargetCombo, &QComboBox::currentIndexChanged,
+            this, &MonitorPage::applyDemoFaultSettings);
+    connect(ui->demoDropEverySpinBox, &QSpinBox::valueChanged,
+            this, [this](int value) {
+                m_demoDropEvery = value;
+                m_demoFrameCounters.clear();
+            });
     ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
     connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onReceiveTimeoutChanged);
@@ -360,9 +369,12 @@ void MonitorPage::toggleDemoMode()
         ui->demoButton->setText(QStringLiteral("停止模拟"));
         ui->demoStatusLabel->setText(QStringLiteral("状态：运行中（仅虚拟数据）"));
         m_demoTimer->start();
+        applyDemoFaultSettings();
         generateDemoTraffic();
     } else {
         m_demoTimer->stop();
+        m_demoDisconnectedDevices.clear();
+        m_demoFrameCounters.clear();
         const QStringList ids = {
             QStringLiteral("DEMO-CAN-001"),
             QStringLiteral("DEMO-CANFD-002"),
@@ -388,6 +400,53 @@ void MonitorPage::onDemoIntervalChanged(int milliseconds)
 {
     if (m_demoTimer && m_demoMode)
         m_demoTimer->setInterval(milliseconds);
+}
+
+void MonitorPage::applyDemoFaultSettings()
+{
+    if (!m_demoMode)
+        return;
+
+    const QString mode = ui->demoFaultModeCombo->currentData().toString();
+    const QString target = ui->demoFaultTargetCombo->currentData().toString();
+    const QStringList ids = {
+        QStringLiteral("DEMO-CAN-001"),
+        QStringLiteral("DEMO-CANFD-002"),
+        QStringLiteral("DEMO-TCP-003")
+    };
+
+    for (const QString &id : ids) {
+        const bool selected = target.isEmpty() || target == id;
+        const bool shouldDisconnect = selected && mode == QStringLiteral("disconnect");
+        const bool wasDisconnected = m_demoDisconnectedDevices.contains(id);
+        if (shouldDisconnect && !wasDisconnected) {
+            m_demoDisconnectedDevices.insert(id);
+            DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+            metrics.connected = false;
+            metrics.connectedSinceMs = 0;
+            metrics.lastReceiveMs = 0;
+            metrics.receiveTimedOut = false;
+            appendEvent(id, QStringLiteral("状态"),
+                        QStringLiteral("故障注入：模拟设备已断线"));
+        } else if (!shouldDisconnect && wasDisconnected) {
+            m_demoDisconnectedDevices.remove(id);
+            DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+            metrics.connected = true;
+            metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+            metrics.lastReceiveMs = 0;
+            metrics.receiveTimedOut = false;
+            appendEvent(id, QStringLiteral("状态"),
+                        QStringLiteral("故障注入已解除：模拟设备恢复连接，等待数据"));
+        }
+    }
+
+    ui->demoFaultHintLabel->setText(
+        mode == QStringLiteral("normal")
+            ? QStringLiteral("故障注入：关闭")
+            : (mode == QStringLiteral("drop")
+                ? QStringLiteral("故障注入：按设定间隔丢弃 RX 帧")
+                : QStringLiteral("故障注入：目标模拟设备断线")));
+    updateLiveStatistics();
 }
 
 void MonitorPage::generateDemoTraffic()
@@ -420,7 +479,25 @@ void MonitorPage::generateDemoTraffic()
             rxData = QByteArray::fromHex("AA55060708090A0B");
         }
 
+        if (m_demoDisconnectedDevices.contains(id))
+            continue;
+
         onDataSent(id, txData);
+
+        const QString faultMode = ui->demoFaultModeCombo->currentData().toString();
+        const QString faultTarget = ui->demoFaultTargetCombo->currentData().toString();
+        const bool dropEnabled = faultMode == QStringLiteral("drop")
+            && (faultTarget.isEmpty() || faultTarget == id);
+        if (dropEnabled) {
+            quint64 &frameCount = m_demoFrameCounters[id];
+            ++frameCount;
+            if (frameCount % static_cast<quint64>(qMax(1, m_demoDropEvery)) == 0) {
+                appendEvent(id, QStringLiteral("状态"),
+                            QStringLiteral("故障注入：本周期 RX 帧已丢弃"));
+                continue;
+            }
+        }
+
         onDataReceived(id, rxData);
     }
 }
