@@ -14,6 +14,8 @@ WebSocketClient::WebSocketClient(QObject *parent)
     connect(m_socket, &QSslSocket::disconnected, this, &WebSocketClient::onSocketDisconnected);
     connect(m_socket, &QSslSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
         emit errorOccurred(m_socket->errorString());
+        if (m_desiredConnection && m_socket->state() == QAbstractSocket::UnconnectedState)
+            scheduleReconnect();
     });
     connect(m_socket, &QSslSocket::sslErrors, this, [this](const QList<QSslError> &errors) {
         for (const QSslError &error : errors)
@@ -133,8 +135,16 @@ void WebSocketClient::onReadyRead()
             const int colon = acceptLine.indexOf(':');
             acceptMatches = colon >= 0 && acceptLine.mid(colon + 1).trimmed() == expected;
         }
+        bool connectionAllowsUpgrade = false;
+        const int connectionStart = lowerHeaders.indexOf("connection:");
+        if (connectionStart >= 0) {
+            const int connectionEnd = lowerHeaders.indexOf("\r\n", connectionStart);
+            const QByteArray connectionLine = lowerHeaders.mid(connectionStart,
+                connectionEnd >= 0 ? connectionEnd - connectionStart : lowerHeaders.size() - connectionStart);
+            connectionAllowsUpgrade = connectionLine.contains("upgrade");
+        }
         if (!headers.startsWith("HTTP/1.1 101") || !lowerHeaders.contains("upgrade: websocket")
-            || !lowerHeaders.contains("connection: upgrade") || !acceptMatches) {
+            || !connectionAllowsUpgrade || !acceptMatches) {
             emit errorOccurred(QStringLiteral("WebSocket 握手失败，服务端未返回有效的 101 Upgrade。"));
             m_socket->abort();
             return;
