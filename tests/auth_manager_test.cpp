@@ -36,6 +36,11 @@ int main(int argc, char *argv[])
         return 5;
     }
 
+    if (auth.setUserRole(admin.id, QStringLiteral("viewer"), &error)) {
+        qCritical() << "Self role change should be rejected.";
+        return 11;
+    }
+
     if (!auth.addUser(QStringLiteral("readuser"), QStringLiteral("只读用户"),
                       QStringLiteral("ReadOnlyPass!2026"), QStringLiteral("viewer"), &error)) {
         qCritical() << "Viewer creation failed:" << error;
@@ -46,7 +51,7 @@ int main(int argc, char *argv[])
     if (!auth.authenticate(QStringLiteral("readuser"), QStringLiteral("ReadOnlyPass!2026"),
                            &viewer, &error) || !auth.hasPermission(QStringLiteral("dashboard.view"))
         || auth.hasPermission(QStringLiteral("device.manage"))
-        || auth.hasPermission(QStringLiteral("users.manage"))) {
+        || auth.hasPermission(QStringLiteral("users.manage"))\n        || auth.hasPermission(QStringLiteral("alarm.manage"))) {
         qCritical() << "Viewer permission boundary failed:" << error;
         return 7;
     }
