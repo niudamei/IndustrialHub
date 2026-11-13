@@ -7,6 +7,8 @@
 #include <QDateTime>
 #include <QList>
 #include <QSqlDatabase>
+#include <QHash>
+#include <QVariant>
 #include <QString>
 
 struct AlarmRule
