@@ -385,6 +385,7 @@ void HistoryPage::queryHistory()
     const bool refreshCount = !m_communicationCountValid;
 
     ui->queryButton->setEnabled(false);
+    ui->exportButton->setEnabled(false);
     ui->previousButton->setEnabled(false);
     ui->nextButton->setEnabled(false);
     ui->resultLabel->setText(QStringLiteral("正在查询历史数据…"));
@@ -398,6 +399,7 @@ void HistoryPage::queryHistory()
 void HistoryPage::applyCommunicationResult(const CommunicationPageResult &result)
 {
     ui->queryButton->setEnabled(true);
+    ui->exportButton->setEnabled(!m_currentRecords.isEmpty());
     if (!result.ok) {
         QMessageBox::warning(this, QStringLiteral("查询失败"), result.error);
         updatePageInfo();
@@ -530,6 +532,7 @@ void HistoryPage::queryBusinessHistory()
     const int cachedCount = m_businessTotalCount;
     const bool refreshCount = !m_businessCountValid;
     m_businessQueryButton->setEnabled(false);
+    m_businessExportButton->setEnabled(false);
     m_businessPreviousButton->setEnabled(false);
     m_businessNextButton->setEnabled(false);
     m_businessResultLabel->setText(QStringLiteral("正在查询业务变量历史…"));
@@ -543,6 +546,7 @@ void HistoryPage::queryBusinessHistory()
 void HistoryPage::applyBusinessResult(const BusinessPageResult &result)
 {
     m_businessQueryButton->setEnabled(true);
+    m_businessExportButton->setEnabled(!m_businessRecords.isEmpty());
     if (!result.ok) {
         QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), result.error);
         updateBusinessPageInfo();
