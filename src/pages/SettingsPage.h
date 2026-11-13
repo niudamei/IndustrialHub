@@ -7,6 +7,7 @@
 class QRadioButton;
 class QLabel;
 class QComboBox;
+class QCheckBox;
 
 class SettingsPage : public QWidget
 {
@@ -22,7 +23,7 @@ signals:
 
 private:
     Ui::SettingsPage *ui;
-    class QCheckBox *m_trayCheckBox = nullptr;
+    QCheckBox *m_trayCheckBox = nullptr;
 };
 
 #endif // SETTINGSPAGE_H
