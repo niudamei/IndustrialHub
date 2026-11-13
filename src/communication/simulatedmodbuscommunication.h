@@ -25,6 +25,7 @@ private:
     QString m_deviceId;
     quint8 m_unitId = 1;
     bool m_open = false;
+    quint64 m_sessionGeneration = 0;
     QHash<quint16, quint16> m_registers;
 };
 
