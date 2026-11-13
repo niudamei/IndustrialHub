@@ -11,6 +11,8 @@
 #endif
 
 #include <utility>
+#include <QTimer>
+#include <QtMath>
 
 CommunicationManager::CommunicationManager(QObject *parent)
     : QObject(parent)
@@ -73,6 +75,9 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
 
     ICommunication *communication = communicationFor(deviceId);
     if (communication && m_commTypes.value(key) != commType) {
+        stopReconnect(key);
+        m_autoReconnectDevices.remove(key);
+        m_deviceConfigs.remove(key);
         communication->close();
         communication->deleteLater();
         m_communications.remove(key);
@@ -93,11 +98,22 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
         attachSignals(deviceId, communication);
     }
 
-    return communication->open(device, errorMessage);
+    if (!communication->open(device, errorMessage))
+        return false;
+
+    m_deviceConfigs.insert(key, device);
+    if (commType == QStringLiteral("TCP"))
+        m_autoReconnectDevices.insert(key);
+    else
+        m_autoReconnectDevices.remove(key);
+    return true;
 }
 
 void CommunicationManager::disconnectDevice(const QString &deviceId)
 {
+    const QString key = deviceKey(deviceId);
+    m_autoReconnectDevices.remove(key);
+    stopReconnect(key);
     ICommunication *communication = communicationFor(deviceId);
     if (communication)
         communication->close();
@@ -105,6 +121,10 @@ void CommunicationManager::disconnectDevice(const QString &deviceId)
 
 void CommunicationManager::disconnectAll()
 {
+    m_autoReconnectDevices.clear();
+    const auto timerKeys = m_reconnectTimers.keys();
+    for (const QString &key : timerKeys)
+        stopReconnect(key);
     const auto communications = m_communications.values();
     for (ICommunication *communication : communications) {
         if (communication)
@@ -149,6 +169,10 @@ void CommunicationManager::releaseDevice(const QString &deviceId)
     ICommunication *communication = m_communications.take(key);
     m_commTypes.remove(key);
     m_deviceIds.remove(key);
+    m_deviceConfigs.remove(key);
+    m_autoReconnectDevices.remove(key);
+    stopReconnect(key);
+    m_reconnectAttempts.remove(key);
     if (!communication)
         return;
 
@@ -182,8 +206,15 @@ ICommunication *CommunicationManager::communicationFor(
 void CommunicationManager::attachSignals(const QString &deviceId,
                                          ICommunication *communication)
 {
+    const QString key = deviceKey(deviceId);
     connect(communication, &ICommunication::connectionStateChanged,
-            this, [this, deviceId](bool connected) {
+            this, [this, deviceId, key](bool connected) {
+        if (connected) {
+            stopReconnect(key);
+            m_reconnectAttempts.insert(key, 0);
+        } else {
+            scheduleReconnect(key);
+        }
         emit deviceConnectionStateChanged(deviceId, connected);
     });
 
@@ -193,9 +224,68 @@ void CommunicationManager::attachSignals(const QString &deviceId,
     });
 
     connect(communication, &ICommunication::errorOccurred,
-            this, [this, deviceId](const QString &message) {
+            this, [this, deviceId, key](const QString &message) {
         emit deviceErrorOccurred(deviceId, message);
+        scheduleReconnect(key);
     });
+}
+
+void CommunicationManager::scheduleReconnect(const QString &key)
+{
+    if (!m_autoReconnectDevices.contains(key) || !m_deviceConfigs.contains(key))
+        return;
+
+    ICommunication *communication = m_communications.value(key, nullptr);
+    if (!communication || communication->isOpen())
+        return;
+
+    QTimer *timer = m_reconnectTimers.value(key, nullptr);
+    if (!timer) {
+        timer = new QTimer(this);
+        timer->setSingleShot(true);
+        connect(timer, &QTimer::timeout, this, [this, key]() {
+            attemptReconnect(key);
+        });
+        m_reconnectTimers.insert(key, timer);
+    }
+    if (timer->isActive())
+        return;
+
+    const int attempt = m_reconnectAttempts.value(key, 0) + 1;
+    const int exponent = qMin(m_reconnectAttempts.value(key, 0), 5);
+    const int delayMs = qMin(1000 * (1 << exponent), 30000);
+    emit deviceReconnecting(m_deviceIds.value(key), attempt, delayMs);
+    timer->start(delayMs);
+}
+
+void CommunicationManager::stopReconnect(const QString &key)
+{
+    QTimer *timer = m_reconnectTimers.value(key, nullptr);
+    if (timer)
+        timer->stop();
+}
+
+void CommunicationManager::attemptReconnect(const QString &key)
+{
+    if (!m_autoReconnectDevices.contains(key))
+        return;
+
+    ICommunication *communication = m_communications.value(key, nullptr);
+    if (!communication)
+        return;
+    if (communication->isOpen()) {
+        stopReconnect(key);
+        m_reconnectAttempts.insert(key, 0);
+        return;
+    }
+
+    m_reconnectAttempts.insert(key, m_reconnectAttempts.value(key, 0) + 1);
+    QString error;
+    if (!communication->open(m_deviceConfigs.value(key), &error)) {
+        if (!error.isEmpty())
+            emit deviceErrorOccurred(m_deviceIds.value(key), error);
+        scheduleReconnect(key);
+    }
 }
 
 QString CommunicationManager::deviceKey(const QString &deviceId)
