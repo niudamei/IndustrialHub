@@ -8,6 +8,7 @@
 #include <QQueue>
 #include <QTimer>
 #include <QPointer>
+#include <QList>
 #include <QVector>
 #include <functional>
 
