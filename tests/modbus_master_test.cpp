@@ -189,6 +189,8 @@ int main(int argc, char *argv[])
     }
     if (!loopbackConnected
         || !boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)) return 15;
+    ModbusMaster wrongTransport(Transport::Tcp);
+    if (wrongTransport.bindDevice(&manager, loopbackDevice.devId, 1)) return 16;
     bool boundComplete = false;
     QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
                      [&](quint64, const Response &r) {
