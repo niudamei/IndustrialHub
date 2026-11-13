@@ -37,6 +37,7 @@ void MqttClient::connectToBroker(const QString &host, quint16 port, const QStrin
     disconnectFromBroker();
     m_socket->abort();
     m_buffer.clear();
+    m_subscriptions.clear();
     m_host = host.trimmed();
     m_port = port;
     m_clientId = clientId.trimmed().isEmpty()
