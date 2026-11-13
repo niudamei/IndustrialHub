@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QPluginLoader>
+#include <QDebug>
 
 PluginManager::PluginManager(QObject *parent)
     : QObject(parent)
@@ -110,8 +111,14 @@ bool PluginManager::unloadPlugin(const QString &pluginId, QString *errorMessage)
 
 void PluginManager::unloadAll()
 {
-    while (!m_plugins.isEmpty())
-        unloadPlugin(m_plugins.last().info.pluginId);
+    while (!m_plugins.isEmpty()) {
+        const QString id = m_plugins.last().info.pluginId;
+        QString error;
+        if (!unloadPlugin(id, &error)) {
+            qWarning() << "无法卸载插件" << id << error;
+            break;
+        }
+    }
 }
 
 QList<LoadedPluginInfo> PluginManager::plugins() const
