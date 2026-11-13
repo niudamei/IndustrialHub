@@ -162,6 +162,16 @@ if(BUILD_TESTING)
     target_link_libraries(json_protocol_parser_test PRIVATE Qt6::Core)
     add_test(NAME json_protocol_parser_test COMMAND json_protocol_parser_test)
 
+    add_executable(device_database_test
+        tests/device_database_test.cpp
+        src/database/devicedatabase.h
+        src/database/devicedatabase.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(device_database_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(device_database_test PRIVATE Qt6::Core Qt6::Sql)
+    add_test(NAME device_database_test COMMAND device_database_test)
+
     add_executable(datamanager_history_test
         tests/datamanager_history_test.cpp
         src/core/datamanager.h
