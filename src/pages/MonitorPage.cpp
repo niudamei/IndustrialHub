@@ -359,7 +359,6 @@ void MonitorPage::toggleDemoMode()
 
         ui->demoButton->setText(QStringLiteral("停止模拟"));
         ui->demoStatusLabel->setText(QStringLiteral("状态：运行中（仅虚拟数据）"));
-        ui->demoIntervalSpinBox->setEnabled(false);
         m_demoTimer->start();
         generateDemoTraffic();
     } else {
@@ -379,7 +378,6 @@ void MonitorPage::toggleDemoMode()
         }
         ui->demoButton->setText(QStringLiteral("开始模拟"));
         ui->demoStatusLabel->setText(QStringLiteral("状态：已停止"));
-        ui->demoIntervalSpinBox->setEnabled(true);
     }
 
     refreshDeviceFilter();
