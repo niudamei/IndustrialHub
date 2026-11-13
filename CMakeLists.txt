@@ -54,6 +54,7 @@ qt_add_executable(hhh
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
     src/communication/udpcommunication.h src/communication/udpcommunication.cpp
     src/communication/communicationmanager.h src/communication/communicationmanager.cpp
+    src/communication/communicationworker.h src/communication/communicationworker.cpp
     src/communication/slcanframecodec.h src/communication/slcanframecodec.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
@@ -124,6 +125,8 @@ if(BUILD_TESTING)
         src/communication/udpcommunication.cpp
         src/communication/communicationmanager.h
         src/communication/communicationmanager.cpp
+        src/communication/communicationworker.h
+        src/communication/communicationworker.cpp
         src/pages/deviceinfo.h
     )
     target_include_directories(communication_manager_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
@@ -196,6 +199,8 @@ if(BUILD_TESTING)
         src/communication/udpcommunication.cpp
         src/communication/communicationmanager.h
         src/communication/communicationmanager.cpp
+        src/communication/communicationworker.h
+        src/communication/communicationworker.cpp
         src/pages/deviceinfo.h
     )
     target_include_directories(datamanager_history_test PRIVATE ${CMAKE_SOURCE_DIR})
