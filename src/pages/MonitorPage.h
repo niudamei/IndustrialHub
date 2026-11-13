@@ -29,6 +29,7 @@ private slots:
     void onDataReceived(const QString &deviceId, const QByteArray &data);
     void onCommunicationError(const QString &deviceId, const QString &message);
     void onPauseClicked();
+    void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
 
 private:
@@ -63,7 +64,7 @@ private:
     QHash<QString, DeviceMetrics> m_deviceMetrics;
     bool m_paused = false;
     static constexpr int MaxRows = 500;
-    static constexpr qint64 ReceiveTimeoutMs = 3000;
+    int m_receiveTimeoutMs = 3000;
 };
 
 #endif // MONITORPAGE_H
