@@ -162,12 +162,12 @@ void ModbusMaster::sendNext()
     m_active = m_queue.dequeue();
     m_hasActive = true;
     emit busyChanged(true);
+    m_timeoutTimer.start(m_timeoutMs);
     QString error;
     if (!m_sender(m_active.frame, &error)) {
         failActive(error.isEmpty() ? QStringLiteral("底层通信驱动拒绝发送 Modbus 请求。") : error);
         return;
     }
-    m_timeoutTimer.start(m_timeoutMs);
     emit queueChanged(pendingCount());
 }
 
