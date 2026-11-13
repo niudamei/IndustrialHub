@@ -168,6 +168,35 @@ int main(int argc, char *argv[])
     readBackLoop.exec();
     if (!readBackComplete) return 20;
 
+    bool multipleWriteComplete = false;
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     [&](quint64, const Response &response) {
+        multipleWriteComplete = response.ok && response.address == 20
+            && response.value == 2;
+    });
+    if (boundMaster.writeMultipleRegisters(20, {0x1234, 0xABCD}) == 0) return 21;
+    QEventLoop multipleWriteLoop;
+    QTimer::singleShot(1000, &multipleWriteLoop, &QEventLoop::quit);
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     &multipleWriteLoop, &QEventLoop::quit);
+    multipleWriteLoop.exec();
+    if (!multipleWriteComplete) return 22;
+
+    bool multipleReadComplete = false;
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     [&](quint64, const Response &response) {
+        multipleReadComplete = response.ok && response.registers.size() == 2
+            && response.registers.at(0) == 0x1234
+            && response.registers.at(1) == 0xABCD;
+    });
+    if (boundMaster.readHoldingRegisters(20, 2) == 0) return 23;
+    QEventLoop multipleReadLoop;
+    QTimer::singleShot(1000, &multipleReadLoop, &QEventLoop::quit);
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     &multipleReadLoop, &QEventLoop::quit);
+    multipleReadLoop.exec();
+    if (!multipleReadComplete) return 24;
+
     manager.disconnectAll();
     return 0;
 }
