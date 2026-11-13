@@ -66,7 +66,8 @@ DevicePage::DevicePage(DeviceManager *manager, QWidget *parent)
     ui->cmbStatus->addItems({QStringLiteral("全部"), QStringLiteral("在线"),
                              QStringLiteral("离线"), QStringLiteral("故障")});
 
-    auto *actions = qobject_cast<QHBoxLayout *>(ui->verticalLayout->itemAt(0)->layout());
+    auto *actions = new QHBoxLayout();
+    ui->verticalLayout->insertLayout(1, actions);
     auto addAction = [this, actions](const QString &label, const std::function<void()> &fn) {
         auto *button = new QPushButton(label, this);
         actions->addWidget(button);
