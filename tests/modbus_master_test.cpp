@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     ModbusMaster master(Transport::Rtu);
     QVector<QByteArray> sent;
+    master.setInterRequestDelayMs(0);
     master.setSendFunction([&sent](const QByteArray &frame, QString *) {
         sent.append(frame);
         return true;
