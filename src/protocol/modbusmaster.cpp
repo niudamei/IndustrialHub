@@ -9,6 +9,7 @@
 ModbusMaster::ModbusMaster(ModbusCodec::Transport transport, QObject *parent)
     : QObject(parent), m_transport(transport)
 {
+    qRegisterMetaType<ModbusCodec::Response>("ModbusCodec::Response");
     m_timeoutTimer.setSingleShot(true);
     connect(&m_timeoutTimer, &QTimer::timeout,
             this, &ModbusMaster::onTimeout);
