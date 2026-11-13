@@ -46,6 +46,7 @@
       <item><widget class="QComboBox" name="deviceFilterCombo"><property name="minimumSize"><size><width>220</width><height>0</height></size></property></widget></item>
       <item><widget class="QLabel" name="directionFilterLabel"><property name="text"><string>事件类型：</string></property></widget></item>
       <item><widget class="QComboBox" name="directionFilterCombo"><property name="minimumSize"><size><width>130</width><height>0</height></size></property></widget></item>
+      <item><widget class="QLabel" name="eventCountLabel"><property name="text"><string>显示事件：0</string></property></widget></item>
       <item><widget class="QLabel" name="timeoutLabel"><property name="text"><string>接收超时：</string></property></widget></item>
       <item><widget class="QSpinBox" name="timeoutSpinBox">
        <property name="minimum"><number>1</number></property>
