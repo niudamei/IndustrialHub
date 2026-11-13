@@ -684,7 +684,6 @@ void HistoryPage::exportCommunicationAll()
     ui->resultLabel->setText(QStringLiteral("正在后台导出全部通信历史…"));
     m_communicationExportAllButton->setEnabled(false);
     m_businessExportAllButton->setEnabled(false);
-    m_communicationExportAllButton->setEnabled(false);
     m_exportWatcher->setFuture(QtConcurrent::run([db, file, start, end, device, direction]() {
         return exportHistoryCsv(db, file, false, start, end, device, direction);
     }));
@@ -707,6 +706,7 @@ void HistoryPage::exportBusinessAll()
     const QString variable = m_businessVariableCombo->currentData().toString();
     m_businessResultLabel->setText(QStringLiteral("正在后台导出全部业务历史…"));
     m_businessExportAllButton->setEnabled(false);
+    m_communicationExportAllButton->setEnabled(false);
     m_exportWatcher->setFuture(QtConcurrent::run([db, file, start, end, device, variable]() {
         return exportHistoryCsv(db, file, true, start, end, device, variable);
     }));
