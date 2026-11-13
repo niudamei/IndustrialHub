@@ -68,14 +68,14 @@ void ModbusMaster::unbindDevice()
 
 void ModbusMaster::setUnitId(quint8 unitId)
 {
-    if (unitId >= 1 && unitId <= 247) m_unitId = unitId;
+    if (!isBusy() && unitId >= 1 && unitId <= 247) m_unitId = unitId;
 }
 
 quint8 ModbusMaster::unitId() const { return m_unitId; }
 
 void ModbusMaster::setTimeoutMs(int timeoutMs)
 {
-    m_timeoutMs = qBound(50, timeoutMs, 60000);
+    if (!isBusy()) m_timeoutMs = qBound(50, timeoutMs, 60000);
 }
 
 int ModbusMaster::timeoutMs() const { return m_timeoutMs; }
