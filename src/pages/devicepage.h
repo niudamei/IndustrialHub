@@ -2,6 +2,7 @@
 #define DEVICEPAGE_H
 #include <QWidget>
 #include <QStandardItemModel>
+#include <QStringList>
 #include "deviceinfo.h"
 #include "ui_devicepage.h"
 class DeviceManager;
@@ -23,6 +24,11 @@ private:
     void refreshTable();
     void loadTableData(const QList<DeviceInfo> &devices);
     void filterData();
+    QStringList selectedDeviceIds() const;
+    void importConfiguration();
+    void exportConfiguration();
+    void saveCommunicationTemplate();
+    void applyCommunicationTemplate();
     QString selectedDeviceId() const;
     Ui::DevicePage *ui = nullptr;
     QStandardItemModel *m_model = nullptr;
