@@ -3,61 +3,44 @@
  <class>HistoryPage</class>
  <widget class="QWidget" name="historyPage">
   <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>1200</width>
-    <height>760</height>
-   </rect>
+   <rect><x>0</x><y>0</y><width>1200</width><height>760</height></rect>
   </property>
-  <property name="windowTitle">
-   <string>历史数据</string>
-  </property>
+  <property name="windowTitle"><string>历史数据</string></property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QGroupBox" name="dataGroup">
-     <property name="title">
-      <string>历史数据查询</string>
-     </property>
+     <property name="title"><string>通信原始帧历史查询</string></property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="startDateLabel">
-        <property name="text">
-         <string>开始时间：</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QDateEdit" name="startDateTimeEdit"/>
-      </item>
-      <item row="0" column="2">
-       <widget class="QLabel" name="endDateLabel">
-        <property name="text">
-         <string>结束时间：</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QDateEdit" name="endDateTimeEdit"/>
-      </item>
+      <item row="0" column="0"><widget class="QLabel" name="startDateLabel"><property name="text"><string>开始日期：</string></property></widget></item>
+      <item row="0" column="1"><widget class="QDateEdit" name="startDateTimeEdit"/></item>
+      <item row="0" column="2"><widget class="QLabel" name="endDateLabel"><property name="text"><string>结束日期：</string></property></widget></item>
+      <item row="0" column="3"><widget class="QDateEdit" name="endDateTimeEdit"/></item>
+      <item row="1" column="0"><widget class="QLabel" name="deviceLabel"><property name="text"><string>设备编号：</string></property></widget></item>
+      <item row="1" column="1"><widget class="QLineEdit" name="deviceFilterEdit"><property name="placeholderText"><string>留空表示全部设备</string></property></widget></item>
+      <item row="1" column="2"><widget class="QLabel" name="directionLabel"><property name="text"><string>数据方向：</string></property></widget></item>
+      <item row="1" column="3"><widget class="QComboBox" name="directionCombo"/></item>
+      <item row="1" column="4"><widget class="QPushButton" name="queryButton"><property name="text"><string>查询</string></property></widget></item>
+      <item row="1" column="5"><widget class="QPushButton" name="exportButton"><property name="text"><string>导出当前页 CSV</string></property></widget></item>
      </layout>
     </widget>
    </item>
    <item>
     <widget class="CustomTableWidget" name="historyTable">
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
+     <property name="alternatingRowColors"><bool>true</bool></property>
     </widget>
    </item>
+   <item>
+    <layout class="QHBoxLayout" name="paginationLayout">
+     <item><widget class="QPushButton" name="previousButton"><property name="text"><string>上一页</string></property></widget></item>
+     <item><widget class="QPushButton" name="nextButton"><property name="text"><string>下一页</string></property></widget></item>
+     <item><widget class="QLabel" name="resultLabel"><property name="text"><string>等待查询</string></property></widget></item>
+    </layout>
+   </item>
+   <item><widget class="QLabel" name="historyHintLabel"><property name="text"><string>说明：当前保存通信 TX/RX 原始帧及时间戳；尚未按具体设备协议解码为温度、电流、位置等业务数据。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>CustomTableWidget</class>
-   <extends>QTableWidget</extends>
-   <header location="global">CustomFolder/customtablewidget.h</header>
-  </customwidget>
+  <customwidget><class>CustomTableWidget</class><extends>QTableWidget</extends><header location="global">CustomFolder/customtablewidget.h</header></customwidget>
  </customwidgets>
  <resources/>
  <connections/>
