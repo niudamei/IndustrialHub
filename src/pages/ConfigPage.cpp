@@ -21,6 +21,7 @@
 #include <QVBoxLayout>
 #include <QSplitter>
 #include <QAbstractItemView>
+#include <QTimer>
 #include <QFile>
 #include <QFileDialog>
 
@@ -71,7 +72,15 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
         if (file.write(output) != output.size()) { QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString()); return; }
         QMessageBox::information(this, QStringLiteral("导出完成"), QStringLiteral("已导出最近 %1 条诊断记录。").arg(events.size()));
     });
-    if (m_diagnostics) connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged, this, &ConfigPage::refreshDiagnostics);
+    m_diagnosticsRefreshTimer = new QTimer(this);
+    m_diagnosticsRefreshTimer->setSingleShot(true);
+    m_diagnosticsRefreshTimer->setInterval(300);
+    connect(m_diagnosticsRefreshTimer, &QTimer::timeout,
+            this, &ConfigPage::refreshDiagnostics);
+    if (m_diagnostics) {
+        connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged,
+                this, [this]() { m_diagnosticsRefreshTimer->start(); });
+    }
     refreshDiagnostics();
 
     // 协议绑定是设备级配置：默认不解析，用户明确选择后才启用解析器。
