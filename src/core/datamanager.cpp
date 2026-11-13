@@ -8,6 +8,7 @@
 #include <QSqlQuery>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QtMath>
 #include <QUuid>
 
 DataManager::DataManager(CommunicationManager *communicationManager, QObject *parent)
@@ -55,6 +56,12 @@ DataManager::~DataManager()
         const int pendingBeforeFlush = m_pendingRecords.size();
         flushPendingRecords();
         if (m_pendingRecords.size() == pendingBeforeFlush)
+            break;
+    }
+    while (!m_pendingBusinessData.isEmpty()) {
+        const int pendingBeforeFlush = m_pendingBusinessData.size();
+        flushPendingBusinessData();
+        if (m_pendingBusinessData.size() == pendingBeforeFlush)
             break;
     }
     if (m_database.isValid()) {
@@ -112,6 +119,35 @@ bool DataManager::initializeDatabase()
                             .arg(query.lastError().text()));
     }
 
+    if (!query.exec(QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS business_data_history ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "timestamp_ms INTEGER NOT NULL,"
+            "device_id TEXT NOT NULL COLLATE NOCASE,"
+            "variable_id TEXT NOT NULL COLLATE NOCASE,"
+            "variable_name TEXT NOT NULL,"
+            "value REAL NOT NULL,"
+            "unit TEXT NOT NULL,"
+            "quality INTEGER NOT NULL,"
+            "source_protocol TEXT NOT NULL)"))) {
+        return setError(QStringLiteral("创建业务变量历史表失败：%1")
+                            .arg(query.lastError().text()));
+    }
+
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_business_history_time "
+            "ON business_data_history(timestamp_ms)"))) {
+        return setError(QStringLiteral("创建业务变量时间索引失败：%1")
+                            .arg(query.lastError().text()));
+    }
+
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_business_history_device_variable_time "
+            "ON business_data_history(device_id, variable_id, timestamp_ms)"))) {
+        return setError(QStringLiteral("创建业务变量设备索引失败：%1")
+                            .arg(query.lastError().text()));
+    }
+
     m_lastError.clear();
     m_ready = true;
     return true;
@@ -151,10 +187,181 @@ void DataManager::appendRecord(const QString &deviceId,
         flushPendingRecords();
 }
 
+
+void DataManager::appendBusinessDataPoints(
+    const QString &deviceId,
+    const QVector<BusinessDataPoint> &points)
+{
+    if (!isReady() || deviceId.trimmed().isEmpty() || points.isEmpty())
+        return;
+
+    for (const BusinessDataPoint &point : points) {
+        if (point.deviceId.trimmed().isEmpty()
+            || point.deviceId.compare(deviceId.trimmed(), Qt::CaseInsensitive) != 0
+            || point.variableId.trimmed().isEmpty()
+            || !point.timestamp.isValid()
+            || !qIsFinite(point.value)) {
+            continue;
+        }
+
+        if (m_pendingBusinessData.size() >= MaxPendingBusinessData) {
+            m_pendingBusinessData.dequeue();
+            emit storageError(QStringLiteral(
+                "业务变量历史写入队列已满，已丢弃最旧的一条待写记录。"));
+        }
+        BusinessDataHistoryRecord record;
+        record.point = point;
+        m_pendingBusinessData.enqueue(record);
+    }
+
+    if (m_pendingBusinessData.size() >= BatchSize)
+        flushPendingBusinessData();
+}
+
+void DataManager::flushPendingBusinessData()
+{
+    if (!isReady() || m_pendingBusinessData.isEmpty())
+        return;
+
+    const int count = qMin(BatchSize, m_pendingBusinessData.size());
+    if (!m_database.transaction()) {
+        const QString message = QStringLiteral("开启业务变量历史事务失败：%1")
+                                    .arg(m_database.lastError().text());
+        m_lastError = message;
+        emit storageError(message);
+        return;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "INSERT INTO business_data_history "
+        "(timestamp_ms, device_id, variable_id, variable_name, value, unit, quality, source_protocol) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"));
+
+    for (int i = 0; i < count; ++i) {
+        const BusinessDataPoint &point = m_pendingBusinessData.at(i).point;
+        query.addBindValue(point.timestamp.toMSecsSinceEpoch());
+        query.addBindValue(point.deviceId.trimmed());
+        query.addBindValue(point.variableId.trimmed());
+        query.addBindValue(point.name);
+        query.addBindValue(point.value);
+        query.addBindValue(point.unit);
+        query.addBindValue(static_cast<int>(point.quality));
+        query.addBindValue(point.sourceProtocol);
+        if (!query.exec()) {
+            m_database.rollback();
+            const QString message = QStringLiteral("写入业务变量历史失败：%1")
+                                        .arg(query.lastError().text());
+            m_lastError = message;
+            emit storageError(message);
+            return;
+        }
+        query.finish();
+    }
+
+    if (!m_database.commit()) {
+        m_database.rollback();
+        const QString message = QStringLiteral("提交业务变量历史事务失败：%1")
+                                    .arg(m_database.lastError().text());
+        m_lastError = message;
+        emit storageError(message);
+        return;
+    }
+
+    for (int i = 0; i < count; ++i)
+        m_pendingBusinessData.dequeue();
+    m_lastError.clear();
+}
+
+bool DataManager::queryBusinessDataHistory(
+    const QDateTime &start,
+    const QDateTime &end,
+    const QString &deviceId,
+    const QString &variableId,
+    int offset,
+    int limit,
+    QList<BusinessDataHistoryRecord> &records,
+    int &totalCount,
+    QString *errorMessage)
+{
+    records.clear();
+    totalCount = 0;
+    if (!isReady())
+        return setError(QStringLiteral("历史数据库尚未就绪：%1").arg(m_lastError), errorMessage);
+    if (!start.isValid() || !end.isValid() || start > end)
+        return setError(QStringLiteral("业务变量查询时间范围无效。"), errorMessage);
+
+    while (!m_pendingBusinessData.isEmpty()) {
+        const int before = m_pendingBusinessData.size();
+        flushPendingBusinessData();
+        if (m_pendingBusinessData.size() == before)
+            return setError(QStringLiteral("业务变量历史仍有待写记录，暂时无法保证查询结果完整：%1")
+                                .arg(m_lastError), errorMessage);
+    }
+
+    QString where = QStringLiteral(" WHERE timestamp_ms >= ? AND timestamp_ms <= ?");
+    if (!deviceId.trimmed().isEmpty())
+        where += QStringLiteral(" AND device_id = ?");
+    if (!variableId.trimmed().isEmpty())
+        where += QStringLiteral(" AND variable_id = ?");
+
+    QSqlQuery countQuery(m_database);
+    countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM business_data_history") + where);
+    int bindIndex = 0;
+    countQuery.bindValue(bindIndex++, start.toMSecsSinceEpoch());
+    countQuery.bindValue(bindIndex++, end.toMSecsSinceEpoch());
+    if (!deviceId.trimmed().isEmpty())
+        countQuery.bindValue(bindIndex++, deviceId.trimmed());
+    if (!variableId.trimmed().isEmpty())
+        countQuery.bindValue(bindIndex++, variableId.trimmed());
+    if (!countQuery.exec() || !countQuery.next())
+        return setError(QStringLiteral("统计业务变量历史失败：%1")
+                            .arg(countQuery.lastError().text()), errorMessage);
+    totalCount = countQuery.value(0).toInt();
+
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT id, timestamp_ms, device_id, variable_id, variable_name, value, unit, quality, source_protocol "
+        "FROM business_data_history") + where
+        + QStringLiteral(" ORDER BY timestamp_ms DESC, id DESC LIMIT ? OFFSET ?"));
+    bindIndex = 0;
+    query.bindValue(bindIndex++, start.toMSecsSinceEpoch());
+    query.bindValue(bindIndex++, end.toMSecsSinceEpoch());
+    if (!deviceId.trimmed().isEmpty())
+        query.bindValue(bindIndex++, deviceId.trimmed());
+    if (!variableId.trimmed().isEmpty())
+        query.bindValue(bindIndex++, variableId.trimmed());
+    query.bindValue(bindIndex++, qMax(1, limit));
+    query.bindValue(bindIndex, qMax(0, offset));
+    if (!query.exec())
+        return setError(QStringLiteral("查询业务变量历史失败：%1")
+                            .arg(query.lastError().text()), errorMessage);
+
+    while (query.next()) {
+        BusinessDataHistoryRecord record;
+        record.id = query.value(0).toLongLong();
+        record.point.timestamp = QDateTime::fromMSecsSinceEpoch(query.value(1).toLongLong());
+        record.point.deviceId = query.value(2).toString();
+        record.point.variableId = query.value(3).toString();
+        record.point.name = query.value(4).toString();
+        record.point.value = query.value(5).toDouble();
+        record.point.unit = query.value(6).toString();
+        record.point.quality = static_cast<DataQuality>(query.value(7).toInt());
+        record.point.sourceProtocol = query.value(8).toString();
+        records.append(record);
+    }
+    m_lastError.clear();
+    return true;
+}
+
 void DataManager::flushPendingRecords()
 {
-    if (!isReady() || m_pendingRecords.isEmpty())
+    if (!isReady())
         return;
+    if (m_pendingRecords.isEmpty()) {
+        flushPendingBusinessData();
+        return;
+    }
 
     const int count = qMin(BatchSize, m_pendingRecords.size());
     if (!m_database.transaction()) {
