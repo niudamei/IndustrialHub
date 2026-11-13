@@ -403,7 +403,14 @@ void HistoryPage::showNextBusinessPage()
 void HistoryPage::renderBusinessChart()
 {
     auto *chart = new QChart();
-    chart->setTitle(QStringLiteral("当前页业务变量历史曲线"));
+    const QString selectedVariable = m_businessVariableCombo->currentData().toString();
+    if (selectedVariable.isEmpty()) {
+        chart->setTitle(QStringLiteral("请选择单一变量查看历史曲线；全部变量模式仅用于表格浏览"));
+        m_businessChartView->setChart(chart);
+        return;
+    }
+
+    chart->setTitle(QStringLiteral("业务变量历史曲线：%1").arg(m_businessVariableCombo->currentText()));
     chart->legend()->setVisible(true);
     auto *axisX = new QDateTimeAxis(chart);
     axisX->setFormat(QStringLiteral("HH:mm:ss"));
@@ -413,33 +420,38 @@ void HistoryPage::renderBusinessChart()
     chart->addAxis(axisX, Qt::AlignBottom);
     chart->addAxis(axisY, Qt::AlignLeft);
 
-    QHash<QString, QLineSeries *> seriesByKey;
+    QHash<QString, QLineSeries *> seriesByDevice;
     QDateTime minTime;
     QDateTime maxTime;
     qreal minValue = std::numeric_limits<qreal>::max();
     qreal maxValue = std::numeric_limits<qreal>::lowest();
+    QString unit;
 
     // 查询结果按时间倒序返回，反向遍历后曲线按时间正序绘制。
     for (auto it = m_businessRecords.crbegin(); it != m_businessRecords.crend(); ++it) {
         const BusinessDataPoint &point = it->point;
-        const QString key = point.deviceId + QLatin1Char('/') + point.variableId;
-        QLineSeries *series = seriesByKey.value(key, nullptr);
+        if (point.variableId.compare(selectedVariable, Qt::CaseInsensitive) != 0)
+            continue;
+        QLineSeries *series = seriesByDevice.value(point.deviceId, nullptr);
         if (!series) {
             series = new QLineSeries(chart);
-            series->setName(point.deviceId + QStringLiteral(" / ") + point.name);
+            series->setName(point.deviceId);
             chart->addSeries(series);
             series->attachAxis(axisX);
             series->attachAxis(axisY);
-            seriesByKey.insert(key, series);
+            seriesByDevice.insert(point.deviceId, series);
         }
-        const qreal x = static_cast<qreal>(point.timestamp.toMSecsSinceEpoch());
-        series->append(x, point.value);
+        if (unit.isEmpty())
+            unit = point.unit;
+        series->append(static_cast<qreal>(point.timestamp.toMSecsSinceEpoch()), point.value);
         minTime = !minTime.isValid() || point.timestamp < minTime ? point.timestamp : minTime;
         maxTime = !maxTime.isValid() || point.timestamp > maxTime ? point.timestamp : maxTime;
         minValue = qMin(minValue, point.value);
         maxValue = qMax(maxValue, point.value);
     }
 
+    axisY->setTitleText(unit.isEmpty()
+        ? QStringLiteral("变量值") : QStringLiteral("变量值（%1）").arg(unit));
     if (minTime.isValid() && maxTime.isValid()) {
         if (minTime == maxTime) {
             minTime = minTime.addSecs(-1);
