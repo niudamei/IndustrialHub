@@ -395,6 +395,7 @@ void DataManager::flushPendingRecords()
             return;
         }
     }
+    query.finish();
 
     if (!m_database.commit()) {
         m_database.rollback();
