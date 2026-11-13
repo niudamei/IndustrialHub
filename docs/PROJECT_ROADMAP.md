@@ -13,8 +13,8 @@
 | V1.0 主窗口、导航、主题、CMake | 基本完成 | Qt Widgets、Qt Designer UI、主窗口导航、CMake/Ninja 构建入口 | 统一主题和设置项仍需系统化整理 |
 | V1.1 设备管理、模拟设备 | 基本完成 | 设备 CRUD、SQLite 设备持久化、设备状态管理、模拟通信、独立模拟设备区 | 设备分组、批量操作、设备配置模板 |
 | V1.2 多线程通信、串口、TCP、协议解析 | 部分完成 | TCP、UDP、RS485、CAN/CAN-FD 驱动；多设备通信管理；SLCAN 编解码；协议解析器接口、设备绑定分发和 JSON 示例解析器 | 真实设备协议解析器、通信工作线程隔离、心跳与重连策略 |
-| V1.3 实时曲线、数据缓存、报警 | 部分完成 | 实时通信监控、通信帧率曲线、通信统计、模拟丢帧/断线注入；统一 BusinessDataPoint 数据结构；独立模拟业务变量（温度/转速/电流）接入缓存与报警；模拟温度超限可触发报警 | 业务变量曲线、业务变量历史 |
-| V1.4 SQLite、历史数据、CSV | 部分完成 | SQLite 设备表；TX/RX 原始帧批量入库；时间/设备/方向筛选、分页、当前页 CSV | 业务变量历史、跨页/全量导出、数据保留策略、查询性能验证 |
+| V1.3 实时曲线、数据缓存、报警 | 部分完成 | 实时通信监控、通信帧率曲线、通信统计、模拟丢帧/断线注入；统一 BusinessDataPoint 数据结构；独立模拟业务变量（温度/转速/电流）接入缓存与报警；模拟温度超限可触发报警 | 业务历史可视化页面、曲线回放与 CSV 导出 |
+| V1.4 SQLite、历史数据、CSV | 部分完成 | SQLite 设备表；TX/RX 原始帧批量入库；时间/设备/方向筛选、分页、当前页 CSV | 业务历史页面、跨页/全量导出、数据保留策略、查询性能验证 |
 | V1.5 CAN、Modbus、MQTT、WebSocket | 部分完成 | CAN/CAN-FD、RS485、TCP、UDP | Modbus、MQTT、WebSocket；需要真实协议/服务端参数后集成验证 |
 | V1.6 用户权限、日志审计、插件 | 未开始 | 尚无完整业务实现 | 登录、角色权限、操作审计、QPluginLoader 插件接口 |
 | V2.0 自动测试、安装包、远程服务 | 部分完成 | 通信层 smoke tests、SLCAN codec test、DataManager 历史入库测试目标、CMake install/deploy 配置 | 实际构建验证、GitHub Actions、覆盖率、安装包验收、远程服务 |
@@ -31,9 +31,9 @@
 
 另已建立并接入业务解析链路：
 
-`CommunicationManager RX` → `ProtocolManager` → `IProtocolParser` → `BusinessDataPoint` → `BusinessDataManager（最新值内存缓存）`
+`CommunicationManager RX` → `ProtocolManager` → `IProtocolParser` → `BusinessDataPoint` → `BusinessDataManager（最新值内存缓存）` → `DataManager` → `SQLite business_data_history`
 
-模拟业务数据另有独立链路：`MonitorPage 模拟业务变量` → `BusinessDataPoint` → `BusinessDataManager / AlarmManager`；它不伪装成 CAN/TCP 原始帧，也不经过真实协议解析器。
+模拟业务数据另有独立链路：`MonitorPage 模拟业务变量` → `BusinessDataPoint` → `BusinessDataManager` → `DataManager / AlarmManager`；它不伪装成 CAN/TCP 原始帧，也不经过真实协议解析器。
 
 通信配置页可按设备显式绑定 JSON 示例解析器；默认不解析。业务变量最新值缓存保存在内存，且已异步批量写入独立 business_data_history 表；实时趋势页读取最新值，业务历史查询 API 已支持设备、变量、时间范围和分页。历史页目前仍展示通信原始帧，业务历史可视化页面待接入。
 
