@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QHash>
 #include <QDateTime>
+#include <QStringList>
 #include <QTimer>
 
 class DeviceHealthMonitor : public QObject
