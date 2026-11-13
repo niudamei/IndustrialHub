@@ -84,10 +84,29 @@ int main(int argc, char *argv[])
         QDateTime::currentDateTime().addSecs(-60),
         QDateTime::currentDateTime().addSecs(60));
 
+    const auto trend = diagnostics.trendBuckets(QStringLiteral("DEV-A"),
+        QDateTime::currentDateTime().addSecs(-60),
+        QDateTime::currentDateTime().addSecs(60), 10);
+    qint64 trendTx = 0, trendRx = 0, trendTxBytes = 0, trendRxBytes = 0;
+    qint64 trendErrors = 0, trendReconnects = 0;
+    for (const auto &bucket : trend) {
+        trendTx += bucket.txFrames;
+        trendRx += bucket.rxFrames;
+        trendTxBytes += bucket.txBytes;
+        trendRxBytes += bucket.rxBytes;
+        trendErrors += bucket.errors;
+        trendReconnects += bucket.reconnects;
+    }
+    const auto invalidTrend = diagnostics.trendBuckets(QString(), QDateTime(),
+        QDateTime::currentDateTime(), 60);
+
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
         || b.txCount != 1 || b.txBytes != 2 || events.size() != 8
-        || deviceEvents.size() != 6 || timeEvents.size() != 8) {
+        || deviceEvents.size() != 6 || timeEvents.size() != 8
+        || trend.isEmpty() || trendTx != 1 || trendRx != 1
+        || trendTxBytes != 4 || trendRxBytes != 7
+        || trendErrors != 2 || trendReconnects != 1 || !invalidTrend.isEmpty()) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
