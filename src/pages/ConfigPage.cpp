@@ -235,21 +235,8 @@ void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connecte
                   .arg(connected ? QStringLiteral("已连接") : QStringLiteral("已断开"),
                        deviceId));
 
-    if (m_deviceManager) {
-        DeviceInfo device;
-        if (m_deviceManager->getDeviceById(deviceId, device)) {
-            // TCP 有连接握手；UDP 绑定本地端口、RS485 打开串口都不能证明远端设备在线。
-            const bool connectionProvesOnline =
-                device.commType.compare(QStringLiteral("TCP"), Qt::CaseInsensitive) == 0
-                || device.commType.compare(QStringLiteral("SIM"), Qt::CaseInsensitive) == 0
-                || device.commType.compare(QStringLiteral("SIMULATED"), Qt::CaseInsensitive) == 0;
-
-            if (!connected || connectionProvesOnline) {
-                m_deviceManager->updateDeviceStatus(deviceId,
-                    connected ? DeviceStatus::Online : DeviceStatus::Offline);
-            }
-        }
-    }
+    // 在线/离线状态统一由 MainWindow 中的 DeviceHealthMonitor 判定，
+    // 避免 TCP 握手或本地串口打开被误判为远端设备在线。
 
     if (deviceId.compare(selectedDeviceId(), Qt::CaseInsensitive) == 0)
         updateConnectionDisplay();
@@ -265,8 +252,7 @@ void ConfigPage::onDataReceived(const QString &deviceId, const QByteArray &data)
                 || device.commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0)) {
             displayData = QString::fromLatin1(data);
         }
-        // 收到实际数据后才将 UDP、RS485、CAN/CAN-FD 等无连接链路标记为在线。
-        m_deviceManager->updateDeviceStatus(deviceId, DeviceStatus::Online);
+        // 设备在线状态由 DeviceHealthMonitor 统一更新。
     }
     appendLog(QStringLiteral("[RX][%1] %2").arg(deviceId, displayData));
 }
