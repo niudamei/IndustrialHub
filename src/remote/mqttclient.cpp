@@ -1,6 +1,7 @@
 #include "mqttclient.h"
 
 #include <QRandomGenerator>
+#include <utility>
 
 MqttClient::MqttClient(QObject *parent) : QObject(parent), m_socket(new QSslSocket(this))
 {
@@ -11,6 +12,8 @@ MqttClient::MqttClient(QObject *parent) : QObject(parent), m_socket(new QSslSock
     connect(m_socket, &QSslSocket::disconnected, this, &MqttClient::onSocketDisconnected);
     connect(m_socket, &QSslSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
         emit errorOccurred(m_socket->errorString());
+        if (m_desiredConnection && m_socket->state() == QAbstractSocket::UnconnectedState)
+            scheduleReconnect();
     });
     connect(m_socket, &QSslSocket::sslErrors, this, [this](const QList<QSslError> &errors) {
         for (const QSslError &error : errors)
@@ -82,16 +85,24 @@ bool MqttClient::publish(const QString &topic, const QByteArray &payload, bool r
 
 bool MqttClient::subscribe(const QString &topicFilter)
 {
-    if (!m_mqttConnected || topicFilter.trimmed().isEmpty())
+    const QString filter = topicFilter.trimmed();
+    if (!m_mqttConnected || filter.isEmpty())
         return false;
+    if (!m_subscriptions.contains(filter))
+        m_subscriptions.append(filter);
+    sendSubscribePacket(filter);
+    return true;
+}
+
+void MqttClient::sendSubscribePacket(const QString &topicFilter)
+{
     const quint16 id = m_packetId++;
     QByteArray body;
     body.append(char(id >> 8));
     body.append(char(id & 0xff));
-    body += encodeString(topicFilter.trimmed());
-    body.append(char(0)); // QoS 0
+    body += encodeString(topicFilter);
+    body.append(char(0)); // requested QoS 0
     m_socket->write(packet(0x82, body));
-    return true;
 }
 
 void MqttClient::onSocketConnected()
@@ -153,6 +164,8 @@ void MqttClient::onReadyRead()
             m_pingTimer.start(qMax(1000, m_keepAlive * 500));
             emit logMessage(QStringLiteral("MQTT 已连接，协议版本 3.1.1。"));
             emit connected();
+            for (const QString &filter : std::as_const(m_subscriptions))
+                sendSubscribePacket(filter);
         } else if (type == 3) {
             if (body.size() < 2) continue;
             const int topicLength = (quint8(body.at(0)) << 8) | quint8(body.at(1));
