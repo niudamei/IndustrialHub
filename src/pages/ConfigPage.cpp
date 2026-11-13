@@ -611,6 +611,328 @@ void ConfigPage::appendLog(const QString &message)
     ui->communicationLog->append(QStringLiteral("[%1] %2").arg(time, message));
 }
 
+
+void ConfigPage::refreshModbusMappings()
+{
+    const QString deviceId = selectedDeviceId();
+    const QString key = deviceId.toCaseFolded();
+    m_modbusMappingTable->setRowCount(0);
+    if (deviceId.isEmpty()) {
+        updateModbusControls();
+        return;
+    }
+
+    if (!m_modbusMappingsByDevice.contains(key)) {
+        QSettings settings;
+        settings.beginGroup(QStringLiteral("ModbusRegisterMaps"));
+        const QByteArray json = settings.value(key).toByteArray();
+        settings.endGroup();
+        QVector<ModbusRegisterMap::Mapping> loaded;
+        const QJsonDocument document = QJsonDocument::fromJson(json);
+        if (document.isArray()) {
+            for (const QJsonValue &value : document.array()) {
+                if (!value.isObject()) continue;
+                const QJsonObject object = value.toObject();
+                ModbusRegisterMap::Mapping mapping;
+                mapping.variableId = object.value(QStringLiteral("variableId")).toString();
+                mapping.name = object.value(QStringLiteral("name")).toString();
+                mapping.unit = object.value(QStringLiteral("unit")).toString();
+                mapping.address = static_cast<quint16>(object.value(QStringLiteral("address")).toInt());
+                mapping.function = static_cast<quint8>(object.value(QStringLiteral("function")).toInt(3));
+                mapping.dataType = static_cast<ModbusRegisterMap::DataType>(
+                    object.value(QStringLiteral("dataType")).toInt(0));
+                mapping.wordOrder = static_cast<ModbusRegisterMap::WordOrder>(
+                    object.value(QStringLiteral("wordOrder")).toInt(0));
+                mapping.scale = object.value(QStringLiteral("scale")).toDouble(1.0);
+                mapping.offset = object.value(QStringLiteral("offset")).toDouble(0.0);
+                if (ModbusRegisterMap::validate(mapping))
+                    loaded.append(mapping);
+            }
+        }
+        m_modbusMappingsByDevice.insert(key, loaded);
+    }
+
+    DeviceInfo device;
+    if (m_deviceManager && m_deviceManager->getDeviceById(deviceId, device)
+        && device.commType.compare(QStringLiteral("MODBUS-SIM"), Qt::CaseInsensitive) == 0) {
+        bool ok = false;
+        const int unitId = device.devAddr.trimmed().toInt(&ok);
+        if (ok && unitId >= 1 && unitId <= 247)
+            m_modbusUnitIdSpin->setValue(unitId);
+    }
+
+    const auto mappings = m_modbusMappingsByDevice.value(key);
+    m_modbusMappingTable->setRowCount(mappings.size());
+    for (int row = 0; row < mappings.size(); ++row) {
+        const auto &mapping = mappings.at(row);
+        const QStringList values = {
+            mapping.variableId, mapping.name, QString::number(mapping.address),
+            QStringLiteral("0x%1").arg(mapping.function, 2, 16, QLatin1Char('0')).toUpper(),
+            QString::number(static_cast<int>(mapping.dataType)),
+            QString::number(static_cast<int>(mapping.wordOrder)),
+            QString::number(mapping.scale, 'g', 12),
+            QString::number(mapping.offset, 'g', 12), mapping.unit
+        };
+        for (int column = 0; column < values.size(); ++column)
+            m_modbusMappingTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
+    }
+    updateModbusControls();
+}
+
+void ConfigPage::saveModbusMappings(const QString &deviceId)
+{
+    if (deviceId.trimmed().isEmpty()) return;
+    const auto mappings = m_modbusMappingsByDevice.value(deviceId.toCaseFolded());
+    QJsonArray array;
+    for (const auto &mapping : mappings) {
+        QJsonObject object;
+        object.insert(QStringLiteral("variableId"), mapping.variableId);
+        object.insert(QStringLiteral("name"), mapping.name);
+        object.insert(QStringLiteral("unit"), mapping.unit);
+        object.insert(QStringLiteral("address"), static_cast<int>(mapping.address));
+        object.insert(QStringLiteral("function"), static_cast<int>(mapping.function));
+        object.insert(QStringLiteral("dataType"), static_cast<int>(mapping.dataType));
+        object.insert(QStringLiteral("wordOrder"), static_cast<int>(mapping.wordOrder));
+        object.insert(QStringLiteral("scale"), mapping.scale);
+        object.insert(QStringLiteral("offset"), mapping.offset);
+        array.append(object);
+    }
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("ModbusRegisterMaps"));
+    settings.setValue(deviceId.toCaseFolded(),
+                      QJsonDocument(array).toJson(QJsonDocument::Compact));
+    settings.endGroup();
+    settings.sync();
+}
+
+void ConfigPage::addModbusMapping()
+{
+    const QString deviceId = selectedDeviceId();
+    if (deviceId.isEmpty()) return;
+    ModbusRegisterMap::Mapping mapping;
+    mapping.variableId = m_modbusVariableIdEdit->text().trimmed();
+    mapping.name = m_modbusNameEdit->text().trimmed();
+    mapping.unit = m_modbusUnitEdit->text().trimmed();
+    mapping.address = static_cast<quint16>(m_modbusAddressSpin->value());
+    mapping.function = static_cast<quint8>(m_modbusFunctionCombo->currentData().toInt());
+    mapping.dataType = static_cast<ModbusRegisterMap::DataType>(
+        m_modbusDataTypeCombo->currentData().toInt());
+    mapping.wordOrder = static_cast<ModbusRegisterMap::WordOrder>(
+        m_modbusWordOrderCombo->currentData().toInt());
+    mapping.scale = m_modbusScaleSpin->value();
+    mapping.offset = m_modbusOffsetSpin->value();
+
+    QString error;
+    if (!ModbusRegisterMap::validate(mapping, &error)) {
+        QMessageBox::warning(this, QStringLiteral("映射配置无效"), error);
+        return;
+    }
+    const QString key = deviceId.toCaseFolded();
+    auto mappings = m_modbusMappingsByDevice.value(key);
+    for (const auto &existing : mappings) {
+        if (existing.variableId.compare(mapping.variableId, Qt::CaseInsensitive) == 0) {
+            QMessageBox::warning(this, QStringLiteral("变量 ID 重复"),
+                                 QStringLiteral("当前设备已经存在变量 ID：%1").arg(mapping.variableId));
+            return;
+        }
+    }
+    mappings.append(mapping);
+    m_modbusMappingsByDevice.insert(key, mappings);
+    saveModbusMappings(deviceId);
+    refreshModbusMappings();
+    appendLog(QStringLiteral("[Modbus映射] 已添加 %1，寄存器地址 %2。")
+                  .arg(mapping.variableId).arg(mapping.address));
+}
+
+void ConfigPage::removeModbusMapping()
+{
+    const QString deviceId = selectedDeviceId();
+    const int row = m_modbusMappingTable->currentRow();
+    if (deviceId.isEmpty() || row < 0) return;
+    auto mappings = m_modbusMappingsByDevice.value(deviceId.toCaseFolded());
+    if (row >= mappings.size()) return;
+    const QString variableId = mappings.at(row).variableId;
+    mappings.removeAt(row);
+    m_modbusMappingsByDevice.insert(deviceId.toCaseFolded(), mappings);
+    saveModbusMappings(deviceId);
+    refreshModbusMappings();
+    appendLog(QStringLiteral("[Modbus映射] 已删除 %1。").arg(variableId));
+}
+
+void ConfigPage::loadSimulatedModbusMappings()
+{
+    const QString deviceId = selectedDeviceId();
+    DeviceInfo device;
+    if (deviceId.isEmpty() || !m_deviceManager
+        || !m_deviceManager->getDeviceById(deviceId, device)
+        || device.commType.compare(QStringLiteral("MODBUS-SIM"), Qt::CaseInsensitive) != 0) {
+        QMessageBox::information(this, QStringLiteral("仅用于模拟设备"),
+            QStringLiteral("示例寄存器地址仅适用于 MODBUS-SIM，不要直接用于真实设备。"));
+        return;
+    }
+
+    QVector<ModbusRegisterMap::Mapping> mappings;
+    auto add = [&mappings](const QString &id, const QString &name, const QString &unit,
+                           quint16 address, ModbusRegisterMap::DataType type, double scale) {
+        ModbusRegisterMap::Mapping mapping;
+        mapping.variableId = id;
+        mapping.name = name;
+        mapping.unit = unit;
+        mapping.address = address;
+        mapping.function = 0x03;
+        mapping.dataType = type;
+        mapping.scale = scale;
+        mappings.append(mapping);
+    };
+    add(QStringLiteral("temperature"), QStringLiteral("温度"), QStringLiteral("°C"),
+        0, ModbusRegisterMap::DataType::UInt16, 0.1);
+    add(QStringLiteral("current"), QStringLiteral("电流"), QStringLiteral("A"),
+        1, ModbusRegisterMap::DataType::UInt16, 0.01);
+    add(QStringLiteral("rpm"), QStringLiteral("转速"), QStringLiteral("rpm"),
+        2, ModbusRegisterMap::DataType::UInt16, 1.0);
+    add(QStringLiteral("status"), QStringLiteral("状态"), QString(),
+        3, ModbusRegisterMap::DataType::UInt16, 1.0);
+    add(QStringLiteral("float_demo"), QStringLiteral("浮点示例"), QString(),
+        10, ModbusRegisterMap::DataType::Float32, 1.0);
+    m_modbusMappingsByDevice.insert(deviceId.toCaseFolded(), mappings);
+    saveModbusMappings(deviceId);
+    refreshModbusMappings();
+    appendLog(QStringLiteral("[Modbus模拟] 已加载 5 条示例寄存器映射。"));
+}
+
+void ConfigPage::startModbusPolling()
+{
+    const QString deviceId = selectedDeviceId();
+    DeviceInfo device;
+    if (deviceId.isEmpty() || !m_deviceManager
+        || !m_deviceManager->getDeviceById(deviceId, device)
+        || !m_communicationManager || !m_communicationManager->isConnected(deviceId)) {
+        QMessageBox::warning(this, QStringLiteral("设备未连接"),
+                             QStringLiteral("请先连接所选 Modbus 设备，再启动轮询。"));
+        return;
+    }
+
+    const QString type = device.commType.trimmed().toUpper();
+    ModbusCodec::Transport transport;
+    if (type == QStringLiteral("TCP")) {
+        transport = ModbusCodec::Transport::Tcp;
+    } else if (type == QStringLiteral("RS485") || type == QStringLiteral("SERIAL")
+               || type == QStringLiteral("MODBUS-SIM")) {
+        transport = ModbusCodec::Transport::Rtu;
+    } else {
+        QMessageBox::warning(this, QStringLiteral("不支持的设备类型"),
+                             QStringLiteral("Modbus 轮询仅支持 TCP、RS485 或 MODBUS-SIM。"));
+        return;
+    }
+
+    const auto mappings = m_modbusMappingsByDevice.value(deviceId.toCaseFolded());
+    if (mappings.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("尚无寄存器映射"),
+                                 QStringLiteral("请先添加映射，或为 MODBUS-SIM 加载示例映射。"));
+        return;
+    }
+
+    destroyModbusSession(deviceId);
+    auto *master = new ModbusMaster(transport, this);
+    master->setTimeoutMs(m_modbusTimeoutSpin->value());
+    if (!master->bindDevice(m_communicationManager, deviceId,
+                            static_cast<quint8>(m_modbusUnitIdSpin->value()))) {
+        delete master;
+        QMessageBox::warning(this, QStringLiteral("Modbus 绑定失败"),
+            QStringLiteral("设备连接状态或通信类型与 Modbus RTU/TCP 不匹配。"));
+        return;
+    }
+
+    auto *poller = new ModbusPoller(master, deviceId, this);
+    QString error;
+    if (!poller->setMappings(mappings, &error)) {
+        delete poller;
+        master->unbindDevice();
+        delete master;
+        QMessageBox::warning(this, QStringLiteral("映射配置无效"), error);
+        return;
+    }
+    if (m_businessDataManager)
+        poller->bindBusinessDataManager(m_businessDataManager);
+    if (m_alarmManager) {
+        connect(poller, &ModbusPoller::pointsReady,
+                m_alarmManager, &AlarmManager::evaluateDataPoints);
+    }
+    connect(poller, &ModbusPoller::pollError, this,
+            [this](const QString &id, const QString &variableId, const QString &message) {
+        appendLog(QStringLiteral("[Modbus轮询错误][%1][%2] %3").arg(id, variableId, message));
+    });
+    connect(poller, &ModbusPoller::cycleFinished, this,
+            [this, deviceId](int success, int failed) {
+        m_modbusStatusLabel->setText(
+            QStringLiteral("%1：最近一轮轮询成功 %2 项，失败 %3 项。")
+                .arg(deviceId).arg(success).arg(failed));
+    });
+
+    m_modbusMastersByDevice.insert(deviceId.toCaseFolded(), master);
+    m_modbusPollersByDevice.insert(deviceId.toCaseFolded(), poller);
+    poller->start(m_modbusIntervalSpin->value());
+    m_modbusStatusLabel->setText(QStringLiteral("%1：Modbus 轮询已启动。").arg(deviceId));
+    appendLog(QStringLiteral("[Modbus轮询] %1 已启动，映射 %2 项，周期 %3 ms。")
+                  .arg(deviceId).arg(mappings.size()).arg(m_modbusIntervalSpin->value()));
+    updateModbusControls();
+}
+
+void ConfigPage::stopModbusPolling()
+{
+    const QString deviceId = selectedDeviceId();
+    const QString key = deviceId.toCaseFolded();
+    if (auto *poller = m_modbusPollersByDevice.value(key)) {
+        poller->stop();
+        if (auto *master = m_modbusMastersByDevice.value(key))
+            master->cancelAll(QStringLiteral("用户停止 Modbus 轮询。"));
+        m_modbusStatusLabel->setText(QStringLiteral("%1：Modbus 轮询已停止。").arg(deviceId));
+        appendLog(QStringLiteral("[Modbus轮询] %1 已停止。").arg(deviceId));
+    }
+    updateModbusControls();
+}
+
+void ConfigPage::destroyModbusSession(const QString &deviceId)
+{
+    const QString key = deviceId.toCaseFolded();
+    if (auto *poller = m_modbusPollersByDevice.take(key)) {
+        poller->stop();
+        delete poller;
+    }
+    if (auto *master = m_modbusMastersByDevice.take(key)) {
+        master->unbindDevice();
+        delete master;
+    }
+}
+
+void ConfigPage::updateModbusControls()
+{
+    if (!m_modbusAddButton) return;
+    const QString deviceId = selectedDeviceId();
+    DeviceInfo device;
+    const bool hasDevice = !deviceId.isEmpty() && m_deviceManager
+        && m_deviceManager->getDeviceById(deviceId, device);
+    const QString type = hasDevice ? device.commType.trimmed().toUpper() : QString();
+    const bool supported = type == QStringLiteral("TCP")
+        || type == QStringLiteral("RS485") || type == QStringLiteral("SERIAL")
+        || type == QStringLiteral("MODBUS-SIM");
+    const QString key = deviceId.toCaseFolded();
+    const bool running = m_modbusPollersByDevice.contains(key)
+        && m_modbusPollersByDevice.value(key)->isRunning();
+    const bool connected = hasDevice && m_communicationManager
+        && m_communicationManager->isConnected(deviceId);
+    const bool hasMappings = !m_modbusMappingsByDevice.value(key).isEmpty();
+    m_modbusAddButton->setEnabled(supported && !running);
+    m_modbusRemoveButton->setEnabled(supported && !running
+        && m_modbusMappingTable->currentRow() >= 0);
+    m_modbusLoadSampleButton->setEnabled(type == QStringLiteral("MODBUS-SIM") && !running);
+    m_modbusStartButton->setEnabled(supported && connected && hasMappings && !running);
+    m_modbusStopButton->setEnabled(running);
+    m_modbusUnitIdSpin->setEnabled(supported && !running);
+    m_modbusIntervalSpin->setEnabled(!running);
+    m_modbusTimeoutSpin->setEnabled(!running);
+}
+
 void ConfigPage::refreshDiagnostics()
 {
     if (!m_diagnostics || !m_diagnostics->isReady()) return;
