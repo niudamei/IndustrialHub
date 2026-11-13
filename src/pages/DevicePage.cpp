@@ -258,6 +258,7 @@ void DevicePage::importConfiguration()
     }
     const QJsonObject root = doc.object();
     if (root.value(QStringLiteral("format")).toString() != QStringLiteral("IndustrialHubDeviceConfig")
+        || root.value(QStringLiteral("version")).toInt() != 1
         || !root.value(QStringLiteral("devices")).isArray()) {
         QMessageBox::warning(this, QStringLiteral("导入失败"), QStringLiteral("文件不是有效的 IndustrialHub 设备配置。")); return;
     }
@@ -310,7 +311,9 @@ void DevicePage::applyCommunicationTemplate()
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()
-        || doc.object().value(QStringLiteral("format")).toString() != QStringLiteral("IndustrialHubCommunicationTemplate")) {
+        || doc.object().value(QStringLiteral("format")).toString() != QStringLiteral("IndustrialHubCommunicationTemplate")
+        || doc.object().value(QStringLiteral("version")).toInt() != 1
+        || doc.object().value(QStringLiteral("communicationType")).toString().trimmed().isEmpty()) {
         QMessageBox::warning(this, QStringLiteral("模板无效"), QStringLiteral("无法识别该通信参数模板。")); return;
     }
     const QJsonObject root = doc.object();
