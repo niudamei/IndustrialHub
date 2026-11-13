@@ -244,7 +244,7 @@ void MainWindow::applyPermissions()
         for (QPushButton *button : configPage->findChildren<QPushButton *>())
             button->setEnabled(canManageCommunication);
     }
-    const bool canOperateMonitor = m_authManager->hasPermission(QStringLiteral("device.manage"));
+    const bool canOperateMonitor = m_authManager->hasPermission(QStringLiteral("device.operate"));
     if (monitorPage) {
         for (QPushButton *button : monitorPage->findChildren<QPushButton *>())
             button->setEnabled(canOperateMonitor);
