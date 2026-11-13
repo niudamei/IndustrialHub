@@ -122,7 +122,12 @@ bool CommunicationManager::sendData(const QString &deviceId,
                             .arg(deviceId), errorMessage);
     }
 
-    return communication->sendData(data, errorMessage);
+    if (!communication->sendData(data, errorMessage))
+        return false;
+
+    // 通信驱动接受发送请求后通知监控页面；这不代表远端已经收到数据。
+    emit deviceDataSent(m_deviceIds.value(deviceKey(deviceId), deviceId), data);
+    return true;
 }
 
 bool CommunicationManager::isConnected(const QString &deviceId) const
