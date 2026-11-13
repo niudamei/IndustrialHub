@@ -128,6 +128,7 @@ void CommunicationManager::disconnectAll()
     const auto timerKeys = m_reconnectTimers.keys();
     for (const QString &key : timerKeys)
         stopReconnect(key);
+    m_reconnectAttempts.clear();
     const auto workers = m_workers.values();
     for (CommunicationWorker *worker : workers) {
         if (worker)
@@ -144,11 +145,8 @@ bool CommunicationManager::sendData(const QString &deviceId,
         return setError(QStringLiteral("发送失败：设备 %1 尚未创建通信实例。")
                             .arg(deviceId), errorMessage);
     }
-    if (!worker->sendData(data, errorMessage))
-        return false;
-
-    emit deviceDataSent(m_deviceIds.value(deviceKey(deviceId), deviceId), data);
-    return true;
+    // 仅确认发送任务成功入队；真正写入成功后由 worker 的 dataSent 信号记录 TX。
+    return worker->sendData(data, errorMessage);
 }
 
 bool CommunicationManager::isConnected(const QString &deviceId) const
@@ -205,6 +203,11 @@ void CommunicationManager::attachSignals(const QString &deviceId,
     connect(worker, &CommunicationWorker::dataReceived,
             this, [this, deviceId](const QByteArray &data) {
         emit deviceDataReceived(deviceId, data);
+    });
+
+    connect(worker, &CommunicationWorker::dataSent,
+            this, [this, deviceId](const QByteArray &data) {
+        emit deviceDataSent(deviceId, data);
     });
 
     connect(worker, &CommunicationWorker::errorOccurred,
