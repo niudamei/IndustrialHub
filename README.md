@@ -96,7 +96,9 @@ JSON 示例：
 - `slcan_frame_codec_test`：SLCAN 经典 CAN/CAN-FD 帧编解码、DLC 映射和非法帧校验。
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
 - `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选、原始字节回读及复用总数的分页查询。
-- `modbus_codec_test`：检查 Modbus RTU/TCP 请求帧、CRC、MBAP、寄存器响应、异常响应和非法参数。\n- `modbus_master_test`：检查 Modbus 请求排队、分段响应拼接、写入回显、超时和 TCP 事务响应。\n- `history_maintenance_test`：检查历史数据清理预览、分批删除、截止时间保护和删除后数据保留。
+- `modbus_codec_test`：检查 Modbus RTU/TCP 请求帧、CRC、MBAP、寄存器响应、异常响应和非法参数。
+- `modbus_master_test`：检查 Modbus 请求排队、分段响应拼接、写入回显、超时和 TCP 事务响应。
+- `history_maintenance_test`：检查历史数据清理预览、分批删除、截止时间保护和删除后数据保留。
 - `device_database_test`：检查设备分组、启用状态和通信配置字段的 SQLite 持久化。
 - `device_health_monitor_test`：检查每设备独立活动跟踪、首帧超时、在线超时、RX 恢复和手动断开。
 - `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
