@@ -31,6 +31,8 @@ private slots:
     void onCommunicationError(const QString &deviceId, const QString &message);
     void onPauseClicked();
     void exportEventsToCsv();
+    void toggleDemoMode();
+    void generateDemoTraffic();
     void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
 
@@ -69,8 +71,12 @@ private:
     DeviceManager *m_deviceManager = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
     QTimer *m_statisticsTimer = nullptr;
+    QTimer *m_demoTimer = nullptr;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
     bool m_paused = false;
+    bool m_demoMode = false;
+    quint64 m_demoSequence = 0;
+    int m_demoDeviceIndex = 0;
     static constexpr int MaxRows = 500;
     int m_receiveTimeoutMs = 3000;
 };
