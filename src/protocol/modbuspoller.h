@@ -2,13 +2,12 @@
 #define MODBUSPOLLER_H
 
 #include "modbusregistermap.h"
+#include "modbusmaster.h"
 
 #include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QTimer>
-
-class ModbusMaster;
 
 class ModbusPoller : public QObject
 {
@@ -41,7 +40,7 @@ private slots:
     void onRequestFailed(quint64 requestId, const QString &reason);
 
 private:
-    void finishOne(bool success);
+    void finishOne();
     void finishCycle();
 
     QPointer<ModbusMaster> m_master;
