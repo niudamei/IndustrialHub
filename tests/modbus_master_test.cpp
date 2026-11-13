@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     QByteArray tcpResponse;
     tcpResponse.append(static_cast<char>((tid >> 8) & 0xFF));
     tcpResponse.append(static_cast<char>(tid & 0xFF));
-    tcpResponse.append(QByteArray::fromHex("000000050104002a"));
+    tcpResponse.append(QByteArray::fromHex("00000005010402002a"));
     tcp.feedReceivedData(tcpResponse);
     if (!tcpDone) return 6;
 
