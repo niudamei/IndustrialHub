@@ -79,6 +79,13 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
         connect(m_communicationManager,
                 &CommunicationManager::deviceErrorOccurred,
                 this, &ConfigPage::onCommunicationError);
+        connect(m_communicationManager,
+                &CommunicationManager::deviceReconnecting,
+                this, [this](const QString &deviceId, int attempt, int delayMs) {
+            appendLog(QStringLiteral("[自动重连][%1] 第 %2 次尝试，%3 秒后执行。")
+                          .arg(deviceId).arg(attempt)
+                          .arg(QString::number(delayMs / 1000.0, 'f', 1)));
+        });
     }
 
     if (m_protocolManager) {
