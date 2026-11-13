@@ -2,6 +2,7 @@
 #include "ui_monitorpage.h"
 
 #include "src/communication/communicationmanager.h"
+#include "src/core/devicehealthmonitor.h"
 #include "src/pages/devicemanager.h"
 #include "src/protocol/businessdatapoint.h"
 
@@ -47,11 +48,13 @@ QString intervalText(qint64 value)
 
 MonitorPage::MonitorPage(DeviceManager *deviceManager,
                          CommunicationManager *communicationManager,
+                         DeviceHealthMonitor *healthMonitor,
                          QWidget *parent)
     : QWidget(parent),
       ui(new Ui::MonitorPage),
       m_deviceManager(deviceManager),
-      m_communicationManager(communicationManager)
+      m_communicationManager(communicationManager),
+      m_healthMonitor(healthMonitor)
 {
     ui->setupUi(this);
 
@@ -602,6 +605,8 @@ void MonitorPage::exportEventsToCsv()
 void MonitorPage::onReceiveTimeoutChanged(int seconds)
 {
     m_receiveTimeoutMs = seconds * 1000;
+    if (m_healthMonitor)
+        m_healthMonitor->setTimeoutMs(m_receiveTimeoutMs);
     updateLiveStatistics();
 }
 
