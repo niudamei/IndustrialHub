@@ -149,7 +149,13 @@ bool CommunicationManager::sendData(const QString &deviceId,
                             .arg(deviceId), errorMessage);
     }
     // 仅确认发送任务成功入队；真正写入成功后由 worker 的 dataSent 信号记录 TX。
-    return worker->sendData(data, errorMessage);
+    if (!worker->sendData(data, errorMessage)) {
+        emit deviceErrorOccurred(deviceId,
+            errorMessage && !errorMessage->isEmpty()
+                ? *errorMessage : QStringLiteral("发送请求未能进入设备工作线程队列。"));
+        return false;
+    }
+    return true;
 }
 
 bool CommunicationManager::isConnected(const QString &deviceId) const
