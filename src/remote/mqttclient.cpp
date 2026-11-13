@@ -32,6 +32,8 @@ void MqttClient::connectToBroker(const QString &host, quint16 port, const QStrin
                                  bool useTls, int keepAliveSeconds)
 {
     disconnectFromBroker();
+    m_socket->abort();
+    m_buffer.clear();
     m_host = host.trimmed();
     m_port = port;
     m_clientId = clientId.trimmed().isEmpty()
@@ -59,9 +61,13 @@ void MqttClient::disconnectFromBroker()
     m_reconnectTimer.stop();
     m_pingTimer.stop();
     m_waitingPingResponse = false;
+    if (m_mqttConnected) {
+        m_socket->write(packet(0xE0, QByteArray())); // MQTT DISCONNECT
+        m_socket->flush();
+    }
+    m_mqttConnected = false;
     if (m_socket->state() != QAbstractSocket::UnconnectedState)
         m_socket->disconnectFromHost();
-    m_mqttConnected = false;
 }
 
 bool MqttClient::publish(const QString &topic, const QByteArray &payload, bool retain)
@@ -175,6 +181,7 @@ void MqttClient::onReadyRead()
         } else if (type == 14) {
             m_mqttConnected = false;
             emit logMessage(QStringLiteral("MQTT Broker 已发送 DISCONNECT。"));
+            m_socket->disconnectFromHost();
         }
     }
 }
