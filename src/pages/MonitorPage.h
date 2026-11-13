@@ -39,6 +39,7 @@ private:
         QString deviceName;
         QString commType;
         bool connected = false;
+        qint64 connectedSinceMs = 0;
         QDateTime lastReceiveTime;
         qint64 lastReceiveMs = 0;
         QQueue<qint64> receiveTimestamps;
