@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDebug>
-#include <QDir>\n#include <QFile>
+#include <QDir>
+#include <QFile>
 #include <QStandardPaths>
 
 #include "src/communication/communicationmanager.h"
@@ -12,8 +13,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("IndustrialHubTests"));
     QCoreApplication::setApplicationName(QStringLiteral("CommunicationDiagnosticsTest"));
     QStandardPaths::setTestModeEnabled(true);
+    const QString dbPath = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+                               .filePath(QStringLiteral("industrialhub.db"));
+    QFile::remove(dbPath);
 
     CommunicationManager manager;
+    {
     CommunicationDiagnostics diagnostics(&manager);
     if (!diagnostics.isReady()) {
         qCritical() << "FAIL: diagnostics initialization:" << diagnostics.lastError();
@@ -48,6 +53,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    }
+    {
+        CommunicationDiagnostics reopened(nullptr);
+        if (!reopened.isReady() || reopened.statisticsFor(QStringLiteral("DEV-A")).txCount != 1
+            || reopened.recentEvents(100).size() != 6) {
+            qCritical() << "FAIL: diagnostic events were not persisted across reopen";
+            return 1;
+        }
+    }
     qInfo() << "PASS: diagnostics persistence, event capture, classification and per-device statistics";
     return 0;
 }
