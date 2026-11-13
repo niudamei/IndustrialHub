@@ -267,3 +267,38 @@ ctest --test-dir build --output-on-failure
 ## 离线 Modbus 模拟设备
 
 设备管理中可新增通信类型 MODBUS-SIM，设备地址填写 RTU 单元地址（1–247，留空默认 1）。该驱动在进程内模拟 Modbus RTU，不需要串口或真实硬件。连接后进入“通信配置”，点击“加载模拟示例映射”，即可轮询温度、电流、转速、状态和 Float32 示例寄存器；示例映射只适用于 MODBUS-SIM，不可直接套用到真实设备。轮询数据会进入 BusinessDataManager、报警规则评估及 SQLite 业务历史存储。真实设备可使用 TCP 或 RS485 设备配置，并按设备手册自行添加寄存器映射。
+
+
+## MQTT 与 WebSocket 远程通信
+
+新增“远程通信”页面，提供独立 MQTT 与 WebSocket 客户端，不要求用户安装真实设备。
+
+### MQTT
+- 使用 Qt Network 的 QSslSocket 实现 MQTT 3.1.1 over TCP/TLS，不额外依赖 Qt MQTT 模块。
+- 支持 Broker 主机/端口、Client ID、用户名/密码、TLS 证书校验、连接/断开、Topic Filter 订阅、QoS 0 发布。
+- 接收 QoS 0/1 PUBLISH；对 QoS 1 消息返回 PUBACK；当前不支持 QoS 2。
+- 支持 Keep Alive PINGREQ/PINGRESP、断线指数退避重连（1–30 秒）和收发日志。
+- 发布/接收消息最大 1 MiB。TLS 连接需要本机 Qt TLS 后端及有效证书链。
+
+### WebSocket
+- 使用 Qt Network 的 QSslSocket 实现 RFC 6455 客户端，支持 ws:// 与 wss://，不要求额外安装 Qt WebSockets。
+- 支持 HTTP Upgrade 握手校验、文本/二进制消息、客户端掩码帧、Ping/Pong、关闭帧、TLS 证书校验和断线自动重连。
+- 单帧最大 1 MiB；当前不支持分片消息和扩展协商。服务端需允许标准 WebSocket Upgrade。
+
+远程页面仅在具备 `remote.manage` 权限的用户登录后显示。连接参数暂时只在当前运行期间使用，不会把密码明文写入配置文件。
+
+## 用户、角色与操作审计
+
+- 权限表与用户表存储在应用现有 SQLite 数据库 `industrialhub.db`，使用独立 SQLite 连接和 10 秒 busy timeout，不覆盖设备、报警和历史数据。
+- 预置角色：`admin`（管理员）、`operator`（操作员）、`viewer`（只读用户）；角色权限映射持久化在 `auth_role_permissions`。
+- 权限点覆盖设备管理、实时监控、报警确认、历史维护、通信配置、远程通信、系统设置和用户管理。
+- 密码使用 PBKDF2-HMAC-SHA256（120,000 次迭代、每用户独立随机盐）；不保存明文密码。
+- 全新数据库首次创建管理员：用户名 `admin`，初始密码 `admin123`。首次登录必须修改为至少 10 位的新密码。已有数据库不会重置现有账户。
+- 管理员可新增用户、调整预置角色、启用/禁用账户；系统禁止禁用最后一个启用管理员，也不允许当前管理员在自己的会话中修改自己的角色。
+- 登录、退出、导航访问和用户管理操作写入 `auth_audit_log`；管理员可在“用户与权限 → 操作审计”查看最近 500 条记录。
+- 页面导航和主要操作控件按当前用户权限显示/禁用。此为桌面端应用级权限控制，不替代未来远程服务端的独立身份验证与授权。
+
+## 新增自动化测试
+
+- `auth_manager_test`：初始管理员登录、强制改密、PBKDF2 密码验证、角色权限隔离和禁用用户拒绝登录。
+- `remote_client_test`：本机临时 MQTT Broker 与 WebSocket 服务端回环，检查 MQTT CONNECT/CONNACK、订阅、消息收发及 WebSocket Upgrade/文本帧。
