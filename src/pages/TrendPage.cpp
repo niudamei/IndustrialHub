@@ -57,8 +57,12 @@ TrendPage::TrendPage(CommunicationManager *communicationManager, QWidget *parent
     chartLayout->addWidget(m_chartView);
 
     ui->deviceCombo->addItem(QStringLiteral("全部设备"), QString());
-    connect(ui->deviceCombo, &QComboBox::currentIndexChanged,
-            this, &TrendPage::updateTrend);
+    connect(ui->deviceCombo, &QComboBox::currentIndexChanged, this, [this](int) {
+        m_txSeries->clear();
+        m_rxSeries->clear();
+        m_sampleIndex = 0;
+        updateTrend();
+    });
 
     if (m_communicationManager) {
         connect(m_communicationManager, &CommunicationManager::deviceDataSent,
@@ -95,10 +99,12 @@ void TrendPage::recordTraffic(const QString &deviceId, bool isTx)
     if (id.isEmpty())
         return;
 
+    const bool isNewDevice = !m_traffic.contains(id);
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     DeviceTraffic &traffic = m_traffic[id];
     (isTx ? traffic.txTimes : traffic.rxTimes).enqueue(nowMs);
-    refreshDeviceList();
+    if (isNewDevice)
+        refreshDeviceList();
 }
 
 void TrendPage::refreshDeviceList()
