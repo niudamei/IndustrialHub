@@ -127,7 +127,7 @@ void MainWindow::init_class()
             m_businessDataManager, &BusinessDataManager::updateDataPoints);
     connect(monitorPage, &MonitorPage::businessDataGenerated,
             m_alarmManager, &AlarmManager::evaluateDataPoints);
-    trendPage = new TrendPage(m_communicationManager, this);
+    trendPage = new TrendPage(m_communicationManager, m_businessDataManager, this);
     alarmPage = new AlarmPage(m_alarmManager, this);
     historyPage = new HistoryPage(m_dataManager, this);
     configPage = new ConfigPage(m_deviceManager, m_communicationManager,
