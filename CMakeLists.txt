@@ -60,6 +60,7 @@ qt_add_executable(hhh
     src/security/usermanagementpage.h src/security/usermanagementpage.cpp
     src/remote/mqttclient.h src/remote/mqttclient.cpp
     src/remote/websocketclient.h src/remote/websocketclient.cpp
+    src/remote/httpclient.h src/remote/httpclient.cpp
     src/remote/remotepage.h src/remote/remotepage.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
@@ -360,6 +361,8 @@ if(BUILD_TESTING)
         src/remote/mqttclient.cpp
         src/remote/websocketclient.h
         src/remote/websocketclient.cpp
+        src/remote/httpclient.h
+        src/remote/httpclient.cpp
     )
     target_include_directories(remote_client_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(remote_client_test PRIVATE Qt6::Core Qt6::Network)
