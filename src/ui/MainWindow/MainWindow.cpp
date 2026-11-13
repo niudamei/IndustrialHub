@@ -4,6 +4,7 @@
 #include "src/pages/devicepage.h"
 #include "src/pages/devicemanager.h"
 #include "src/communication/communicationmanager.h"
+#include "src/core/devicehealthmonitor.h"
 #include "src/core/datamanager.h"
 #include "src/core/businessdatamanager.h"
 #include "src/core/alarmmanager.h"
@@ -108,6 +109,34 @@ MainWindow::MainWindow(QWidget *parent)
                                                    "0x06069001", DeviceStatus::Offline));
         }
     }
+
+    m_deviceHealthMonitor = new DeviceHealthMonitor(this);
+    for (const DeviceInfo &device : m_deviceManager->getAllDevices())
+        m_deviceHealthMonitor->registerDevice(device.devId);
+
+    connect(m_deviceManager, &DeviceManager::deviceAdded,
+            m_deviceHealthMonitor, [this](const DeviceInfo &device) {
+        m_deviceHealthMonitor->registerDevice(device.devId);
+    });
+    connect(m_deviceManager, &DeviceManager::deviceRemoved,
+            m_deviceHealthMonitor, &DeviceHealthMonitor::removeDevice);
+    connect(m_communicationManager, &CommunicationManager::deviceConnectionStateChanged,
+            m_deviceHealthMonitor, &DeviceHealthMonitor::setConnected);
+    connect(m_communicationManager, &CommunicationManager::deviceDataReceived,
+            m_deviceHealthMonitor, [this](const QString &deviceId, const QByteArray &) {
+        m_deviceHealthMonitor->markActivity(deviceId);
+    });
+    connect(m_deviceHealthMonitor, &DeviceHealthMonitor::deviceOnlineChanged,
+            this, [this](const QString &deviceId, bool online) {
+        QString error;
+        const DeviceStatus status = online ? DeviceStatus::Online : DeviceStatus::Offline;
+        if (!m_deviceManager->updateDeviceStatus(deviceId, status, &error))
+            qWarning() << "更新设备在线状态失败：" << deviceId << error;
+    });
+    connect(m_deviceHealthMonitor, &DeviceHealthMonitor::deviceTimedOut,
+            this, [](const QString &deviceId, qint64 silenceMs) {
+        qInfo() << "设备通信超时：" << deviceId << "静默时间(ms):" << silenceMs;
+    });
 
     init_class();
     connect(ui->listWidget, &QListWidget::currentRowChanged,
