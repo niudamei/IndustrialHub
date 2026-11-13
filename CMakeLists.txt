@@ -49,6 +49,7 @@ qt_add_executable(hhh
     src/communication/slcanframecodec.h src/communication/slcanframecodec.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
+    src/pages/TrendPage.h src/pages/TrendPage.cpp src/pages/TrendPage.ui
     src/pages/SettingsPage.h src/pages/SettingsPage.cpp src/pages/SettingsPage.ui
     src/ui/MainWindow/MainWindow.h
     src/ui/MainWindow/MainWindow.cpp
