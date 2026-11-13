@@ -837,6 +837,7 @@ void HistoryPage::startHistoryCleanup()
     const QString databasePath = m_dataManager->databasePath();
     m_retentionPreviewButton->setEnabled(false);
     m_retentionCleanupButton->setEnabled(false);
+    m_retentionCutoffEdit->setEnabled(false);
     m_retentionStatusLabel->setText(QStringLiteral("正在后台分批清理历史记录…"));
     m_retentionCleanupWatcher->setFuture(QtConcurrent::run([databasePath, cutoff]() {
         return HistoryMaintenance::cleanupOlderThan(databasePath, cutoff, 1000);
@@ -845,6 +846,7 @@ void HistoryPage::startHistoryCleanup()
 
 void HistoryPage::applyHistoryCleanup(const HistoryCleanupResult &result)
 {
+    m_retentionCutoffEdit->setEnabled(true);
     if (!result.ok) {
         m_retentionStatusLabel->setText(
             QStringLiteral("清理未能完整完成：%1；本次已删除通信 %2 条、业务 %3 条。请重新预览确认剩余数据。")
