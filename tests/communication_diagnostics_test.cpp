@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QStandardPaths>
 #include <QSqlDatabase>
+#include <QSqlError>
 #include <QSqlQuery>
 
 #include "src/communication/communicationmanager.h"
