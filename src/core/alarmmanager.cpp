@@ -363,11 +363,13 @@ void AlarmManager::evaluateDataPoints(const QString &deviceId,
         if (point.quality != DataQuality::Good || !qIsFinite(point.value))
             continue;
         for (const AlarmRule &rule : m_rules) {
-            if (!rule.enabled || normalized(rule.deviceId) != normalized(deviceId)
+            if (normalized(rule.deviceId) != normalized(deviceId)
                 || normalized(rule.variableId) != normalized(point.variableId))
                 continue;
-            const bool outOfRange = (rule.lowEnabled && point.value < rule.lowLimit)
-                                    || (rule.highEnabled && point.value > rule.highLimit);
+            // 禁用规则不再产生新报警，但已有活动事件仍可随数据恢复而关闭。
+            const bool outOfRange = rule.enabled
+                && ((rule.lowEnabled && point.value < rule.lowLimit)
+                    || (rule.highEnabled && point.value > rule.highLimit));
             const QString activeKey = normalized(rule.ruleId);
             const qint64 activeId = m_activeEventByRule.value(activeKey, 0);
             if (outOfRange && activeId == 0) {
