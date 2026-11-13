@@ -36,7 +36,7 @@ private:
     {
         LoadedPluginInfo info;
         QPluginLoader *loader = nullptr;
-        IIndustrialPlugin *instance = nullptr;
+        IIndustrialPlugin *instance = nullptr;\n        bool shutdownCalled = false;
     };
     QList<LoadedPlugin> m_plugins;
 };
