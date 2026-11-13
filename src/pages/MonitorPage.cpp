@@ -394,13 +394,13 @@ void MonitorPage::generateDemoTraffic()
         QByteArray rxData;
 
         if (index == 0) {
-            txData = QByteArray("t1238A1B2C3D4E5F6\r");
+            txData = QByteArray("t1238A1B2C3D4E5F60708\r");
             rxData = QByteArray("t1248") + QByteArray::number(sequence % 16, 16).toUpper()
-                + QByteArray("23456789ABCD\r");
+                + QByteArray("123456789ABCDEF\r");
         } else if (index == 1) {
-            txData = QByteArray("D0018A1B2C3D4E5F6\r");
+            txData = QByteArray("D0018A1B2C3D4E5F60708\r");
             rxData = QByteArray("D0028") + QByteArray::number(sequence % 16, 16).toUpper()
-                + QByteArray("10203040506070\r");
+                + QByteArray("123456789ABCDEF\r");
         } else {
             txData = QByteArray::fromHex("AA55010203040506");
             rxData = QByteArray::fromHex("AA55060708090A0B");
