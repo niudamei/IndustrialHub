@@ -197,7 +197,7 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
         "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN rx_bytes ELSE 0 END),"
         "MAX(CASE WHEN category='RX' THEN timestamp_ms ELSE NULL END),"
         "SUM(CASE WHEN (severity='Error' OR category='超时') AND timestamp_ms>=? THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN (category='TX' OR category='RX' OR severity='Error') "
+        "SUM(CASE WHEN (category='TX' OR category='RX' OR severity='Error' OR category='超时') "
         "AND timestamp_ms>=? THEN 1 ELSE 0 END) "
         "FROM communication_diagnostics GROUP BY device_id "
         "ORDER BY device_id COLLATE NOCASE"));
