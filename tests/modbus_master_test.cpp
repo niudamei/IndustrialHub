@@ -104,6 +104,7 @@ int main(int argc, char *argv[])
     });
     const quint64 first = master.readHoldingRegisters(0, 2);
     const quint64 second = master.writeSingleRegister(5, 0x1234);
+    QCoreApplication::processEvents();
     if (first == 0 || second == 0 || sent.size() != 1 || master.pendingCount() != 2) return 1;
 
     const QByteArray response = rtuReadResponse();
@@ -141,6 +142,7 @@ int main(int argc, char *argv[])
     QObject::connect(&tcp, &ModbusMaster::requestCompleted,
                      [&](quint64, const Response &r) { tcpDone = r.ok; });
     tcp.readInputRegisters(10, 1);
+    QCoreApplication::processEvents();
     const quint16 tid = (static_cast<quint8>(tcpSent.at(0)) << 8)
         | static_cast<quint8>(tcpSent.at(1));
     QByteArray tcpResponse;
