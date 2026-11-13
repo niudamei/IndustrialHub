@@ -347,8 +347,12 @@ void MonitorPage::refreshMetricsTable()
 
 double MonitorPage::receiveRate(const DeviceMetrics &metrics, qint64 nowMs) const
 {
-    Q_UNUSED(nowMs);
-    return static_cast<double>(metrics.receiveTimestamps.size());
+    int recentFrames = 0;
+    for (qint64 timestamp : metrics.receiveTimestamps) {
+        if (nowMs - timestamp <= 1000)
+            ++recentFrames;
+    }
+    return static_cast<double>(recentFrames);
 }
 
 QString MonitorPage::receiveStateText(const DeviceMetrics &metrics, qint64 nowMs) const
