@@ -67,6 +67,11 @@ qint64 deleteBatches(QSqlDatabase db, const QString &table,
         }
         const qint64 affected = query.numRowsAffected();
         query.finish();
+        if (affected < 0) {
+            db.rollback();
+            if (error) *error = QStringLiteral("数据库驱动未能报告 %1 的清理行数。").arg(table);
+            return -1;
+        }
         if (!db.commit()) {
             db.rollback();
             if (error) *error = QStringLiteral("提交 %1 清理事务失败：%2").arg(table, db.lastError().text());
