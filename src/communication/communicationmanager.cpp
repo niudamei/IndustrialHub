@@ -104,6 +104,9 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
         m_autoReconnectDevices.remove(key);
 
     if (!worker->open(device, errorMessage)) {
+        // 同步失败通常代表参数校验或本地资源打开失败，不应对无效配置无限重试。
+        m_autoReconnectDevices.remove(key);
+        m_deviceConfigs.remove(key);
         if (worker->isOpen())
             m_connectedDevices.insert(key);
         return false;
