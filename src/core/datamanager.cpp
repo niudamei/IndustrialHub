@@ -148,6 +148,20 @@ bool DataManager::initializeDatabase()
                             .arg(query.lastError().text()));
     }
 
+    // 复合索引覆盖历史分页的时间排序，避免数据量增长后反复临时排序。
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_communication_history_time_id "
+            "ON communication_history(timestamp_ms DESC, id DESC)"))) {
+        return setError(QStringLiteral("创建通信历史分页索引失败：%1")
+                            .arg(query.lastError().text()));
+    }
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_business_history_time_id "
+            "ON business_data_history(timestamp_ms DESC, id DESC)"))) {
+        return setError(QStringLiteral("创建业务变量历史分页索引失败：%1")
+                            .arg(query.lastError().text()));
+    }
+
     m_lastError.clear();
     m_ready = true;
     return true;
@@ -291,13 +305,8 @@ bool DataManager::queryBusinessDataHistory(
     if (!start.isValid() || !end.isValid() || start > end)
         return setError(QStringLiteral("业务变量查询时间范围无效。"), errorMessage);
 
-    while (!m_pendingBusinessData.isEmpty()) {
-        const int before = m_pendingBusinessData.size();
-        flushPendingBusinessData();
-        if (m_pendingBusinessData.size() == before)
-            return setError(QStringLiteral("业务变量历史仍有待写记录，暂时无法保证查询结果完整：%1")
-                                .arg(m_lastError), errorMessage);
-    }
+    // 查询只读取已经提交的记录，不在 UI 查询调用中同步清空整个写入队列。
+    // 待写记录由 250ms 定时批处理；这样翻页耗时不会随队列积压量线性增长。
 
     QString where = QStringLiteral(" WHERE timestamp_ms >= ? AND timestamp_ms <= ?");
     if (!deviceId.trimmed().isEmpty())
@@ -434,14 +443,7 @@ bool DataManager::queryCommunicationHistory(
     if (!start.isValid() || !end.isValid() || start > end)
         return setError(QStringLiteral("查询时间范围无效。"), errorMessage);
 
-    while (!m_pendingRecords.isEmpty()) {
-        const int pendingBeforeFlush = m_pendingRecords.size();
-        flushPendingRecords();
-        if (m_pendingRecords.size() == pendingBeforeFlush) {
-            return setError(QStringLiteral("历史数据仍有待写入记录，暂时无法保证查询结果完整：%1")
-                                .arg(m_lastError), errorMessage);
-        }
-    }
+    // 查询不再同步排空待写队列；由定时批处理负责持久化，避免翻页阻塞 UI。
 
     QString where = QStringLiteral(" WHERE timestamp_ms >= :start AND timestamp_ms <= :end");
     const QString normalizedDevice = deviceId.trimmed();
