@@ -168,8 +168,6 @@ int main(int argc, char *argv[])
     master.cancelAll();
 
     CommunicationManager manager;
-    manager.registerFactory(QStringLiteral("MODBUS-LOOPBACK"),
-        [](QObject *parent) { return new ModbusLoopbackCommunication(parent); });
     DeviceInfo loopbackDevice;
     loopbackDevice.devId = QStringLiteral("MODBUS-RTU-LOOPBACK");
     loopbackDevice.commType = QStringLiteral("MODBUS-LOOPBACK");
