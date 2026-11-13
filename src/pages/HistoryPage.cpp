@@ -683,6 +683,8 @@ void HistoryPage::exportCommunicationAll()
     const QString device = ui->deviceFilterEdit->text();
     ui->resultLabel->setText(QStringLiteral("正在后台导出全部通信历史…"));
     m_communicationExportAllButton->setEnabled(false);
+    m_businessExportAllButton->setEnabled(false);
+    m_communicationExportAllButton->setEnabled(false);
     m_exportWatcher->setFuture(QtConcurrent::run([db, file, start, end, device, direction]() {
         return exportHistoryCsv(db, file, false, start, end, device, direction);
     }));
