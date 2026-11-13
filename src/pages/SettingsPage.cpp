@@ -33,8 +33,9 @@ SettingsPage::SettingsPage(QWidget *parent)
         QSettings().setValue(QStringLiteral("ui/darkTheme"), false);
         emit themeChanged(false);
     });
-    connect(m_trayCheckBox, &QCheckBox::toggled, this, [](bool enabled) {
+    connect(m_trayCheckBox, &QCheckBox::toggled, this, [this](bool enabled) {
         QSettings().setValue(QStringLiteral("ui/minimizeToTray"), enabled);
+        emit minimizeToTrayChanged(enabled);
     });
     emit themeChanged(dark);
     emit minimizeToTrayChanged(minimizeToTray);
