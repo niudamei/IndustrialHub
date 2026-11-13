@@ -10,7 +10,7 @@
 - UI：Qt Widgets / Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL）
 - 网络：Qt Network
-- 当前版本：0.9.0
+- 当前版本：0.11.0
 
 ## 已实现模块
 
