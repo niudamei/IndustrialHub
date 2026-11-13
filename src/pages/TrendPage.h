@@ -72,6 +72,7 @@ private:
     CommunicationManager *m_communicationManager = nullptr;
     BusinessDataManager *m_businessDataManager = nullptr;
     QTimer *m_timer = nullptr;
+    QTimer *m_historyRefreshTimer = nullptr;
     QChartView *m_chartView = nullptr;
     QLineSeries *m_txSeries = nullptr;
     QLineSeries *m_rxSeries = nullptr;
