@@ -51,6 +51,7 @@ private:
     QString m_deviceId;
     QVector<ModbusRegisterMap::Mapping> m_mappings;
     QHash<quint64, int> m_requestMapping;
+    QVector<BusinessDataPoint> m_cyclePoints;
     QTimer m_timer;
     int m_intervalMs = 1000;
     int m_cyclePending = 0;
