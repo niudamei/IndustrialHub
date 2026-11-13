@@ -109,6 +109,10 @@ quint64 ModbusMaster::enqueue(quint8 function, quint16 address,
         emit requestFailed(0, QStringLiteral("Modbus 主站尚未设置底层发送函数。"));
         return 0;
     }
+    if (pendingCount() >= 1024) {
+        emit requestFailed(0, QStringLiteral("Modbus 请求队列已满（最多 1024 个待处理请求）。"));
+        return 0;
+    }
 
     QString error;
     QByteArray frame;
@@ -235,6 +239,12 @@ void ModbusMaster::feedReceivedData(const QByteArray &data)
 void ModbusMaster::processFrame(const QByteArray &frame)
 {
     if (!m_hasActive) return;
+    if (m_transport == ModbusCodec::Transport::Tcp && frame.size() >= 2) {
+        const quint16 receivedTransaction = (static_cast<quint8>(frame.at(0)) << 8)
+            | static_cast<quint8>(frame.at(1));
+        if (receivedTransaction != m_active.transactionId)
+            return; // Ignore a delayed response belonging to an earlier request.
+    }
     const ModbusCodec::Response response = ModbusCodec::decodeResponse(
         m_transport, frame, m_unitId, m_active.function,
         m_active.transactionId);
@@ -288,7 +298,7 @@ void ModbusMaster::failActive(const QString &reason)
     emit requestFailed(id, reason);
     emit queueChanged(pendingCount());
     if (!isBusy()) emit busyChanged(false);
-    sendNext();
+    QTimer::singleShot(0, this, &ModbusMaster::sendNext);
 }
 
 void ModbusMaster::onTimeout()
