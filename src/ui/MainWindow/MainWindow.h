@@ -1,6 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QMainWindow>
+class QCloseEvent;
+class QSystemTrayIcon;
+class QMenu;
 #include "CustomFolder/customlabel.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -19,8 +22,13 @@ private slots:
     void onNavigationClicked(int index);
     void applyPermissions();
     void showLoginDialog();
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     void init_class();
+    void initSystemTray();
+    void setDarkTheme(bool darkTheme);
     Ui::MainWindow *ui = nullptr;
     DeviceManager *m_deviceManager = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
@@ -43,5 +51,9 @@ private:
     TrendPage *trendPage = nullptr;
     SettingsPage *settingsPage = nullptr;
     CustomLabel *m_statusLabel = nullptr;
+    QSystemTrayIcon *m_trayIcon = nullptr;
+    QMenu *m_trayMenu = nullptr;
+    bool m_minimizeToTray = true;
+    bool m_allowClose = false;
 };
 #endif // MAINWINDOW_H
