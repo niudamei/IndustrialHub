@@ -42,7 +42,8 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
-    src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp\n    src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
+    src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
+    src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
     src/protocol/businessdatapoint.h
@@ -176,7 +177,29 @@ if(BUILD_TESTING)
     target_link_libraries(device_database_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME device_database_test COMMAND device_database_test)
 
-    add_executable(communication_diagnostics_test\n        tests/communication_diagnostics_test.cpp\n        src/core/communicationdiagnostics.h\n        src/core/communicationdiagnostics.cpp\n        src/communication/communicationmanager.h\n        src/communication/communicationmanager.cpp\n        src/communication/communicationworker.h\n        src/communication/communicationworker.cpp\n        src/communication/icommunication.h\n        src/communication/icommunication.cpp\n        src/communication/simulatedcommunication.h\n        src/communication/simulatedcommunication.cpp\n        src/communication/tcpcommunication.h\n        src/communication/tcpcommunication.cpp\n        src/communication/udpcommunication.h\n        src/communication/udpcommunication.cpp\n        src/pages/deviceinfo.h\n    )\n    target_include_directories(communication_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})\n    target_link_libraries(communication_diagnostics_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)\n    add_test(NAME communication_diagnostics_test COMMAND communication_diagnostics_test)\n\n    add_executable(device_health_monitor_test
+    add_executable(communication_diagnostics_test
+        tests/communication_diagnostics_test.cpp
+        src/core/communicationdiagnostics.h
+        src/core/communicationdiagnostics.cpp
+        src/communication/communicationmanager.h
+        src/communication/communicationmanager.cpp
+        src/communication/communicationworker.h
+        src/communication/communicationworker.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
+        src/pages/deviceinfo.h
+    )
+    target_include_directories(communication_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(communication_diagnostics_test PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
+    add_test(NAME communication_diagnostics_test COMMAND communication_diagnostics_test)
+
+    add_executable(device_health_monitor_test
         tests/device_health_monitor_test.cpp
         src/core/devicehealthmonitor.h
         src/core/devicehealthmonitor.cpp
