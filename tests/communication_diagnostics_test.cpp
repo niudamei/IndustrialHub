@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 
     const auto a = diagnostics.statisticsFor(QStringLiteral("DEV-A"));
     const auto b = diagnostics.statisticsFor(QStringLiteral("DEV-B"));
+    const auto allStats = diagnostics.statistics();
     const auto events = diagnostics.recentEvents(100);
     const auto deviceEvents = diagnostics.recentEvents(100, QStringLiteral("DEV-A"));
     const auto timeEvents = diagnostics.recentEvents(100, QString(),
@@ -43,11 +44,23 @@ int main(int argc, char *argv[])
 
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
-        || b.txCount != 1 || b.txBytes != 2 || events.size() != 6
+        || b.txCount != 1 || b.txBytes != 2 || events.size() != 7
         || deviceEvents.size() != 6 || timeEvents.size() != 7) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
+        return 1;
+    }
+
+    if (allStats.size() != 2
+        || a.txPerSecond <= 0.0 || a.rxPerSecond <= 0.0
+        || a.txBytesPerSecond <= 0.0 || a.rxBytesPerSecond <= 0.0
+        || !a.lastRx.isValid() || a.lastRxSilenceMs < 0
+        || a.recentErrorCount < 2 || a.quality != QStringLiteral("警告")
+        || b.quality != QStringLiteral("良好")) {
+        qCritical() << "FAIL: rolling quality metrics mismatch"
+                    << allStats.size() << a.txPerSecond << a.rxPerSecond
+                    << a.lastRxSilenceMs << a.recentErrorCount << a.quality << b.quality;
         return 1;
     }
 
@@ -63,7 +76,7 @@ int main(int argc, char *argv[])
     {
         CommunicationDiagnostics reopened(nullptr);
         if (!reopened.isReady() || reopened.statisticsFor(QStringLiteral("DEV-A")).txCount != 1
-            || reopened.recentEvents(100).size() != 7) {
+            || reopened.recentEvents(100).size() != 7\n            || reopened.statisticsFor(QStringLiteral("DEV-A")).quality != QStringLiteral("警告")) {
             qCritical() << "FAIL: diagnostic events were not persisted across reopen";
             return 1;
         }
