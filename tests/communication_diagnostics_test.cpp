@@ -42,7 +42,8 @@ int main(int argc, char *argv[])
 
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
-        || b.txCount != 1 || b.txBytes != 2 || events.size() != 6\n        || deviceEvents.size() != 5 || timeEvents.size() != 6) {
+        || b.txCount != 1 || b.txBytes != 2 || events.size() != 6
+        || deviceEvents.size() != 5 || timeEvents.size() != 6) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
