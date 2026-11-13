@@ -68,6 +68,15 @@ int main(int argc, char *argv[])
     if (totalCount != 2 || records.size() != 1)
         return 8;
 
+    // 翻页时复用已统计的总数，确保查询不会重新执行 COUNT(*)。
+    totalCount = 2;
+    if (!dataManager.queryCommunicationHistory(
+            start, end, deviceId, QString(), 1, 1,
+            records, totalCount, &error, false))
+        return 16;
+    if (totalCount != 2 || records.size() != 1)
+        return 17;
+
     if (!dataManager.queryCommunicationHistory(
             start, end, deviceId, QStringLiteral("RX"), 0, 20,
             records, totalCount, &error))
