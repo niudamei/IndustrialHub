@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QDebug>
+#include <QTimeZone>
 
 #include "src/core/businessdatamanager.h"
 
