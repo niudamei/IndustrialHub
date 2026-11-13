@@ -13,6 +13,7 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QLineSeries>
+#include <QLegend>
 #include <QValueAxis>
 #include <QPainter>
 #include <QPainterPath>
