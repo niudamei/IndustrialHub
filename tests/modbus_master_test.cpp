@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
     master.feedReceivedData(response.left(3));
     if (completed || sent.size() != 1) return 2;
     master.feedReceivedData(response.mid(3));
+    QCoreApplication::processEvents();
     if (!completed || sent.size() != 2 || master.pendingCount() != 1) return 3;
 
     QByteArray writeEcho = QByteArray::fromHex("010600051234");
