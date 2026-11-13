@@ -57,6 +57,7 @@ qt_add_executable(hhh
     src/protocol/modbuspoller.h src/protocol/modbuspoller.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
+    src/communication/simulatedmodbuscommunication.h src/communication/simulatedmodbuscommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
     src/communication/udpcommunication.h src/communication/udpcommunication.cpp
     src/communication/communicationmanager.h src/communication/communicationmanager.cpp
@@ -88,6 +89,8 @@ if(BUILD_TESTING)
         src/communication/icommunication.cpp
         src/communication/simulatedcommunication.h
         src/communication/simulatedcommunication.cpp
+        src/communication/simulatedmodbuscommunication.h
+        src/communication/simulatedmodbuscommunication.cpp
         src/pages/deviceinfo.h
     )
     target_include_directories(communication_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
