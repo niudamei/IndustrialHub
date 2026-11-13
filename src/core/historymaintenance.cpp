@@ -84,7 +84,7 @@ HistoryStoragePreview HistoryMaintenance::inspect(const QString &databasePath,
 {
     HistoryStoragePreview result;
     result.cutoff = cutoff;
-    if (databasePath.trimmed().isEmpty() || !cutoff.isValid()) {
+    if (databasePath.trimmed().isEmpty() || !cutoff.isValid() || cutoff > QDateTime::currentDateTime()) {
         result.error = QStringLiteral("数据库路径或清理截止时间无效。");
         return result;
     }
@@ -116,7 +116,7 @@ HistoryCleanupResult HistoryMaintenance::cleanupOlderThan(
 {
     HistoryCleanupResult result;
     if (databasePath.trimmed().isEmpty() || !cutoff.isValid()
-        || batchSize < 1 || batchSize > 10000) {
+        || cutoff > QDateTime::currentDateTime() || batchSize < 1 || batchSize > 10000) {
         result.error = QStringLiteral("数据库路径、截止时间或批次大小无效。");
         return result;
     }
