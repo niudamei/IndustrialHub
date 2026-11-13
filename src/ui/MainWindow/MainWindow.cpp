@@ -6,6 +6,7 @@
 #include "src/communication/communicationmanager.h"
 #include "src/core/datamanager.h"
 #include "src/core/businessdatamanager.h"
+#include "src/core/alarmmanager.h"
 #include "src/protocol/protocolmanager.h"
 #include "src/protocol/jsonprotocolparser.h"
 #include "src/pages/AlarmPage.h"
@@ -28,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_dataManager = new DataManager(m_communicationManager, this);
     m_protocolManager = new ProtocolManager(this);
     m_businessDataManager = new BusinessDataManager(this);
+    m_alarmManager = new AlarmManager(this);
 
     QString protocolError;
     if (!m_protocolManager->registerParser(
@@ -45,6 +47,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_protocolManager, &ProtocolManager::businessDataDecoded,
             m_businessDataManager, &BusinessDataManager::updateDataPoints);
+    connect(m_protocolManager, &ProtocolManager::businessDataDecoded,
+            m_alarmManager, &AlarmManager::evaluateDataPoints);
     if (!m_dataManager->isReady()) {
         QMessageBox::warning(this, QStringLiteral("历史数据服务初始化失败"),
                              m_dataManager->lastError());
@@ -87,7 +91,7 @@ void MainWindow::init_class()
     devicePage = new DevicePage(m_deviceManager, this);
     monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
     trendPage = new TrendPage(m_communicationManager, this);
-    alarmPage = new AlarmPage(this);
+    alarmPage = new AlarmPage(m_alarmManager, this);
     historyPage = new HistoryPage(m_dataManager, this);
     configPage = new ConfigPage(m_deviceManager, m_communicationManager,
                                 m_protocolManager, this);
