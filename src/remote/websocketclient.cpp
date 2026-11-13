@@ -37,6 +37,7 @@ bool WebSocketClient::isConnected() const
 void WebSocketClient::connectToUrl(const QUrl &url)
 {
     disconnectFromServer();
+    m_socket->abort();
     if (!url.isValid() || (url.scheme() != QStringLiteral("ws") && url.scheme() != QStringLiteral("wss"))
         || url.host().isEmpty()) {
         emit errorOccurred(QStringLiteral("WebSocket URL 无效，必须使用 ws:// 或 wss://。"));
@@ -122,9 +123,18 @@ void WebSocketClient::onReadyRead()
         const QByteArray expected = QCryptographicHash::hash(
             m_handshakeKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
             QCryptographicHash::Sha1).toBase64();
-        if (!headers.startsWith("HTTP/1.1 101") || !headers.contains("Upgrade: websocket")
-            || !headers.toLower().contains("connection: upgrade")
-            || !headers.contains("Sec-WebSocket-Accept: " + expected)) {
+        const QByteArray lowerHeaders = headers.toLower();
+        const int acceptStart = lowerHeaders.indexOf("sec-websocket-accept:");
+        bool acceptMatches = false;
+        if (acceptStart >= 0) {
+            const int lineEnd = headers.indexOf("\\r\\n", acceptStart);
+            const QByteArray acceptLine = headers.mid(acceptStart, lineEnd >= 0
+                ? lineEnd - acceptStart : headers.size() - acceptStart);
+            const int colon = acceptLine.indexOf(':');
+            acceptMatches = colon >= 0 && acceptLine.mid(colon + 1).trimmed() == expected;
+        }
+        if (!headers.startsWith("HTTP/1.1 101") || !lowerHeaders.contains("upgrade: websocket")
+            || !lowerHeaders.contains("connection: upgrade") || !acceptMatches) {
             emit errorOccurred(QStringLiteral("WebSocket 握手失败，服务端未返回有效的 101 Upgrade。"));
             m_socket->abort();
             return;
