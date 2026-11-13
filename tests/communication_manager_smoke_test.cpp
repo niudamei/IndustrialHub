@@ -35,6 +35,7 @@ public:
 
     bool sendData(const QByteArray &data, QString *) override
     {
+        QThread::msleep(200); // 模拟较慢的串口/驱动写入，验证 UI 调用不会等待。
         m_sendThread.storeRelease(QThread::currentThread());
         if (!m_open)
             return false;
@@ -221,10 +222,15 @@ int main(int argc, char *argv[])
         std::cerr << "FAIL: communication driver was not created/opened in its I/O thread." << std::endl;
         return 18;
     }
-    if (!manager.sendData(probeDevice.devId, QByteArray::fromHex("CAFE"), &error)
+    QElapsedTimer enqueueTimer;
+    enqueueTimer.start();
+    const bool queuedProbeSend =
+        manager.sendData(probeDevice.devId, QByteArray::fromHex("CAFE"), &error);
+    const qint64 enqueueElapsedMs = enqueueTimer.elapsed();
+    if (!queuedProbeSend || enqueueElapsedMs >= 100
         || !waitUntil([&]() { return probe->sendThread() != nullptr; }, 1000)
         || probe->sendThread() != probe->ownerThread()) {
-        std::cerr << "FAIL: sendData did not execute in the device I/O thread." << std::endl;
+        std::cerr << "FAIL: sendData blocked the caller or did not execute in the device I/O thread." << std::endl;
         return 19;
     }
     std::cout << "PASS: communication driver creation, open and send run off the UI thread." << std::endl;
