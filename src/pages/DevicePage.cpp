@@ -14,6 +14,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QDateTime>
+#include <functional>
 
 namespace {
 QString statusText(DeviceStatus s) {
