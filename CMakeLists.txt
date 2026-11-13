@@ -42,7 +42,7 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
-    src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
+    src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp\n    src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
     src/protocol/businessdatapoint.h
