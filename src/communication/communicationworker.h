@@ -26,6 +26,7 @@ public:
 signals:
     void connectionStateChanged(bool connected);
     void dataReceived(const QByteArray &data);
+    void dataSent(const QByteArray &data);
     void errorOccurred(const QString &message);
 
 private:
