@@ -180,28 +180,76 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
 {
     QList<CommunicationDeviceStatistics> result;
     if (!isReady()) return result;
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 minuteAgoMs = nowMs - 60000;
+    const qint64 fiveMinutesAgoMs = nowMs - 300000;
     QSqlQuery q(m_database);
-    if (!q.exec(QStringLiteral(
+    q.prepare(QStringLiteral(
         "SELECT device_id,"
         "SUM(CASE WHEN category='TX' THEN 1 ELSE 0 END),"
         "SUM(CASE WHEN category='RX' THEN 1 ELSE 0 END),"
         "SUM(tx_bytes),SUM(rx_bytes),"
         "SUM(CASE WHEN severity='Error' THEN 1 ELSE 0 END),"
-        "SUM(CASE WHEN category='重连' THEN 1 ELSE 0 END),MAX(timestamp_ms) "
-        "FROM communication_diagnostics GROUP BY device_id ORDER BY device_id COLLATE NOCASE")))
+        "SUM(CASE WHEN category='重连' THEN 1 ELSE 0 END),MAX(timestamp_ms),"
+        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN tx_bytes ELSE 0 END),"
+        "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN rx_bytes ELSE 0 END),"
+        "MAX(CASE WHEN category='RX' THEN timestamp_ms ELSE NULL END),"
+        "SUM(CASE WHEN severity='Error' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN (category='TX' OR category='RX' OR severity='Error') "
+        "AND timestamp_ms>=? THEN 1 ELSE 0 END) "
+        "FROM communication_diagnostics GROUP BY device_id "
+        "ORDER BY device_id COLLATE NOCASE"));
+    q.bindValue(0, minuteAgoMs);
+    q.bindValue(1, minuteAgoMs);
+    q.bindValue(2, minuteAgoMs);
+    q.bindValue(3, minuteAgoMs);
+    q.bindValue(4, fiveMinutesAgoMs);
+    q.bindValue(5, minuteAgoMs);
+    if (!q.exec()) {
+        m_lastError = QStringLiteral("读取设备通信统计失败：%1").arg(q.lastError().text());
         return result;
-    while(q.next()) {
+    }
+    while (q.next()) {
         CommunicationDeviceStatistics s;
-        s.deviceId=q.value(0).toString(); s.txCount=q.value(1).toLongLong();
-        s.rxCount=q.value(2).toLongLong(); s.txBytes=q.value(3).toLongLong();
-        s.rxBytes=q.value(4).toLongLong(); s.errorCount=q.value(5).toLongLong();
-        s.reconnectCount=q.value(6).toLongLong();
-        s.lastEvent=QDateTime::fromMSecsSinceEpoch(q.value(7).toLongLong());
+        s.deviceId = q.value(0).toString();
+        s.txCount = q.value(1).toLongLong();
+        s.rxCount = q.value(2).toLongLong();
+        s.txBytes = q.value(3).toLongLong();
+        s.rxBytes = q.value(4).toLongLong();
+        s.errorCount = q.value(5).toLongLong();
+        s.reconnectCount = q.value(6).toLongLong();
+        s.lastEvent = QDateTime::fromMSecsSinceEpoch(q.value(7).toLongLong());
+        s.txPerSecond = q.value(8).toDouble() / 60.0;
+        s.rxPerSecond = q.value(9).toDouble() / 60.0;
+        s.txBytesPerSecond = q.value(10).toDouble() / 60.0;
+        s.rxBytesPerSecond = q.value(11).toDouble() / 60.0;
+        if (!q.value(12).isNull()) {
+            s.lastRx = QDateTime::fromMSecsSinceEpoch(q.value(12).toLongLong());
+            s.lastRxSilenceMs = qMax<qint64>(0, nowMs - s.lastRx.toMSecsSinceEpoch());
+        }
+        s.recentErrorCount = q.value(13).toLongLong();
+        const qint64 recentActivityCount = q.value(14).toLongLong();
+        s.recentErrorRatePercent = recentActivityCount > 0
+            ? (100.0 * s.recentErrorCount / recentActivityCount) : 0.0;
+        if (recentActivityCount == 0) {
+            s.quality = QStringLiteral("空闲");
+            s.qualityReason = QStringLiteral("最近 60 秒没有 TX/RX 或错误事件");
+        } else if (s.recentErrorCount >= 5 || s.recentErrorRatePercent >= 10.0) {
+            s.quality = QStringLiteral("差");
+            s.qualityReason = QStringLiteral("最近 5 分钟错误较多，请检查链路和设备");
+        } else if (s.recentErrorCount >= 2 || s.recentErrorRatePercent >= 3.0) {
+            s.quality = QStringLiteral("警告");
+            s.qualityReason = QStringLiteral("近期出现通信错误，建议检查设备日志");
+        } else {
+            s.quality = QStringLiteral("良好");
+            s.qualityReason = QStringLiteral("近期通信事件正常");
+        }
         result.append(s);
     }
     return result;
 }
-
 CommunicationDeviceStatistics CommunicationDiagnostics::statisticsFor(const QString &deviceId) const
 {
     for (const auto &s : statistics())
