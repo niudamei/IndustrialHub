@@ -14,6 +14,7 @@ public:
 
 private slots:
     void refreshUsers();
+    void refreshAuditLog();
     void addUser();
     void updateSelectedRole();
     void toggleSelectedUser();
@@ -21,6 +22,7 @@ private slots:
 private:
     AuthManager *m_authManager = nullptr;
     QTableWidget *m_table = nullptr;
+    QTableWidget *m_auditTable = nullptr;
 };
 
 #endif
