@@ -670,7 +670,7 @@ void MonitorPage::appendEvent(const QString &deviceId,
 
 QString MonitorPage::formatData(const QString &deviceId, const QByteArray &data) const
 {
-    if (deviceId.startsWith(QStringLiteral("DEMO-CAN-"), Qt::CaseInsensitive))
+    if (deviceId.startsWith(QStringLiteral("DEMO-CAN"), Qt::CaseInsensitive))
         return QString::fromLatin1(data);
     if (m_deviceManager) {
         DeviceInfo device;
