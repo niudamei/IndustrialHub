@@ -2,6 +2,7 @@
 #define HISTORYPAGE_H
 
 #include <QList>
+#include <QFutureWatcher>
 #include <QWidget>
 
 #include "src/core/datamanager.h"
@@ -14,6 +15,9 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QTableWidget;
+
+struct CommunicationPageResult { bool ok = false; QString error; QList<CommunicationHistoryRecord> records; int totalCount = 0; };
+struct BusinessPageResult { bool ok = false; QString error; QList<BusinessDataHistoryRecord> records; int totalCount = 0; };
 
 class HistoryPage : public QWidget
 {
@@ -37,6 +41,8 @@ private:
     void updatePageInfo();
     void updateBusinessPageInfo();
     void renderBusinessChart();
+    void applyCommunicationResult(const CommunicationPageResult &result);
+    void applyBusinessResult(const BusinessPageResult &result);
 
     Ui::HistoryPage *ui = nullptr;
     DataManager *m_dataManager = nullptr;
@@ -44,6 +50,7 @@ private:
     int m_totalCount = 0;
     int m_offset = 0;
     bool m_communicationCountValid = false;
+    QFutureWatcher<CommunicationPageResult> *m_communicationWatcher = nullptr;
     static constexpr int PageSize = 200;
 
     QDateTimeEdit *m_businessStartEdit = nullptr;
@@ -61,6 +68,7 @@ private:
     int m_businessTotalCount = 0;
     int m_businessOffset = 0;
     bool m_businessCountValid = false;
+    QFutureWatcher<BusinessPageResult> *m_businessWatcher = nullptr;
 };
 
 #endif // HISTORYPAGE_H
