@@ -33,7 +33,6 @@ private:
     QThread m_thread;
     QObject *m_context = nullptr;
     ICommunication *m_communication = nullptr; // accessed only in m_thread
-    Factory m_factory;
     QAtomicInteger<bool> m_ready{false};
     QAtomicInteger<bool> m_open{false};
 };
