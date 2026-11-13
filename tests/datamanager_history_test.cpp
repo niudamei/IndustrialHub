@@ -99,5 +99,12 @@ int main(int argc, char *argv[])
         || businessRecords.first().point.sourceProtocol != QStringLiteral("TEST"))
         return 13;
 
+    if (!dataManager.queryBusinessDataHistory(
+            start, end, deviceId, QString(), 0, 1,
+            businessRecords, businessCount, &error))
+        return 14;
+    if (businessCount != 2 || businessRecords.size() != 1)
+        return 15;
+
     return 0;
 }
