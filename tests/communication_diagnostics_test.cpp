@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
     emit manager.deviceErrorOccurred(QStringLiteral("DEV-A"), QStringLiteral("serial port timeout"));
     emit manager.deviceReconnecting(QStringLiteral("DEV-A"), 2, 2000);
     emit manager.deviceDataSent(QStringLiteral("DEV-B"), QByteArray(2, char(0x33)));
+    diagnostics.recordHealthTimeout(QStringLiteral("DEV-A"), 3500);
 
     const auto a = diagnostics.statisticsFor(QStringLiteral("DEV-A"));
     const auto b = diagnostics.statisticsFor(QStringLiteral("DEV-B"));
@@ -43,7 +44,7 @@ int main(int argc, char *argv[])
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
         || b.txCount != 1 || b.txBytes != 2 || events.size() != 6
-        || deviceEvents.size() != 5 || timeEvents.size() != 6) {
+        || deviceEvents.size() != 6 || timeEvents.size() != 7) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
     {
         CommunicationDiagnostics reopened(nullptr);
         if (!reopened.isReady() || reopened.statisticsFor(QStringLiteral("DEV-A")).txCount != 1
-            || reopened.recentEvents(100).size() != 6) {
+            || reopened.recentEvents(100).size() != 7) {
             qCritical() << "FAIL: diagnostic events were not persisted across reopen";
             return 1;
         }
