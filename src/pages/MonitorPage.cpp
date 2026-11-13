@@ -136,8 +136,17 @@ void MonitorPage::refreshDeviceFilter()
             DeviceMetrics metrics = m_deviceMetrics.value(key);
             metrics.deviceName = device.devName;
             metrics.commType = device.commType;
-            if (m_communicationManager)
-                metrics.connected = m_communicationManager->isConnected(device.devId);
+            if (m_communicationManager) {
+                const bool isConnected = m_communicationManager->isConnected(device.devId);
+                if (isConnected && (!metrics.connected || metrics.connectedSinceMs <= 0)) {
+                    metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                    metrics.lastReceiveMs = 0;
+                    metrics.receiveTimedOut = false;
+                } else if (!isConnected) {
+                    metrics.connectedSinceMs = 0;
+                }
+                metrics.connected = isConnected;
+            }
             refreshedMetrics.insert(key, metrics);
 
             ui->deviceFilterCombo->addItem(
