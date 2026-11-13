@@ -253,3 +253,17 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [ ] 用户 Qt 6.10.3 MinGW 环境编译及全量 CTest 验收。
 - [ ] 与真实 MQTT Broker、WebSocket 服务端进行 TLS/认证联调；按项目需求扩展 MQTT QoS 2、WebSocket 分片及服务端功能。
 - [ ] 继续完善操作级权限校验、审计导出、角色权限编辑与插件接口。
+
+
+### HTTP / HTTPS、远程业务数据和插件系统
+
+- [x] 增加异步 HTTP/HTTPS 客户端：GET、POST、PUT、PATCH、DELETE、Bearer Token、请求超时和取消。
+- [x] 远程通信页面增加 HTTP/HTTPS Tab，与 MQTT、WebSocket 共用远程数据 JSON 映射。
+- [x] 增加 RemoteTelemetryParser：校验设备编号、变量 ID、数值、质量、时间戳和单消息变量上限。
+- [x] MQTT、WebSocket 文本、HTTP 2xx JSON 统一接入 BusinessDataManager、AlarmManager 和 SQLite 历史链路。
+- [x] 增加本机 HTTP 回环测试及远程遥测解析测试。
+- [x] 增加 IIndustrialPlugin/1.0 插件接口、QPluginLoader 生命周期管理和管理员插件管理页。
+- [x] 增加动态样例插件及 plugin_manager_test，覆盖加载、重复 ID/路径防护和卸载。
+- [ ] 用户 Qt 6.10.3 MinGW 环境编译、全量 CTest 和端到端 MQTT/WebSocket/HTTP 遥测验收。
+- [ ] 增加插件版本兼容策略、签名/可信来源校验、插件配置和设备驱动插件适配器。
+- [ ] 增加远程数据 Topic/URL 到设备/变量映射配置、认证配置持久化与凭据保护。
