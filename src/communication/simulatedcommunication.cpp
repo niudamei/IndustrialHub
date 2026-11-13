@@ -14,16 +14,17 @@ SimulatedCommunication::~SimulatedCommunication()
 
 bool SimulatedCommunication::open(const DeviceInfo &device, QString *errorMessage)
 {
-    if (device.devId.trimmed().isEmpty())
+    const QString deviceId = device.devId.trimmed();
+    if (deviceId.isEmpty())
         return setError(QStringLiteral("模拟通信：设备编号不能为空。"), errorMessage);
 
-    if (m_open && m_deviceId == device.devId)
+    if (m_open && m_deviceId == deviceId)
         return true;
 
     if (m_open)
         close();
 
-    m_deviceId = device.devId;
+    m_deviceId = deviceId;
     m_open = true;
     emit connectionStateChanged(true);
     return true;
