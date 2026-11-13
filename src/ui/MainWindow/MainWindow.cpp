@@ -30,6 +30,13 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QDialog>
+#include <QSystemTrayIcon>
+#include <QMenu>
+#include <QAction>
+#include <QCloseEvent>
+#include <QStyle>
+#include <QApplication>
+#include <QSettings>
 #include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -168,6 +175,13 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     init_class();
+    connect(settingsPage, &SettingsPage::themeChanged,
+            this, &MainWindow::setDarkTheme);
+    connect(settingsPage, &SettingsPage::minimizeToTrayChanged,
+            this, [this](bool enabled) { m_minimizeToTray = enabled; });
+    setDarkTheme(QSettings().value(QStringLiteral("ui/darkTheme"), false).toBool());
+    m_minimizeToTray = QSettings().value(QStringLiteral("ui/minimizeToTray"), true).toBool();
+    initSystemTray();
 
     auto *userLabel = new QLabel(this);
     auto *logoutButton = new QPushButton(QStringLiteral("退出登录"), this);
@@ -273,6 +287,77 @@ void MainWindow::applyPermissions()
             break;
         }
     }
+}
+
+
+void MainWindow::setDarkTheme(bool darkTheme)
+{
+    if (!qApp) return;
+    if (!darkTheme) {
+        qApp->setStyleSheet(QString());
+        return;
+    }
+    qApp->setStyleSheet(QStringLiteral(
+        "QWidget { background-color: #202124; color: #e8eaed; }"
+        "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox,"
+        "QTableWidget, QTreeWidget, QListWidget { background-color: #292a2d; color: #e8eaed;"
+        " border: 1px solid #55585c; selection-background-color: #3d5a80; }"
+        "QPushButton { background-color: #35363a; color: #f1f3f4; border: 1px solid #5f6368;"
+        " padding: 5px 10px; border-radius: 3px; }"
+        "QPushButton:hover { background-color: #45474c; }"
+        "QPushButton:disabled { color: #777; background-color: #2b2c30; }"
+        "QHeaderView::section { background-color: #303134; color: #e8eaed; padding: 5px;"
+        " border: 1px solid #55585c; }"
+        "QGroupBox { border: 1px solid #5f6368; margin-top: 8px; padding-top: 8px; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; }"
+        "QMenu { background-color: #292a2d; color: #e8eaed; border: 1px solid #55585c; }"
+        "QMenu::item:selected { background-color: #3d5a80; }"
+        "QToolTip { background-color: #303134; color: #fff; border: 1px solid #777; }"));
+}
+
+void MainWindow::initSystemTray()
+{
+    if (!QSystemTrayIcon::isSystemTrayAvailable())
+        return;
+    m_trayIcon = new QSystemTrayIcon(
+        style()->standardIcon(QStyle::SP_ComputerIcon), this);
+    m_trayIcon->setToolTip(QStringLiteral("IndustrialHub 工业设备监控平台"));
+    m_trayMenu = new QMenu(this);
+    QAction *restoreAction = m_trayMenu->addAction(QStringLiteral("打开 IndustrialHub"));
+    QAction *quitAction = m_trayMenu->addAction(QStringLiteral("退出程序"));
+    connect(restoreAction, &QAction::triggered, this, [this]() {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+    connect(quitAction, &QAction::triggered, this, [this]() {
+        m_allowClose = true;
+        close();
+    });
+    m_trayIcon->setContextMenu(m_trayMenu);
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger
+            || reason == QSystemTrayIcon::DoubleClick) {
+            showNormal();
+            raise();
+            activateWindow();
+        }
+    });
+    m_trayIcon->show();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (m_minimizeToTray && !m_allowClose && m_trayIcon && m_trayIcon->isVisible()) {
+        hide();
+        m_trayIcon->showMessage(QStringLiteral("IndustrialHub"),
+            QStringLiteral("程序已最小化到系统托盘，双击图标可重新打开。"),
+            QSystemTrayIcon::Information, 3000);
+        event->ignore();
+        return;
+    }
+    event->accept();
 }
 
 void MainWindow::init_class()
