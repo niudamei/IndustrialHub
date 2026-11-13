@@ -53,7 +53,7 @@ public:
     bool isReady() const;
     QString lastError() const;
     bool addRule(const AlarmRule &rule, QString *errorMessage = nullptr);
-    bool removeRule(const QString &ruleId);
+    bool removeRule(const QString &ruleId, QString *errorMessage = nullptr);
     bool setRuleEnabled(const QString &ruleId, bool enabled,
                         QString *errorMessage = nullptr);
     QList<AlarmRule> rules() const;
