@@ -15,8 +15,8 @@
 | V1.2 多线程通信、串口、TCP、协议解析 | 部分完成 | TCP、UDP、RS485、CAN/CAN-FD 驱动；多设备通信管理；SLCAN 编解码；TCP 自动重连；协议解析器接口、设备绑定分发和 JSON 示例解析器；设备 RX 活动超时与在线恢复；每设备独立 I/O 工作线程 | 真实设备协议解析器、专用协议心跳扩展 |
 | V1.3 实时曲线、数据缓存、报警 | 部分完成 | 实时通信监控、通信帧率曲线、通信统计、模拟丢帧/断线注入；统一 BusinessDataPoint 数据结构；独立模拟业务变量（温度/转速/电流）接入缓存与报警；模拟温度超限可触发报警 | 数据保留策略、全量导出与查询性能验证 |
 | V1.4 SQLite、历史数据、CSV | 部分完成 | SQLite 设备表；TX/RX 原始帧与业务变量批量入库；双页签历史筛选、分页、曲线回放、当前页 CSV、后台流式全量 CSV；分页总数缓存、筛选复合索引、避免翻页同步排空写入队列 | 真实大数据量性能验收 |
-| V1.5 CAN、Modbus、MQTT、WebSocket | 部分完成 | CAN/CAN-FD、RS485、TCP、UDP；Modbus RTU/TCP 编解码、主站事务队列、映射/轮询引擎、通信配置页 UI、MODBUS-SIM 离线驱动及自动化测试 | 真实 RS485/TCP Modbus 设备验收；MQTT、WebSocket；需要真实协议/服务端参数后集成验证 |
-| V1.6 用户权限、日志审计、插件 | 未开始 | 尚无完整业务实现 | 登录、角色权限、操作审计、QPluginLoader 插件接口 |
+| V1.5 CAN、Modbus、MQTT、WebSocket | 部分完成 | CAN/CAN-FD、RS485、TCP、UDP；Modbus RTU/TCP 主站、映射/轮询 UI、MODBUS-SIM；MQTT 3.1.1 TCP/TLS 客户端、WebSocket ws/wss 客户端、离线协议回环测试 | 真实 Broker/服务端联调；QoS 2、WebSocket 分片与服务端模式待扩展；真实 Modbus 设备验收 |
+| V1.6 用户权限、日志审计、插件 | 部分完成 | SQLite 用户/角色/权限、PBKDF2 密码、首次登录强制改密、页面权限控制、操作审计与用户管理 UI | 细粒度 API 权限、审计导出、插件接口与隔离加载 |
 | V2.0 自动测试、安装包、远程服务 | 部分完成 | 通信层 smoke tests、SLCAN codec test、DataManager 历史入库测试目标、CMake install/deploy 配置 | 实际构建验证、GitHub Actions、覆盖率、安装包验收、远程服务 |
 
 ## 当前数据链路
@@ -237,3 +237,19 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 映射和单元地址按设备 ID 持久化到 QSettings；示例映射覆盖前会二次确认。
 - [x] 轮询结果批量进入 BusinessDataManager、AlarmManager 和现有 SQLite 历史存储链路。
 - [ ] 本机编译、模拟设备端到端验证和真实 TCP/RS485 设备联调。
+
+
+### MQTT / WebSocket 与用户权限（本阶段）
+
+- [x] 新增 MQTT 3.1.1 客户端，支持 TCP/TLS、用户名/密码、CONNECT/CONNACK、QoS 0 发布与订阅、QoS 0/1 接收、QoS 1 PUBACK。
+- [x] 增加 MQTT Keep Alive、PINGREQ/PINGRESP、1–30 秒指数退避重连及远程通信 UI。
+- [x] 新增 WebSocket RFC 6455 客户端，支持 ws/wss、TLS 校验、Upgrade 握手、文本/二进制帧、客户端掩码、Ping/Pong、关闭帧和自动重连。
+- [x] 增加 MQTT/WebSocket 本机临时服务端回环测试目标；无需外部 Broker 或真实设备。
+- [x] 在现有 SQLite 数据库新增用户、角色、权限、角色权限映射和审计日志表；使用独立连接，保留旧数据库数据。
+- [x] 增加 PBKDF2-HMAC-SHA256 密码哈希、随机盐、初始管理员首次登录强制修改密码。
+- [x] 预置 admin/operator/viewer 三种角色，提供登录、退出、导航权限、主要操作控件权限和用户管理页面。
+- [x] 记录登录、退出、导航和用户管理操作；管理员可查看最近 500 条审计记录。
+- [x] 增加 auth_manager_test 覆盖密码、角色权限和禁用账户。
+- [ ] 用户 Qt 6.10.3 MinGW 环境编译及全量 CTest 验收。
+- [ ] 与真实 MQTT Broker、WebSocket 服务端进行 TLS/认证联调；按项目需求扩展 MQTT QoS 2、WebSocket 分片及服务端功能。
+- [ ] 继续完善操作级权限校验、审计导出、角色权限编辑与插件接口。
