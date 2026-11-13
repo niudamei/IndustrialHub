@@ -1,6 +1,6 @@
 #include "pluginmanager.h"
 
-#include <QFileInfo>
+#include <QFileInfo>\n#include <QJsonObject>
 #include <QPluginLoader>
 
 PluginManager::PluginManager(QObject *parent)
@@ -86,17 +86,20 @@ bool PluginManager::unloadPlugin(const QString &pluginId, QString *errorMessage)
     for (int i = 0; i < m_plugins.size(); ++i) {
         if (m_plugins.at(i).info.pluginId.compare(pluginId, Qt::CaseInsensitive) != 0)
             continue;
-        LoadedPlugin loaded = m_plugins.takeAt(i);
-        if (loaded.instance)
+        LoadedPlugin &loaded = m_plugins[i];
+        if (loaded.instance && !loaded.shutdownCalled) {
             loaded.instance->shutdown();
-        const bool unloaded = loaded.loader && loaded.loader->unload();
-        const QString reason = loaded.loader ? loaded.loader->errorString() : QString();
-        delete loaded.loader;
-        emit pluginsChanged();
-        if (!unloaded) {
-            if (errorMessage) *errorMessage = QStringLiteral("插件卸载失败：%1").arg(reason);
+            loaded.shutdownCalled = true;
+        }
+        if (!loaded.loader || !loaded.loader->unload()) {
+            if (errorMessage) *errorMessage = QStringLiteral("插件卸载失败：%1")
+                .arg(loaded.loader ? loaded.loader->errorString() : QStringLiteral("无效的插件加载器"));
             return false;
         }
+        QPluginLoader *loader = loaded.loader;
+        m_plugins.removeAt(i);
+        delete loader;
+        emit pluginsChanged();
         if (errorMessage) errorMessage->clear();
         return true;
     }
