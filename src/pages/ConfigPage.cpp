@@ -4,7 +4,7 @@
 #include "src/pages/devicemanager.h"
 #include "src/communication/communicationmanager.h"
 #include "src/protocol/protocolmanager.h"
-#include "src/protocol/businessdatapoint.h"
+#include "src/protocol/businessdatapoint.h"\n#include "src/core/communicationdiagnostics.h"
 
 #include <QDateTime>
 #include <QComboBox>
@@ -13,7 +13,7 @@
 #include <QPushButton>
 #include <QMessageBox>
 #include <QRegularExpression>
-#include <QSignalBlocker>
+#include <QSignalBlocker>\n#include <QTableWidget>\n#include <QHeaderView>\n#include <QGroupBox>\n#include <QVBoxLayout>\n#include <QSplitter>\n#include <QAbstractItemView>
 
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
@@ -25,7 +25,7 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
       m_communicationManager(communicationManager),
       m_protocolManager(protocolManager)
 {
-    ui->setupUi(this);
+    ui->setupUi(this);\n\n    m_diagnostics = new CommunicationDiagnostics(m_communicationManager, this);\n    auto *diagnosticsGroup = new QGroupBox(QStringLiteral("通信诊断中心"), this);\n    auto *diagnosticsLayout = new QVBoxLayout(diagnosticsGroup);\n    auto *splitter = new QSplitter(Qt::Vertical, diagnosticsGroup);\n    m_statisticsTable = new QTableWidget(splitter);\n    m_statisticsTable->setColumnCount(7);\n    m_statisticsTable->setHorizontalHeaderLabels({QStringLiteral("设备"),QStringLiteral("TX 次数"),QStringLiteral("RX 次数"),QStringLiteral("TX 字节"),QStringLiteral("RX 字节"),QStringLiteral("错误"),QStringLiteral("重连")});\n    m_diagnosticsTable = new QTableWidget(splitter);\n    m_diagnosticsTable->setColumnCount(5);\n    m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});\n    for (QTableWidget *table : {m_statisticsTable,m_diagnosticsTable}) { table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows); table->setAlternatingRowColors(true); table->verticalHeader()->setVisible(false); table->horizontalHeader()->setStretchLastSection(true); }\n    splitter->addWidget(m_statisticsTable); splitter->addWidget(m_diagnosticsTable); splitter->setStretchFactor(0,1); splitter->setStretchFactor(1,2);\n    diagnosticsLayout->addWidget(splitter);\n    ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);\n    if (m_diagnostics) connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged, this, &ConfigPage::refreshDiagnostics);\n    refreshDiagnostics();
 
     // 协议绑定是设备级配置：默认不解析，用户明确选择后才启用解析器。
     auto *parserLayout = new QHBoxLayout;
@@ -95,7 +95,7 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
                 this, &ConfigPage::onParseFailed);
     }
 
-    refreshDeviceList();
+    refreshDeviceList();\n    refreshDiagnostics();
 }
 
 ConfigPage::~ConfigPage()
@@ -380,4 +380,32 @@ void ConfigPage::appendLog(const QString &message)
 {
     const QString time = QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
     ui->communicationLog->append(QStringLiteral("[%1] %2").arg(time, message));
+}
+
+void ConfigPage::refreshDiagnostics()
+{
+    if (!m_diagnostics || !m_diagnostics->isReady()) return;
+    const auto stats = m_diagnostics->statistics();
+    m_statisticsTable->setUpdatesEnabled(false);
+    m_statisticsTable->setRowCount(stats.size());
+    for (int row=0; row<stats.size(); ++row) {
+        const auto &s=stats.at(row);
+        const QStringList values={s.deviceId,QString::number(s.txCount),QString::number(s.rxCount),
+            QString::number(s.txBytes),QString::number(s.rxBytes),QString::number(s.errorCount),
+            QString::number(s.reconnectCount)};
+        for(int col=0;col<values.size();++col)
+            m_statisticsTable->setItem(row,col,new QTableWidgetItem(values.at(col)));
+    }
+    m_statisticsTable->setUpdatesEnabled(true);
+    const auto events=m_diagnostics->recentEvents(100);
+    m_diagnosticsTable->setUpdatesEnabled(false);
+    m_diagnosticsTable->setRowCount(events.size());
+    for(int row=0;row<events.size();++row) {
+        const auto &e=events.at(row);
+        const QStringList values={e.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz")),
+            e.deviceId,e.category,e.severity,e.message};
+        for(int col=0;col<values.size();++col)
+            m_diagnosticsTable->setItem(row,col,new QTableWidgetItem(values.at(col)));
+    }
+    m_diagnosticsTable->setUpdatesEnabled(true);
 }
