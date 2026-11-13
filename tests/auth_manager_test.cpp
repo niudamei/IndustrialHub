@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
     if (!auth.authenticate(QStringLiteral("readuser"), QStringLiteral("ReadOnlyPass!2026"),
                            &viewer, &error) || !auth.hasPermission(QStringLiteral("dashboard.view"))
         || auth.hasPermission(QStringLiteral("device.manage"))
-        || auth.hasPermission(QStringLiteral("users.manage"))\n        || auth.hasPermission(QStringLiteral("alarm.manage"))) {
+        || auth.hasPermission(QStringLiteral("users.manage"))
+        || auth.hasPermission(QStringLiteral("alarm.manage"))) {
         qCritical() << "Viewer permission boundary failed:" << error;
         return 7;
     }
