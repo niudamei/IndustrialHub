@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
     {
         AlarmManager reopened;
         CHECK(reopened.isReady());
+        CHECK(reopened.rules().size() == 1);
         const QList<AlarmEvent> persisted = reopened.events();
         CHECK(persisted.size() == 1);
         CHECK(persisted.first().id == triggeredId);
