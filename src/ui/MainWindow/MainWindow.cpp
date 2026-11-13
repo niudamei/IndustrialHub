@@ -17,6 +17,7 @@
 #include "src/pages/SettingsPage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QDebug>
 #include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
