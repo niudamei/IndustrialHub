@@ -146,11 +146,14 @@ bool CommunicationDiagnostics::initialize()
         saveMarker.addBindValue(QStringLiteral("totals_v1"));
         saveMarker.addBindValue(QStringLiteral("1"));
         const bool markerSaved = saveMarker.exec();
+        const QString migrationError = migrate.lastError().text();
+        const QString markerError = saveMarker.lastError().text();
         migrate.finish();
         saveMarker.finish();
-        if (!migrated || !markerSaved || !m_database.commit()) {
-            const QString reason = !migrated ? migrate.lastError().text()
-                : (!saveMarker.lastError().isValid() ? m_database.lastError().text() : saveMarker.lastError().text());
+        const bool migrationCommitted = migrated && markerSaved && m_database.commit();
+        if (!migrationCommitted) {
+            const QString reason = !migrated ? migrationError
+                : (!markerSaved ? markerError : m_database.lastError().text());
             m_database.rollback();
             m_lastError = QStringLiteral("初始化通信统计汇总失败：%1").arg(reason);
             return false;
@@ -187,8 +190,10 @@ void CommunicationDiagnostics::record(const QString &deviceId, const QString &ca
     q.addBindValue(txBytes);
     q.addBindValue(rxBytes);
     if (!q.exec()) {
+        const QString queryError = q.lastError().text();
+        q.finish();
         m_database.rollback();
-        m_lastError = QStringLiteral("写入通信诊断事件失败：%1").arg(q.lastError().text());
+        m_lastError = QStringLiteral("写入通信诊断事件失败：%1").arg(queryError);
         emit storageError(m_lastError);
         return;
     }
