@@ -39,6 +39,7 @@ private:
         bool connected = false;
         QDateTime lastReceiveTime;
         qint64 lastReceiveMs = 0;
+        qint64 lastIntervalMs = -1;
         qint64 intervalSumMs = 0;
         qint64 intervalCount = 0;
         qint64 minIntervalMs = -1;
