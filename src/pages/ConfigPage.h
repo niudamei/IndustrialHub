@@ -4,12 +4,14 @@
 #include <QWidget>
 #include <QByteArray>
 #include <QString>
+#include <QVector>
 #include "ui_configpage.h"
 
 class DeviceManager;
 class CommunicationManager;
 class ProtocolManager;
 class QComboBox;
+struct BusinessDataPoint;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
