@@ -72,6 +72,7 @@ void ModbusMaster::setUnitId(quint8 unitId)
 }
 
 quint8 ModbusMaster::unitId() const { return m_unitId; }
+ModbusCodec::Transport ModbusMaster::transport() const { return m_transport; }
 
 void ModbusMaster::setTimeoutMs(int timeoutMs)
 {
@@ -152,7 +153,7 @@ quint64 ModbusMaster::enqueue(quint8 function, quint16 address,
     request.transactionId = transaction;
     m_queue.enqueue(request);
     emit queueChanged(pendingCount());
-    sendNext();
+    QTimer::singleShot(0, this, &ModbusMaster::sendNext);
     return request.id;
 }
 
