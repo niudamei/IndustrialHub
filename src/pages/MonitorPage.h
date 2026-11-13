@@ -30,6 +30,7 @@ private slots:
     void onDataReceived(const QString &deviceId, const QByteArray &data);
     void onCommunicationError(const QString &deviceId, const QString &message);
     void onPauseClicked();
+    void exportEventsToCsv();
     void onReceiveTimeoutChanged(int seconds);
     void updateLiveStatistics();
 
