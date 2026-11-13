@@ -1,6 +1,21 @@
 #include "HistoryPage.h"
 
 #include <QDate>
+#include <QChart>
+#include <QChartView>
+#include <QDateTimeAxis>
+#include <QLineSeries>
+#include <QValueAxis>
+#include <QComboBox>
+#include <QDateTimeEdit>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QTabWidget>
+#include <QTableWidget>
+#include <QVBoxLayout>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
@@ -10,6 +25,9 @@
 #include <QTableWidgetItem>
 #include <QStringList>
 #include <QTime>
+#include <QGridLayout>
+#include <QPainter>
+#include <limits>
 
 namespace {
 QString csvEscape(const QString &value)
@@ -26,6 +44,92 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
       m_dataManager(dataManager)
 {
     ui->setupUi(this);
+
+    // 将原有通信帧查询区放入独立页签，新增业务变量历史页签。
+    auto *tabs = new QTabWidget(this);
+    auto *communicationTab = new QWidget(tabs);
+    auto *communicationLayout = new QVBoxLayout(communicationTab);
+    QLayout *rootLayout = ui->verticalLayout;
+    while (QLayoutItem *item = rootLayout->takeAt(0)) {
+        if (item->widget())
+            communicationLayout->addWidget(item->widget());
+        else if (item->layout())
+            communicationLayout->addLayout(item->layout());
+        delete item;
+    }
+    tabs->addTab(communicationTab, QStringLiteral("通信原始帧"));
+    auto *businessTab = new QWidget(tabs);
+    auto *businessLayout = new QVBoxLayout(businessTab);
+
+    auto *filterGroup = new QGroupBox(QStringLiteral("业务变量历史筛选"), businessTab);
+    auto *filterLayout = new QGridLayout(filterGroup);
+    m_businessStartEdit = new QDateTimeEdit(QDateTime::currentDateTime().addDays(-1), filterGroup);
+    m_businessEndEdit = new QDateTimeEdit(QDateTime::currentDateTime(), filterGroup);
+    for (QDateTimeEdit *edit : {m_businessStartEdit, m_businessEndEdit}) {
+        edit->setCalendarPopup(true);
+        edit->setDisplayFormat(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    }
+    m_businessDeviceEdit = new QLineEdit(filterGroup);
+    m_businessDeviceEdit->setPlaceholderText(QStringLiteral("留空表示全部设备"));
+    m_businessVariableCombo = new QComboBox(filterGroup);
+    m_businessVariableCombo->addItem(QStringLiteral("全部变量"), QString());
+    m_businessVariableCombo->addItem(QStringLiteral("温度"), QStringLiteral("temperature"));
+    m_businessVariableCombo->addItem(QStringLiteral("转速"), QStringLiteral("rpm"));
+    m_businessVariableCombo->addItem(QStringLiteral("电流"), QStringLiteral("current"));
+    m_businessQueryButton = new QPushButton(QStringLiteral("查询"), filterGroup);
+    m_businessExportButton = new QPushButton(QStringLiteral("导出当前页 CSV"), filterGroup);
+    filterLayout->addWidget(new QLabel(QStringLiteral("开始时间："), filterGroup), 0, 0);
+    filterLayout->addWidget(m_businessStartEdit, 0, 1);
+    filterLayout->addWidget(new QLabel(QStringLiteral("结束时间："), filterGroup), 0, 2);
+    filterLayout->addWidget(m_businessEndEdit, 0, 3);
+    filterLayout->addWidget(new QLabel(QStringLiteral("设备编号："), filterGroup), 1, 0);
+    filterLayout->addWidget(m_businessDeviceEdit, 1, 1);
+    filterLayout->addWidget(new QLabel(QStringLiteral("业务变量："), filterGroup), 1, 2);
+    filterLayout->addWidget(m_businessVariableCombo, 1, 3);
+    filterLayout->addWidget(m_businessQueryButton, 0, 4);
+    filterLayout->addWidget(m_businessExportButton, 1, 4);
+    businessLayout->addWidget(filterGroup);
+
+    m_businessChartView = new QChartView(businessTab);
+    m_businessChartView->setMinimumHeight(220);
+    m_businessChartView->setRenderHint(QPainter::Antialiasing);
+    businessLayout->addWidget(m_businessChartView);
+
+    m_businessTable = new QTableWidget(businessTab);
+    m_businessTable->setColumnCount(7);
+    m_businessTable->setHorizontalHeaderLabels({
+        QStringLiteral("时间"), QStringLiteral("设备编号"), QStringLiteral("变量"),
+        QStringLiteral("数值"), QStringLiteral("单位"), QStringLiteral("质量"), QStringLiteral("来源协议")
+    });
+    m_businessTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_businessTable->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
+    m_businessTable->verticalHeader()->setVisible(false);
+    m_businessTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_businessTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_businessTable->setAlternatingRowColors(true);
+    businessLayout->addWidget(m_businessTable, 1);
+
+    auto *businessPagination = new QHBoxLayout();
+    m_businessPreviousButton = new QPushButton(QStringLiteral("上一页"), businessTab);
+    m_businessNextButton = new QPushButton(QStringLiteral("下一页"), businessTab);
+    m_businessResultLabel = new QLabel(QStringLiteral("等待查询"), businessTab);
+    businessPagination->addWidget(m_businessPreviousButton);
+    businessPagination->addWidget(m_businessNextButton);
+    businessPagination->addWidget(m_businessResultLabel, 1);
+    businessLayout->addLayout(businessPagination);
+    tabs->addTab(businessTab, QStringLiteral("业务变量历史"));
+    rootLayout->addWidget(tabs);
+
+    connect(m_businessQueryButton, &QPushButton::clicked, this, [this]() {
+        m_businessOffset = 0;
+        queryBusinessHistory();
+    });
+    connect(m_businessPreviousButton, &QPushButton::clicked,
+            this, &HistoryPage::showPreviousBusinessPage);
+    connect(m_businessNextButton, &QPushButton::clicked,
+            this, &HistoryPage::showNextBusinessPage);
+    connect(m_businessExportButton, &QPushButton::clicked,
+            this, &HistoryPage::exportBusinessCurrentPage);
 
     const QDate today = QDate::currentDate();
     ui->startDateTimeEdit->setCalendarPopup(true);
@@ -79,8 +183,8 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
         ui->exportButton->setEnabled(false);
     } else {
         queryHistory();
+        queryBusinessHistory();
     }
-}
 
 HistoryPage::~HistoryPage()
 {
@@ -217,4 +321,184 @@ void HistoryPage::exportCurrentPage()
 
     QMessageBox::information(this, QStringLiteral("导出完成"),
         QStringLiteral("已导出当前页 %1 条通信记录。").arg(m_currentRecords.size()));
+}
+
+void HistoryPage::queryBusinessHistory()
+{
+    if (!m_dataManager || !m_businessStartEdit || !m_businessEndEdit)
+        return;
+
+    const QDateTime start = m_businessStartEdit->dateTime();
+    const QDateTime end = m_businessEndEdit->dateTime();
+    if (start > end) {
+        QMessageBox::warning(this, QStringLiteral("查询条件无效"),
+                             QStringLiteral("开始时间不能晚于结束时间。"));
+        return;
+    }
+
+    QString error;
+    if (!m_dataManager->queryBusinessDataHistory(
+            start, end, m_businessDeviceEdit->text(),
+            m_businessVariableCombo->currentData().toString(),
+            m_businessOffset, PageSize, m_businessRecords,
+            m_businessTotalCount, &error)) {
+        QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), error);
+        return;
+    }
+
+    m_businessTable->setRowCount(m_businessRecords.size());
+    for (int row = 0; row < m_businessRecords.size(); ++row) {
+        const BusinessDataPoint &point = m_businessRecords.at(row).point;
+        const QString quality = point.quality == DataQuality::Good
+            ? QStringLiteral("Good") : QStringLiteral("非 Good (%1)").arg(static_cast<int>(point.quality));
+        const QStringList values = {
+            point.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz")),
+            point.deviceId, point.name,
+            QString::number(point.value, 'g', 12), point.unit,
+            quality, point.sourceProtocol
+        };
+        for (int column = 0; column < values.size(); ++column)
+            m_businessTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
+    }
+
+    updateBusinessPageInfo();
+    renderBusinessChart();
+}
+
+void HistoryPage::updateBusinessPageInfo()
+{
+    const int currentPage = m_businessTotalCount == 0 ? 0 : (m_businessOffset / PageSize) + 1;
+    const int totalPages = m_businessTotalCount == 0
+        ? 0 : (m_businessTotalCount + PageSize - 1) / PageSize;
+    m_businessResultLabel->setText(
+        QStringLiteral("共 %1 条记录 | 第 %2 / %3 页 | 每页 %4 条")
+            .arg(m_businessTotalCount).arg(currentPage).arg(totalPages).arg(PageSize));
+    m_businessPreviousButton->setEnabled(m_businessOffset > 0);
+    m_businessNextButton->setEnabled(m_businessOffset + PageSize < m_businessTotalCount);
+    m_businessExportButton->setEnabled(!m_businessRecords.isEmpty());
+}
+
+void HistoryPage::showPreviousBusinessPage()
+{
+    if (m_businessOffset <= 0)
+        return;
+    m_businessOffset = qMax(0, m_businessOffset - PageSize);
+    queryBusinessHistory();
+}
+
+void HistoryPage::showNextBusinessPage()
+{
+    if (m_businessOffset + PageSize >= m_businessTotalCount)
+        return;
+    m_businessOffset += PageSize;
+    queryBusinessHistory();
+}
+
+void HistoryPage::renderBusinessChart()
+{
+    auto *chart = new QChart();
+    chart->setTitle(QStringLiteral("当前页业务变量历史曲线"));
+    chart->legend()->setVisible(true);
+    auto *axisX = new QDateTimeAxis(chart);
+    axisX->setFormat(QStringLiteral("HH:mm:ss"));
+    axisX->setTitleText(QStringLiteral("采集时间"));
+    auto *axisY = new QValueAxis(chart);
+    axisY->setTitleText(QStringLiteral("变量值"));
+    chart->addAxis(axisX, Qt::AlignBottom);
+    chart->addAxis(axisY, Qt::AlignLeft);
+
+    QHash<QString, QLineSeries *> seriesByKey;
+    QDateTime minTime;
+    QDateTime maxTime;
+    qreal minValue = std::numeric_limits<qreal>::max();
+    qreal maxValue = std::numeric_limits<qreal>::lowest();
+
+    // 查询结果按时间倒序返回，反向遍历后曲线按时间正序绘制。
+    for (auto it = m_businessRecords.crbegin(); it != m_businessRecords.crend(); ++it) {
+        const BusinessDataPoint &point = it->point;
+        const QString key = point.deviceId + QLatin1Char('/') + point.variableId;
+        QLineSeries *series = seriesByKey.value(key, nullptr);
+        if (!series) {
+            series = new QLineSeries(chart);
+            series->setName(point.deviceId + QStringLiteral(" / ") + point.name);
+            chart->addSeries(series);
+            series->attachAxis(axisX);
+            series->attachAxis(axisY);
+            seriesByKey.insert(key, series);
+        }
+        const qreal x = static_cast<qreal>(point.timestamp.toMSecsSinceEpoch());
+        series->append(x, point.value);
+        minTime = !minTime.isValid() || point.timestamp < minTime ? point.timestamp : minTime;
+        maxTime = !maxTime.isValid() || point.timestamp > maxTime ? point.timestamp : maxTime;
+        minValue = qMin(minValue, point.value);
+        maxValue = qMax(maxValue, point.value);
+    }
+
+    if (minTime.isValid() && maxTime.isValid()) {
+        if (minTime == maxTime) {
+            minTime = minTime.addSecs(-1);
+            maxTime = maxTime.addSecs(1);
+        }
+        axisX->setRange(minTime, maxTime);
+        const qreal margin = qMax<qreal>(0.1, (maxValue - minValue) * 0.1);
+        axisY->setRange(minValue - margin, maxValue + margin);
+    } else {
+        axisX->setRange(QDateTime::currentDateTime().addSecs(-60),
+                        QDateTime::currentDateTime());
+        axisY->setRange(0.0, 100.0);
+    }
+
+    m_businessChartView->setChart(chart);
+}
+
+void HistoryPage::exportBusinessCurrentPage()
+{
+    if (m_businessRecords.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("没有数据"),
+                                 QStringLiteral("当前页面没有可导出的业务历史记录。"));
+        return;
+    }
+
+    const QString fileName = QStringLiteral("business_data_history_%1.csv")
+        .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString path = QFileDialog::getSaveFileName(
+        this, QStringLiteral("导出当前页业务历史"), fileName,
+        QStringLiteral("CSV 文件 (*.csv)"));
+    if (path.isEmpty())
+        return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString());
+        return;
+    }
+
+    QByteArray output = QByteArray::fromHex("EFBBBF");
+    const QStringList header = {
+        QStringLiteral("时间"), QStringLiteral("设备编号"), QStringLiteral("变量 ID"),
+        QStringLiteral("变量名称"), QStringLiteral("数值"), QStringLiteral("单位"),
+        QStringLiteral("质量"), QStringLiteral("来源协议")
+    };
+    output += header.join(QLatin1Char(',')).toUtf8() + "\r\n";
+    for (const BusinessDataHistoryRecord &record : m_businessRecords) {
+        const BusinessDataPoint &point = record.point;
+        const QString quality = point.quality == DataQuality::Good
+            ? QStringLiteral("Good") : QString::number(static_cast<int>(point.quality));
+        const QStringList columns = {
+            csvEscape(point.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"))),
+            csvEscape(point.deviceId), csvEscape(point.variableId), csvEscape(point.name),
+            csvEscape(QString::number(point.value, 'g', 12)), csvEscape(point.unit),
+            csvEscape(quality), csvEscape(point.sourceProtocol)
+        };
+        output += columns.join(QLatin1Char(',')).toUtf8() + "\r\n";
+    }
+
+    if (file.write(output) != output.size()) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString());
+        return;
+    }
+    file.close();
+    QMessageBox::information(this, QStringLiteral("导出完成"),
+        QStringLiteral("已导出当前页 %1 条业务变量历史记录。")
+            .arg(m_businessRecords.size()));
 }
