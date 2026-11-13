@@ -11,6 +11,9 @@
 class DeviceManager;
 class CommunicationManager;
 class QTimer;
+class QChartView;
+class QLineSeries;
+class QValueAxis;
 class TrafficRateChart;
 
 class MonitorPage : public QWidget
@@ -73,6 +76,11 @@ private:
     CommunicationManager *m_communicationManager = nullptr;
     QTimer *m_statisticsTimer = nullptr;
     QTimer *m_demoTimer = nullptr;
+    QChartView *m_trafficChartView = nullptr;
+    QLineSeries *m_receiveRateSeries = nullptr;
+    QValueAxis *m_receiveRateAxisX = nullptr;
+    QValueAxis *m_receiveRateAxisY = nullptr;
+    quint64 m_chartSampleIndex = 0;
     TrafficRateChart *m_trafficChart = nullptr;
     QVector<double> m_totalRxRateHistory;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
