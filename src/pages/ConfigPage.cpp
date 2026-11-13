@@ -57,8 +57,12 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
                 this, &ConfigPage::refreshDeviceList);
         connect(m_deviceManager, &DeviceManager::deviceRemoved,
                 this, [this](const QString &deviceId) {
-            if (m_communicationManager)
-                m_communicationManager->releaseDevice(deviceId);
+            if (m_communicationManager) m_communicationManager->releaseDevice(deviceId);
+        });
+        connect(m_deviceManager, &DeviceManager::deviceUpdated,
+                this, [this](const DeviceInfo &device) {
+            if (!device.enabled && m_communicationManager)
+                m_communicationManager->releaseDevice(device.devId);
         });
     }
 
@@ -103,6 +107,7 @@ void ConfigPage::refreshDeviceList()
     if (m_deviceManager) {
         const QList<DeviceInfo> devices = m_deviceManager->getAllDevices();
         for (const DeviceInfo &device : devices) {
+            if (!device.enabled) continue;
             const QString label = QStringLiteral("%1 | %2 | %3")
                                       .arg(device.devId, device.devName, device.commType);
             ui->deviceCombo->addItem(label, device.devId);
@@ -129,8 +134,13 @@ void ConfigPage::onConnectClicked()
         return;
     }
 
+    if (!device.enabled) {
+        QMessageBox::warning(this, QStringLiteral("设备已禁用"), QStringLiteral("请先在设备管理中启用该设备配置。"));
+        return;
+    }
+
     QString error;
-    if (!m_communicationManager->connectDevice(device, &error)) {
+    if (!m_communicationManager->connectDevice(device, &error))
         appendLog(QStringLiteral("[错误] %1").arg(error));
         QMessageBox::warning(this, QStringLiteral("连接失败"), error);
         return;
