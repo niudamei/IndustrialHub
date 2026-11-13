@@ -221,8 +221,9 @@ ctest --test-dir build --output-on-failure
 
 - 每台设备拥有独立的 `CommunicationWorker` 和 I/O 线程；通信驱动对象在所属线程内创建、打开、收发、关闭和销毁。
 - TCP/UDP socket、串口和 SLCAN 驱动的事件循环不再依赖 GUI 主线程，降低高频 RX 对界面事件处理的影响。
-- `CommunicationManager` 继续作为 UI 侧统一入口；连接、发送、断开通过线程安全的同步调用提交到对应设备工作线程，数据和状态信号再回到管理器线程。
+- `CommunicationManager` 继续作为 UI 侧统一入口；连接和断开在对应设备工作线程执行，发送请求异步入队，避免等待串口/网络写入；数据和状态信号再回到管理器线程。
+- TX 历史记录只在驱动成功接受发送数据后生成；配置页显示“TX请求已入队”，避免把排队误报成实际写入成功。
 - 设备释放时先停止重连、在 I/O 线程关闭并销毁驱动，再退出并等待线程，避免 socket/串口对象跨线程销毁。
 - TCP 首次连接异步失败也会进入自动重连流程；自动重连仍按 1、2、4、8、16、30 秒退避。
 - 在线状态由 `DeviceHealthMonitor` 独立维护；通信配置页面不再根据 TCP 握手或本地串口打开直接写入在线状态。
-- `communication_manager_smoke_test` 增加线程归属验证和首次 TCP 连接失败后的恢复测试。
+- `communication_manager_smoke_test` 增加驱动创建/open/send 线程归属、不同设备线程隔离和首次 TCP 连接失败后的恢复测试。
