@@ -11,6 +11,9 @@ ModbusMaster::ModbusMaster(ModbusCodec::Transport transport, QObject *parent)
 {
     qRegisterMetaType<ModbusCodec::Response>("ModbusCodec::Response");
     m_timeoutTimer.setSingleShot(true);
+    m_dispatchTimer.setSingleShot(true);
+    connect(&m_dispatchTimer, &QTimer::timeout,
+            this, &ModbusMaster::sendNext);
     connect(&m_timeoutTimer, &QTimer::timeout,
             this, &ModbusMaster::onTimeout);
 }
@@ -167,7 +170,7 @@ quint64 ModbusMaster::enqueue(quint8 function, quint16 address,
     request.transactionId = transaction;
     m_queue.enqueue(request);
     emit queueChanged(pendingCount());
-    if (wasIdle) QTimer::singleShot(0, this, &ModbusMaster::sendNext);
+    if (wasIdle && !m_dispatchTimer.isActive()) m_dispatchTimer.start(0);
     return request.id;
 }
 
@@ -324,7 +327,7 @@ void ModbusMaster::scheduleNext()
 {
     const int delay = m_transport == ModbusCodec::Transport::Rtu
         ? m_interRequestDelayMs : 0;
-    QTimer::singleShot(delay, this, &ModbusMaster::sendNext);
+    m_dispatchTimer.start(delay);
 }
 
 void ModbusMaster::onTimeout()
@@ -336,6 +339,7 @@ void ModbusMaster::onTimeout()
 void ModbusMaster::cancelAll(const QString &reason)
 {
     m_timeoutTimer.stop();
+    m_dispatchTimer.stop();
     if (m_hasActive) {
         emit requestFailed(m_active.id, reason);
         m_hasActive = false;
