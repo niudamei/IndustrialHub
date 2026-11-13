@@ -67,10 +67,12 @@ bool RemoteTelemetryParser::parse(const QString &protocol, const QString &channe
         if (!point.timestamp.isValid())
             point.timestamp = QDateTime::currentDateTime();
         const QString quality = object.value(QStringLiteral("quality")).toString();
-        point.quality = quality.compare(QStringLiteral("Bad"), Qt::CaseInsensitive) == 0
-            ? DataQuality::Bad
-            : quality.compare(QStringLiteral("Uncertain"), Qt::CaseInsensitive) == 0
-                ? DataQuality::Uncertain : DataQuality::Good;
+        if (quality.isEmpty() || quality.compare(QStringLiteral("Good"), Qt::CaseInsensitive) == 0)
+            point.quality = DataQuality::Good;
+        else if (quality.compare(QStringLiteral("Bad"), Qt::CaseInsensitive) == 0)
+            point.quality = DataQuality::Bad;
+        else
+            point.quality = DataQuality::Uncertain;
         point.sourceProtocol = protocol
             + (channel.isEmpty() ? QString() : QStringLiteral(":") + channel);
         parsed.append(point);
