@@ -51,11 +51,15 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     auto *communicationLayout = new QVBoxLayout(communicationTab);
     QLayout *rootLayout = ui->verticalLayout;
     while (QLayoutItem *item = rootLayout->takeAt(0)) {
-        if (item->widget())
+        if (item->widget()) {
             communicationLayout->addWidget(item->widget());
-        else if (item->layout())
+            delete item;
+        } else if (item->layout()) {
+            // A layout is itself a QLayoutItem; ownership transfers to the new layout.
             communicationLayout->addLayout(item->layout());
-        delete item;
+        } else {
+            delete item;
+        }
     }
     tabs->addTab(communicationTab, QStringLiteral("通信原始帧"));
     auto *businessTab = new QWidget(tabs);
@@ -181,6 +185,8 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
             : QStringLiteral("历史数据服务未初始化。"));
         ui->queryButton->setEnabled(false);
         ui->exportButton->setEnabled(false);
+        m_businessQueryButton->setEnabled(false);
+        m_businessExportButton->setEnabled(false);
     } else {
         queryHistory();
         queryBusinessHistory();
