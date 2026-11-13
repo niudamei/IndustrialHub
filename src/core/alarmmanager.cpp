@@ -7,6 +7,8 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <QVariant>
+#include <QHash>
+#include <QtMath>
 
 namespace {
 QString normalized(const QString &value)
@@ -205,15 +207,9 @@ bool AlarmManager::acknowledge(qint64 eventId, const QString &user, QString *err
         ? QStringLiteral("ACKNOWLEDGED") : QStringLiteral("RECOVERED_ACK");
     if (!updateEventState(eventId, nextState, QDateTime::currentDateTime(), user))
         return writeError(m_lastError, errorMessage);
-    if (state == QStringLiteral("ACTIVE")) {
-        QSqlQuery ruleQuery(m_database);
-        ruleQuery.prepare(QStringLiteral("SELECT rule_id FROM alarm_events WHERE id = ?"));
-        ruleQuery.addBindValue(eventId);
-        if (ruleQuery.exec() && ruleQuery.next())
-            emit alarmEventChanged(events(1).value(0));
-    } else {
-        emit alarmEventChanged(events(1).value(0));
-    }
+    const QList<AlarmEvent> changed = queryEvents(QStringLiteral("WHERE id = ?"), 1, {eventId}, errorMessage);
+    if (!changed.isEmpty())
+        emit alarmEventChanged(changed.first());
     return true;
 }
 
