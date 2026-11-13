@@ -51,7 +51,12 @@ DataManager::DataManager(CommunicationManager *communicationManager, QObject *pa
 
 DataManager::~DataManager()
 {
-    flushPendingRecords();
+    while (!m_pendingRecords.isEmpty()) {
+        const int pendingBeforeFlush = m_pendingRecords.size();
+        flushPendingRecords();
+        if (m_pendingRecords.size() == pendingBeforeFlush)
+            break;
+    }
     if (m_database.isValid()) {
         m_database.close();
         m_database = QSqlDatabase();
@@ -220,7 +225,14 @@ bool DataManager::queryCommunicationHistory(
     if (!start.isValid() || !end.isValid() || start > end)
         return setError(QStringLiteral("查询时间范围无效。"), errorMessage);
 
-    flushPendingRecords();
+    while (!m_pendingRecords.isEmpty()) {
+        const int pendingBeforeFlush = m_pendingRecords.size();
+        flushPendingRecords();
+        if (m_pendingRecords.size() == pendingBeforeFlush) {
+            return setError(QStringLiteral("历史数据仍有待写入记录，暂时无法保证查询结果完整：%1")
+                                .arg(m_lastError), errorMessage);
+        }
+    }
 
     QString where = QStringLiteral(" WHERE timestamp_ms >= :start AND timestamp_ms <= :end");
     const QString normalizedDevice = deviceId.trimmed();
