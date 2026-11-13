@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QHash>
 #include <QQueue>
+#include <QVector>
 #include <QWidget>
 
 #include "ui_monitorpage.h"
