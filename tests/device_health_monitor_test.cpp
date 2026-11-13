@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
     QTimer::singleShot(450, &waitLoop, &QEventLoop::quit);
     waitLoop.exec();
     CHECK(!monitor.isOnline(QStringLiteral("DEV-A")), "silent device transitions offline after timeout");
-    CHECK(timeoutSignals == 1, "timeout is emitted once per online-to-offline transition");
+    CHECK(timeoutSignals == 2, "first-frame and online silence timeouts are each emitted once");
+    CHECK(!monitor.isOnline(QStringLiteral("DEV-B")), "device without a first RX frame remains offline");
 
     monitor.markActivity(QStringLiteral("DEV-A"));
     CHECK(!monitor.isOnline(QStringLiteral("DEV-A")), "activity while disconnected does not mark online");
