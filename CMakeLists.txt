@@ -464,3 +464,14 @@ qt_generate_deploy_app_script(
     NO_UNSUPPORTED_PLATFORM_ERROR
 )
 install(SCRIPT ${deploy_script})
+
+
+# Portable ZIP package. Qt runtime deployment is generated above by Qt's deploy script.
+set(CPACK_PACKAGE_NAME "IndustrialHub")
+set(CPACK_PACKAGE_VENDOR "IndustrialHub")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Industrial equipment monitoring and intelligent maintenance platform")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "IndustrialHub")
+set(CPACK_PACKAGE_FILE_NAME "IndustrialHub-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}")
+set(CPACK_GENERATOR "ZIP")
+include(CPack)
