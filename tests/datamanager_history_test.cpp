@@ -115,5 +115,13 @@ int main(int argc, char *argv[])
     if (businessCount != 2 || businessRecords.size() != 1)
         return 15;
 
+    businessCount = 2;
+    if (!dataManager.queryBusinessDataHistory(
+            start, end, deviceId, QString(), 1, 1,
+            businessRecords, businessCount, &error, false))
+        return 18;
+    if (businessCount != 2 || businessRecords.size() != 1)
+        return 19;
+
     return 0;
 }
