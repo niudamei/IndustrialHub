@@ -73,6 +73,15 @@ JSON 示例：
 }
 ```
 
+### 业务数据管理与通信链路接入
+
+- 主窗口创建 `ProtocolManager` 和 `BusinessDataManager`，将通信 RX 信号交给协议管理器。
+- 通信配置页可以为当前设备选择“不解析原始数据”或“JSON 示例协议”；默认是不解析。
+- 只有显式绑定 JSON 的设备，其 RX payload 才会进入 JSON 解析器。未绑定的 CAN/CAN-FD/RS485 等设备仍只保留原始通信帧。
+- 解析成功后，业务数据管理器按设备编号和变量编号保存最新值；较旧时间戳的数据不会覆盖较新的值。
+- 通信日志会显示解析后的变量名称、变量编号、数值、单位和质量状态。
+- 当前业务数据缓存仅保存在内存中，程序重启后会清空；业务变量历史入库和实时趋势页面尚未接入。
+
 ## 自动化测试
 
 启用 CMake 的 `BUILD_TESTING` 时构建：
@@ -86,6 +95,7 @@ JSON 示例：
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
 - `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选和原始字节回读。
 - `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
+- `business_data_manager_test`：检查业务变量最新值、大小写不敏感查询、旧时间戳保护和清理。
 
 构建后运行：
 
@@ -112,7 +122,8 @@ ctest --test-dir build --output-on-failure
 - `app/`：程序入口
 - `src/pages/`：功能页面、设备数据结构和设备管理逻辑
 - `src/database/`：SQLite 设备信息持久化
-- `src/core/`：统一数据入口与通信历史记录
+- `src/core/`：统一数据入口、通信历史记录和业务数据管理
+- `src/protocol/`：业务数据模型、协议解析接口和具体协议解析器
 - `src/communication/`：通信接口、TCP/UDP/RS485/SLCAN 驱动和通信管理器
 - `src/ui/MainWindow/`：主窗口
 - `CustomFolder/`：自定义控件
