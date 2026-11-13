@@ -82,6 +82,19 @@ AlarmPage::~AlarmPage()
     delete ui;
 }
 
+void AlarmPage::setPermissions(bool manageRules, bool acknowledge)
+{
+    m_canManageRules = manageRules;
+    m_canAcknowledge = acknowledge;
+    for (QPushButton *button : findChildren<QPushButton *>()) {
+        const QString text = button->text();
+        if (text.contains(QStringLiteral("规则")) || text == QStringLiteral("启用/禁用"))
+            button->setEnabled(m_canManageRules);
+        else if (text.contains(QStringLiteral("确认")))
+            button->setEnabled(m_canAcknowledge);
+    }
+}
+
 void AlarmPage::buildManagementUi()
 {
     ui->alarmTable->setColumnCount(10);
@@ -308,11 +321,13 @@ QString AlarmPage::selectedRuleId() const
 
 void AlarmPage::addThresholdRule()
 {
+    if (!m_canManageRules) return;
     editRuleDialog();
 }
 
 void AlarmPage::editSelectedRule()
 {
+    if (!m_canManageRules) return;
     const QString id = selectedRuleId();
     if (id.isEmpty()) {
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条规则。"));
@@ -323,7 +338,7 @@ void AlarmPage::editSelectedRule()
 
 void AlarmPage::editRuleDialog(const QString &ruleId)
 {
-    if (!m_alarmManager) return;
+    if (!m_canManageRules || !m_alarmManager) return;
     AlarmRule rule;
     const bool editing = !ruleId.isEmpty();
     if (editing) {
@@ -390,6 +405,7 @@ void AlarmPage::editRuleDialog(const QString &ruleId)
 
 void AlarmPage::toggleSelectedRule()
 {
+    if (!m_canManageRules) return;
     const QString id = selectedRuleId();
     if (id.isEmpty()) {
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条规则。"));
@@ -406,6 +422,7 @@ void AlarmPage::toggleSelectedRule()
 
 void AlarmPage::deleteSelectedRule()
 {
+    if (!m_canManageRules) return;
     const QString id = selectedRuleId();
     if (id.isEmpty()) {
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条规则。"));
@@ -422,6 +439,7 @@ void AlarmPage::deleteSelectedRule()
 
 void AlarmPage::acknowledgeSelected()
 {
+    if (!m_canAcknowledge) return;
     const int row = ui->alarmTable->currentRow();
     if (row < 0 || !ui->alarmTable->item(row, 0)) {
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条报警记录。"));
