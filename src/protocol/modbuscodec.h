@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QMetaType>
 #include <QVector>
 #include <QtGlobal>
 
@@ -41,5 +42,7 @@ Response decodeResponse(Transport transport, const QByteArray &frame,
                         quint16 expectedTransactionId = 1);
 
 } // namespace ModbusCodec
+
+Q_DECLARE_METATYPE(ModbusCodec::Response)
 
 #endif // MODBUSCODEC_H
