@@ -353,6 +353,17 @@ if(BUILD_TESTING)
     target_include_directories(auth_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(auth_manager_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME auth_manager_test COMMAND auth_manager_test)
+
+    add_executable(remote_client_test
+        tests/remote_client_test.cpp
+        src/remote/mqttclient.h
+        src/remote/mqttclient.cpp
+        src/remote/websocketclient.h
+        src/remote/websocketclient.cpp
+    )
+    target_include_directories(remote_client_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(remote_client_test PRIVATE Qt6::Core Qt6::Network)
+    add_test(NAME remote_client_test COMMAND remote_client_test)
 endif()
 
 
