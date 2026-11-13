@@ -13,6 +13,7 @@
 
 #include "ui_trendpage.h"
 #include "src/protocol/businessdatapoint.h"
+#include "src/core/communicationdiagnostics.h"
 
 class BusinessDataManager;
 class CommunicationManager;
@@ -21,6 +22,9 @@ class QChartView;
 class QLabel;
 class QLineSeries;
 class QValueAxis;
+class QDateTimeAxis;
+class QComboBox;
+class QPushButton;
 class QTimer;
 class QTabWidget;
 
@@ -59,6 +63,9 @@ private:
     void refreshDeviceList();
     int countRecent(const QQueue<qint64> &times, qint64 nowMs) const;
     void setupBusinessTrend();
+    void setupCommunicationHistoryTrend();
+    void refreshCommunicationHistoryTrend();
+    void exportCommunicationHistoryTrend();
     void updateBusinessTrend(qint64 nowMs);
 
     Ui::TrendPage *ui = nullptr;
@@ -71,6 +78,16 @@ private:
     QValueAxis *m_axisX = nullptr;
     QValueAxis *m_axisY = nullptr;
     QHash<QString, DeviceTraffic> m_traffic;
+    CommunicationDiagnostics *m_diagnostics = nullptr;
+    QChart *m_historyChart = nullptr;
+    QLineSeries *m_historyTxSeries = nullptr;
+    QLineSeries *m_historyRxSeries = nullptr;
+    QLineSeries *m_historyErrorSeries = nullptr;
+    QLineSeries *m_historyReconnectSeries = nullptr;
+    QDateTimeAxis *m_historyAxisX = nullptr;
+    QValueAxis *m_historyAxisY = nullptr;
+    QComboBox *m_historyRangeCombo = nullptr;
+    QLabel *m_historySummaryLabel = nullptr;
     quint64 m_sampleIndex = 0;
 
     QTabWidget *m_businessTabs = nullptr;
