@@ -174,10 +174,20 @@ void MonitorPage::refreshDeviceFilter()
             QStringLiteral("DEMO-CANFD-002"),
             QStringLiteral("DEMO-TCP-003")
         };
-        for (const QString &id : demoIds) {
+        const QStringList demoNames = {
+            QStringLiteral("模拟 CAN 采集盒 1"),
+            QStringLiteral("模拟 CAN-FD 采集盒 2"),
+            QStringLiteral("模拟导航控制器")
+        };
+        for (int i = 0; i < demoIds.size(); ++i) {
+            const QString &id = demoIds.at(i);
             const QString key = metricKey(id);
-            if (m_deviceMetrics.contains(key))
-                refreshedMetrics.insert(key, m_deviceMetrics.value(key));
+            if (!m_deviceMetrics.contains(key))
+                continue;
+            DeviceMetrics metrics = m_deviceMetrics.value(key);
+            refreshedMetrics.insert(key, metrics);
+            ui->deviceFilterCombo->addItem(
+                QStringLiteral("%1 | %2").arg(id, demoNames.at(i)), id);
         }
     }
     m_deviceMetrics = refreshedMetrics;
@@ -300,7 +310,7 @@ void MonitorPage::toggleDemoMode()
 {
     if (!m_demoTimer) {
         m_demoTimer = new QTimer(this);
-        m_demoTimer->setInterval(350);
+        m_demoTimer->setInterval(300);
         connect(m_demoTimer, &QTimer::timeout,
                 this, &MonitorPage::generateDemoTraffic);
     }
@@ -377,28 +387,28 @@ void MonitorPage::generateDemoTraffic()
         QStringLiteral("DEMO-TCP-003")
     };
 
-    const int index = m_demoDeviceIndex % ids.size();
-    const QString id = ids.at(index);
-    const quint64 sequence = ++m_demoSequence;
-    QByteArray txData;
-    QByteArray rxData;
+    for (int index = 0; index < ids.size(); ++index) {
+        const QString &id = ids.at(index);
+        const quint64 sequence = ++m_demoSequence;
+        QByteArray txData;
+        QByteArray rxData;
 
-    if (index == 0) {
-        txData = QByteArray("t1238A1B2C3D4E5F6\r");
-        rxData = QByteArray("t1248") + QByteArray::number(sequence % 16, 16).toUpper()
-            + QByteArray("23456789ABCD\r");
-    } else if (index == 1) {
-        txData = QByteArray("D0018A1B2C3D4E5F6\r");
-        rxData = QByteArray("D0028") + QByteArray::number(sequence % 16, 16).toUpper()
-            + QByteArray("10203040506070\r");
-    } else {
-        txData = QByteArray::fromHex("AA55010203040506");
-        rxData = QByteArray::fromHex("AA55060708090A0B");
+        if (index == 0) {
+            txData = QByteArray("t1238A1B2C3D4E5F6\r");
+            rxData = QByteArray("t1248") + QByteArray::number(sequence % 16, 16).toUpper()
+                + QByteArray("23456789ABCD\r");
+        } else if (index == 1) {
+            txData = QByteArray("D0018A1B2C3D4E5F6\r");
+            rxData = QByteArray("D0028") + QByteArray::number(sequence % 16, 16).toUpper()
+                + QByteArray("10203040506070\r");
+        } else {
+            txData = QByteArray::fromHex("AA55010203040506");
+            rxData = QByteArray::fromHex("AA55060708090A0B");
+        }
+
+        onDataSent(id, txData);
+        onDataReceived(id, rxData);
     }
-
-    onDataSent(id, txData);
-    onDataReceived(id, rxData);
-    m_demoDeviceIndex = (m_demoDeviceIndex + 1) % ids.size();
 }
 
 void MonitorPage::exportEventsToCsv()
