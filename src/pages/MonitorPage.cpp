@@ -189,9 +189,19 @@ void MonitorPage::onConnectionStateChanged(const QString &deviceId, bool connect
     DeviceMetrics &metrics = m_deviceMetrics[key];
     if (metrics.deviceName.isEmpty())
         metrics.deviceName = deviceId;
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     metrics.connected = connected;
+    if (connected) {
+        metrics.connectedSinceMs = nowMs;
+        metrics.lastReceiveMs = 0;
+        metrics.receiveTimedOut = false;
+    } else {
+        metrics.connectedSinceMs = 0;
+        metrics.lastReceiveMs = 0;
+        metrics.receiveTimedOut = false;
+    }
     appendEvent(deviceId, QStringLiteral("状态"),
-                connected ? QStringLiteral("通信通道已打开")
+                connected ? QStringLiteral("通信通道已打开，等待首帧数据")
                           : QStringLiteral("通信通道已关闭"));
     updateLiveStatistics();
 }
@@ -262,13 +272,17 @@ void MonitorPage::updateLiveStatistics()
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     for (auto it = m_deviceMetrics.begin(); it != m_deviceMetrics.end(); ++it) {
         DeviceMetrics &metrics = it.value();
-        if (metrics.connected && metrics.lastReceiveMs > 0
+        const qint64 timeoutBaseMs = metrics.lastReceiveMs > 0
+            ? metrics.lastReceiveMs : metrics.connectedSinceMs;
+        if (metrics.connected && timeoutBaseMs > 0
             && !metrics.receiveTimedOut
-            && nowMs - metrics.lastReceiveMs > m_receiveTimeoutMs) {
+            && nowMs - timeoutBaseMs > m_receiveTimeoutMs) {
             metrics.receiveTimedOut = true;
             ++metrics.timeoutCount;
-            appendEvent(it.key(), QStringLiteral("错误"),
-                        QStringLiteral("接收数据超时（阈值 %1 ms）").arg(m_receiveTimeoutMs));
+            const QString detail = metrics.lastReceiveMs > 0
+                ? QStringLiteral("接收数据超时（距最近一帧超过 %1 ms）").arg(m_receiveTimeoutMs)
+                : QStringLiteral("连接后 %1 ms 内未收到首帧数据").arg(m_receiveTimeoutMs);
+            appendEvent(it.key(), QStringLiteral("错误"), detail);
         }
     }
     refreshMetricsTable();
@@ -359,8 +373,13 @@ QString MonitorPage::receiveStateText(const DeviceMetrics &metrics, qint64 nowMs
 {
     if (!metrics.connected)
         return QStringLiteral("未连接");
-    if (metrics.lastReceiveMs <= 0)
-        return QStringLiteral("等待数据");
+    if (metrics.lastReceiveMs <= 0) {
+        if (metrics.receiveTimedOut
+            || (metrics.connectedSinceMs > 0
+                && nowMs - metrics.connectedSinceMs > m_receiveTimeoutMs))
+            return QStringLiteral("接收超时（无首帧）");
+        return QStringLiteral("等待首帧");
+    }
     if (nowMs - metrics.lastReceiveMs > m_receiveTimeoutMs)
         return QStringLiteral("接收超时");
     return QStringLiteral("通信正常");
