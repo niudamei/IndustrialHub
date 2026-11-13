@@ -72,9 +72,39 @@ bool AlarmManager::initializeDatabase()
         return writeError(QStringLiteral("创建报警事件表失败：%1").arg(query.lastError().text()));
     }
     if (!query.exec(QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS alarm_rules ("
+            "rule_id TEXT PRIMARY KEY COLLATE NOCASE, device_id TEXT NOT NULL COLLATE NOCASE,"
+            "variable_id TEXT NOT NULL COLLATE NOCASE, name TEXT NOT NULL,"
+            "low_enabled INTEGER NOT NULL, low_limit REAL NOT NULL,"
+            "high_enabled INTEGER NOT NULL, high_limit REAL NOT NULL,"
+            "severity TEXT NOT NULL, enabled INTEGER NOT NULL)"))) {
+        return writeError(QStringLiteral("创建报警规则表失败：%1").arg(query.lastError().text()));
+    }
+
+    if (!query.exec(QStringLiteral(
             "CREATE INDEX IF NOT EXISTS idx_alarm_events_time "
             "ON alarm_events(triggered_at_ms DESC)"))) {
         return writeError(QStringLiteral("创建报警时间索引失败：%1").arg(query.lastError().text()));
+    }
+
+    if (!query.exec(QStringLiteral(
+            "SELECT rule_id, device_id, variable_id, name, low_enabled, low_limit, "
+            "high_enabled, high_limit, severity, enabled FROM alarm_rules"))) {
+        return writeError(QStringLiteral("读取报警规则失败：%1").arg(query.lastError().text()));
+    }
+    while (query.next()) {
+        AlarmRule rule;
+        rule.ruleId = query.value(0).toString();
+        rule.deviceId = query.value(1).toString();
+        rule.variableId = query.value(2).toString();
+        rule.name = query.value(3).toString();
+        rule.lowEnabled = query.value(4).toBool();
+        rule.lowLimit = query.value(5).toDouble();
+        rule.highEnabled = query.value(6).toBool();
+        rule.highLimit = query.value(7).toDouble();
+        rule.severity = query.value(8).toString();
+        rule.enabled = query.value(9).toBool();
+        m_rules.append(rule);
     }
 
     // 重启后活动报警仍然有效，恢复规则状态索引，等待后续数据判断恢复。
@@ -110,14 +140,38 @@ bool AlarmManager::addRule(const AlarmRule &rule, QString *errorMessage)
         && value.severity != QStringLiteral("Critical"))
         return writeError(QStringLiteral("报警等级只允许 Info、Warning 或 Critical。"), errorMessage);
 
+    QSqlQuery save(m_database);
+    save.prepare(QStringLiteral(
+        "INSERT INTO alarm_rules (rule_id, device_id, variable_id, name, low_enabled, "
+        "low_limit, high_enabled, high_limit, severity, enabled) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(rule_id) DO UPDATE SET device_id=excluded.device_id, "
+        "variable_id=excluded.variable_id, name=excluded.name, "
+        "low_enabled=excluded.low_enabled, low_limit=excluded.low_limit, "
+        "high_enabled=excluded.high_enabled, high_limit=excluded.high_limit, "
+        "severity=excluded.severity, enabled=excluded.enabled"));
+    save.addBindValue(value.ruleId);
+    save.addBindValue(value.deviceId);
+    save.addBindValue(value.variableId);
+    save.addBindValue(value.name);
+    save.addBindValue(value.lowEnabled ? 1 : 0);
+    save.addBindValue(value.lowLimit);
+    save.addBindValue(value.highEnabled ? 1 : 0);
+    save.addBindValue(value.highLimit);
+    save.addBindValue(value.severity);
+    save.addBindValue(value.enabled ? 1 : 0);
+    if (!save.exec())
+        return writeError(QStringLiteral("保存报警规则失败：%1").arg(save.lastError().text()), errorMessage);
+
+    bool replaced = false;
     for (int i = 0; i < m_rules.size(); ++i) {
         if (normalized(m_rules.at(i).ruleId) == normalized(value.ruleId)) {
             m_rules[i] = value;
-            emit rulesChanged();
-            return true;
+            replaced = true;
+            break;
         }
     }
-    m_rules.append(value);
+    if (!replaced) m_rules.append(value);
     emit rulesChanged();
     return true;
 }
@@ -127,6 +181,11 @@ bool AlarmManager::removeRule(const QString &ruleId)
     const QString key = normalized(ruleId);
     for (int i = m_rules.size() - 1; i >= 0; --i) {
         if (normalized(m_rules.at(i).ruleId) == key) {
+            QSqlQuery remove(m_database);
+            remove.prepare(QStringLiteral("DELETE FROM alarm_rules WHERE rule_id = ?"));
+            remove.addBindValue(m_rules.at(i).ruleId);
+            if (!remove.exec())
+                return writeError(QStringLiteral("删除报警规则失败：%1").arg(remove.lastError().text()));
             m_rules.removeAt(i);
             emit rulesChanged();
             return true;
