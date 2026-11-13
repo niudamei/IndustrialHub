@@ -99,6 +99,8 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
             this, &MonitorPage::onPauseClicked);
     connect(ui->exportButton, &QPushButton::clicked,
             this, &MonitorPage::exportEventsToCsv);
+    connect(ui->demoButton, &QPushButton::clicked,
+            this, &MonitorPage::toggleDemoMode);
     ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
     connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onReceiveTimeoutChanged);
@@ -164,6 +166,18 @@ void MonitorPage::refreshDeviceFilter()
             ui->deviceFilterCombo->addItem(
                 QStringLiteral("%1 | %2").arg(device.devId, device.devName),
                 device.devId);
+        }
+    }
+    if (m_demoMode) {
+        const QStringList demoIds = {
+            QStringLiteral("DEMO-CAN-001"),
+            QStringLiteral("DEMO-CANFD-002"),
+            QStringLiteral("DEMO-TCP-003")
+        };
+        for (const QString &id : demoIds) {
+            const QString key = metricKey(id);
+            if (m_deviceMetrics.contains(key))
+                refreshedMetrics.insert(key, m_deviceMetrics.value(key));
         }
     }
     m_deviceMetrics = refreshedMetrics;
@@ -280,6 +294,111 @@ void MonitorPage::onPauseClicked()
     ui->monitorStateLabel->setText(m_paused
         ? QStringLiteral("事件记录已暂停（统计继续）")
         : QStringLiteral("实时统计中"));
+}
+
+void MonitorPage::toggleDemoMode()
+{
+    if (!m_demoTimer) {
+        m_demoTimer = new QTimer(this);
+        m_demoTimer->setInterval(350);
+        connect(m_demoTimer, &QTimer::timeout,
+                this, &MonitorPage::generateDemoTraffic);
+    }
+
+    m_demoMode = !m_demoMode;
+    if (m_demoMode) {
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        const QStringList ids = {
+            QStringLiteral("DEMO-CAN-001"),
+            QStringLiteral("DEMO-CANFD-002"),
+            QStringLiteral("DEMO-TCP-003")
+        };
+        const QStringList names = {
+            QStringLiteral("模拟 CAN 采集盒 1"),
+            QStringLiteral("模拟 CAN-FD 采集盒 2"),
+            QStringLiteral("模拟导航控制器")
+        };
+        const QStringList types = {
+            QStringLiteral("CAN"),
+            QStringLiteral("CANFD"),
+            QStringLiteral("TCP")
+        };
+
+        for (int i = 0; i < ids.size(); ++i) {
+            DeviceMetrics &metrics = m_deviceMetrics[metricKey(ids.at(i))];
+            metrics.deviceName = names.at(i);
+            metrics.commType = types.at(i);
+            metrics.connected = true;
+            metrics.connectedSinceMs = nowMs;
+            metrics.lastReceiveMs = 0;
+            metrics.receiveTimedOut = false;
+            ui->deviceFilterCombo->addItem(
+                QStringLiteral("%1 | %2").arg(ids.at(i), names.at(i)), ids.at(i));
+            appendEvent(ids.at(i), QStringLiteral("状态"),
+                        QStringLiteral("模拟设备已连接（演示数据，非真实硬件）"));
+        }
+
+        ui->demoButton->setText(QStringLiteral("停止模拟"));
+        ui->monitorStateLabel->setText(QStringLiteral("模拟数据运行中（非真实设备）"));
+        m_demoDeviceIndex = 0;
+        m_demoTimer->start();
+        generateDemoTraffic();
+    } else {
+        m_demoTimer->stop();
+        const QStringList ids = {
+            QStringLiteral("DEMO-CAN-001"),
+            QStringLiteral("DEMO-CANFD-002"),
+            QStringLiteral("DEMO-TCP-003")
+        };
+        for (const QString &id : ids) {
+            DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+            metrics.connected = false;
+            metrics.connectedSinceMs = 0;
+            metrics.receiveTimedOut = false;
+            appendEvent(id, QStringLiteral("状态"),
+                        QStringLiteral("模拟数据已停止"));
+        }
+        ui->demoButton->setText(QStringLiteral("开始模拟"));
+        ui->monitorStateLabel->setText(QStringLiteral("模拟数据已停止"));
+    }
+
+    refreshDeviceFilter();
+    updateLiveStatistics();
+}
+
+void MonitorPage::generateDemoTraffic()
+{
+    if (!m_demoMode)
+        return;
+
+    const QStringList ids = {
+        QStringLiteral("DEMO-CAN-001"),
+        QStringLiteral("DEMO-CANFD-002"),
+        QStringLiteral("DEMO-TCP-003")
+    };
+
+    const int index = m_demoDeviceIndex % ids.size();
+    const QString id = ids.at(index);
+    const quint64 sequence = ++m_demoSequence;
+    QByteArray txData;
+    QByteArray rxData;
+
+    if (index == 0) {
+        txData = QByteArray("t1238A1B2C3D4E5F6\r");
+        rxData = QByteArray("t1248") + QByteArray::number(sequence % 16, 16).toUpper()
+            + QByteArray("23456789ABCD\r");
+    } else if (index == 1) {
+        txData = QByteArray("D0018A1B2C3D4E5F6\r");
+        rxData = QByteArray("D0028") + QByteArray::number(sequence % 16, 16).toUpper()
+            + QByteArray("10203040506070\r");
+    } else {
+        txData = QByteArray::fromHex("AA55010203040506");
+        rxData = QByteArray::fromHex("AA55060708090A0B");
+    }
+
+    onDataSent(id, txData);
+    onDataReceived(id, rxData);
+    m_demoDeviceIndex = (m_demoDeviceIndex + 1) % ids.size();
 }
 
 void MonitorPage::exportEventsToCsv()
@@ -486,6 +605,8 @@ void MonitorPage::appendEvent(const QString &deviceId,
 
 QString MonitorPage::formatData(const QString &deviceId, const QByteArray &data) const
 {
+    if (deviceId.startsWith(QStringLiteral("DEMO-CAN-"), Qt::CaseInsensitive))
+        return QString::fromLatin1(data);
     if (m_deviceManager) {
         DeviceInfo device;
         if (m_deviceManager->getDeviceById(deviceId, device)
