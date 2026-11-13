@@ -20,6 +20,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QStringList>
+#include <QAbstractItemView>
 #include <QVBoxLayout>
 #include <QUuid>
 #include <QTextStream>
@@ -204,8 +206,10 @@ void AlarmPage::buildManagementUi()
                                      .arg(ui->alarmTable->rowCount()));
     });
     connect(m_deviceFilter, &QLineEdit::textChanged, this, &AlarmPage::refreshEvents);
-    connect(m_severityFilter, &QComboBox::currentIndexChanged, this, &AlarmPage::refreshEvents);
-    connect(m_stateFilter, &QComboBox::currentIndexChanged, this, &AlarmPage::refreshEvents);
+    connect(m_severityFilter, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, [this](int) { refreshEvents(); });
+    connect(m_stateFilter, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, [this](int) { refreshEvents(); });
     connect(m_ruleTable, &QTableWidget::cellDoubleClicked, this,
             [this](int, int) { editSelectedRule(); });
 }
@@ -410,8 +414,9 @@ void AlarmPage::deleteSelectedRule()
     if (QMessageBox::question(this, QStringLiteral("删除规则"),
             QStringLiteral("确定删除选中的报警规则吗？历史报警记录不会删除。"))
         != QMessageBox::Yes) return;
-    if (!m_alarmManager->removeRule(id))
-        QMessageBox::warning(this, QStringLiteral("删除失败"), QStringLiteral("规则不存在或数据库操作失败。"));
+    QString error;
+    if (!m_alarmManager->removeRule(id, &error))
+        QMessageBox::warning(this, QStringLiteral("删除失败"), error);
     refreshRules();
 }
 
