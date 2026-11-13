@@ -63,6 +63,9 @@ qt_add_executable(hhh
     src/remote/httpclient.h src/remote/httpclient.cpp
     src/remote/remotetelemetryparser.h src/remote/remotetelemetryparser.cpp
     src/remote/remotepage.h src/remote/remotepage.cpp
+    src/plugins/iplugin.h
+    src/plugins/pluginmanager.h src/plugins/pluginmanager.cpp
+    src/plugins/pluginpage.h src/plugins/pluginpage.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/simulatedmodbuscommunication.h src/communication/simulatedmodbuscommunication.cpp
@@ -370,6 +373,27 @@ if(BUILD_TESTING)
     target_include_directories(remote_client_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(remote_client_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME remote_client_test COMMAND remote_client_test)
+    add_library(sample_industrial_plugin MODULE
+        tests/plugins/sampleplugin.cpp
+        tests/plugins/sampleplugin.json
+        src/plugins/iplugin.h
+    )
+    target_include_directories(sample_industrial_plugin PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(sample_industrial_plugin PRIVATE Qt6::Core)
+    set_target_properties(sample_industrial_plugin PROPERTIES PREFIX "")
+
+    add_executable(plugin_manager_test
+        tests/plugin_manager_test.cpp
+        src/plugins/iplugin.h
+        src/plugins/pluginmanager.h
+        src/plugins/pluginmanager.cpp
+    )
+    target_include_directories(plugin_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(plugin_manager_test PRIVATE Qt6::Core)
+    add_dependencies(plugin_manager_test sample_industrial_plugin)
+    add_test(NAME plugin_manager_test
+        COMMAND plugin_manager_test "$<TARGET_FILE:sample_industrial_plugin>")
+
 endif()
 
 
