@@ -27,6 +27,7 @@
 #include <QLabel>
 #include <QTimer>
 #include <QToolBar>
+#include <QDialog>
 #include <memory>
 
 MainWindow::MainWindow(QWidget *parent)
