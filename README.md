@@ -261,7 +261,7 @@ ctest --test-dir build --output-on-failure
 
 ## Modbus 主站事务层
 
-新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。新增 ModbusRegisterMap，支持 UInt16/Int16/UInt32/Int32/Float32、ABCD/CDAB/BADC/DCBA 字序、缩放和偏移；新增 ModbusPoller，可按显式映射周期读取并批量输出 BusinessDataPoint，也可直接绑定 BusinessDataManager，使采集值进入统一最新值缓存和已有 SQLite 历史写入链路。通信配置页已增加寄存器映射编辑、单元地址、轮询间隔/超时、映射本地持久化和启动/停止控制。真实设备寄存器地址、字节序和缩放仍必须依据设备手册。
+新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；RTU 默认在请求之间保留 5 ms 静默间隔（可由 API 调整），支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。新增 ModbusRegisterMap，支持 UInt16/Int16/UInt32/Int32/Float32、ABCD/CDAB/BADC/DCBA 字序、缩放和偏移；新增 ModbusPoller，可按显式映射周期读取并批量输出 BusinessDataPoint，也可直接绑定 BusinessDataManager，使采集值进入统一最新值缓存和已有 SQLite 历史写入链路。通信配置页已增加寄存器映射编辑、单元地址、轮询间隔/超时、映射本地持久化和启动/停止控制。真实设备寄存器地址、字节序和缩放仍必须依据设备手册。
 
 
 ## 离线 Modbus 模拟设备
