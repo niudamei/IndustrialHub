@@ -96,6 +96,61 @@ bool CommunicationDiagnostics::initialize()
         m_lastError = QStringLiteral("创建通信诊断索引失败：%1").arg(q.lastError().text());
         return false;
     }
+    if (!q.exec(QStringLiteral(
+        "CREATE INDEX IF NOT EXISTS idx_diagnostics_time "
+        "ON communication_diagnostics(timestamp_ms DESC)"))) {
+        m_lastError = QStringLiteral("创建通信诊断时间索引失败：%1").arg(q.lastError().text());
+        return false;
+    }
+    if (!q.exec(QStringLiteral(
+        "CREATE TABLE IF NOT EXISTS communication_device_totals ("
+        "device_id TEXT PRIMARY KEY COLLATE NOCASE,"
+        "tx_count INTEGER NOT NULL DEFAULT 0, rx_count INTEGER NOT NULL DEFAULT 0,"
+        "tx_bytes INTEGER NOT NULL DEFAULT 0, rx_bytes INTEGER NOT NULL DEFAULT 0,"
+        "error_count INTEGER NOT NULL DEFAULT 0, reconnect_count INTEGER NOT NULL DEFAULT 0,"
+        "last_event_ms INTEGER NOT NULL DEFAULT 0, last_rx_ms INTEGER NOT NULL DEFAULT 0)"))) {
+        m_lastError = QStringLiteral("创建设备通信汇总表失败：%1").arg(q.lastError().text());
+        return false;
+    }
+    if (!q.exec(QStringLiteral("CREATE TABLE IF NOT EXISTS communication_diagnostics_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"))) {
+        m_lastError = QStringLiteral("创建诊断迁移信息表失败：%1").arg(q.lastError().text());
+        return false;
+    }
+    QSqlQuery marker(m_database);
+    marker.prepare(QStringLiteral("SELECT value FROM communication_diagnostics_meta WHERE key=?"));
+    marker.addBindValue(QStringLiteral("totals_v1"));
+    if (!marker.exec()) {
+        m_lastError = QStringLiteral("读取诊断迁移状态失败：%1").arg(marker.lastError().text());
+        return false;
+    }
+    if (!marker.next()) {
+        if (!m_database.transaction()) {
+            m_lastError = QStringLiteral("启动诊断汇总迁移事务失败：%1").arg(m_database.lastError().text());
+            return false;
+        }
+        QSqlQuery migrate(m_database);
+        const bool migrated = migrate.exec(QStringLiteral(
+            "INSERT OR IGNORE INTO communication_device_totals "
+            "(device_id,tx_count,rx_count,tx_bytes,rx_bytes,error_count,reconnect_count,last_event_ms,last_rx_ms) "
+            "SELECT device_id,"
+            "SUM(CASE WHEN category='TX' THEN 1 ELSE 0 END),"
+            "SUM(CASE WHEN category='RX' THEN 1 ELSE 0 END),SUM(tx_bytes),SUM(rx_bytes),"
+            "SUM(CASE WHEN severity='Error' THEN 1 ELSE 0 END),"
+            "SUM(CASE WHEN category='重连' THEN 1 ELSE 0 END),MAX(timestamp_ms),"
+            "COALESCE(MAX(CASE WHEN category='RX' THEN timestamp_ms END),0) "
+            "FROM communication_diagnostics GROUP BY device_id"));
+        QSqlQuery saveMarker(m_database);
+        saveMarker.prepare(QStringLiteral("INSERT OR REPLACE INTO communication_diagnostics_meta(key,value) VALUES(?,?)"));
+        saveMarker.addBindValue(QStringLiteral("totals_v1"));
+        saveMarker.addBindValue(QStringLiteral("1"));
+        if (!migrated || !saveMarker.exec() || !m_database.commit()) {
+            const QString reason = !migrated ? migrate.lastError().text()
+                : (!saveMarker.lastError().isValid() ? m_database.lastError().text() : saveMarker.lastError().text());
+            m_database.rollback();
+            m_lastError = QStringLiteral("初始化通信统计汇总失败：%1").arg(reason);
+            return false;
+        }
+    }
     m_ready = true;
     m_lastError.clear();
     return true;
@@ -106,20 +161,57 @@ void CommunicationDiagnostics::record(const QString &deviceId, const QString &ca
                                        qint64 txBytes, qint64 rxBytes)
 {
     if (!isReady()) return;
+    const QString normalizedId = deviceId.trimmed().isEmpty()
+        ? QStringLiteral("(系统)") : deviceId.trimmed();
+    const qint64 nowMs = QDateTime::currentDateTime().toMSecsSinceEpoch();
+    if (!m_database.transaction()) {
+        m_lastError = QStringLiteral("启动通信诊断写入事务失败：%1").arg(m_database.lastError().text());
+        emit storageError(m_lastError);
+        return;
+    }
     QSqlQuery q(m_database);
     q.prepare(QStringLiteral(
         "INSERT INTO communication_diagnostics "
         "(timestamp_ms,device_id,category,severity,message,tx_bytes,rx_bytes) "
         "VALUES(?,?,?,?,?,?,?)"));
-    q.addBindValue(QDateTime::currentDateTime().toMSecsSinceEpoch());
-    q.addBindValue(deviceId.trimmed().isEmpty() ? QStringLiteral("(系统)") : deviceId.trimmed());
+    q.addBindValue(nowMs);
+    q.addBindValue(normalizedId);
     q.addBindValue(category);
     q.addBindValue(severity);
     q.addBindValue(message.left(2048));
     q.addBindValue(txBytes);
     q.addBindValue(rxBytes);
     if (!q.exec()) {
+        m_database.rollback();
         m_lastError = QStringLiteral("写入通信诊断事件失败：%1").arg(q.lastError().text());
+        emit storageError(m_lastError);
+        return;
+    }
+    QSqlQuery totals(m_database);
+    totals.prepare(QStringLiteral(
+        "INSERT INTO communication_device_totals "
+        "(device_id,tx_count,rx_count,tx_bytes,rx_bytes,error_count,reconnect_count,last_event_ms,last_rx_ms) "
+        "VALUES(?,?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(device_id) DO UPDATE SET "
+        "tx_count=tx_count+excluded.tx_count, rx_count=rx_count+excluded.rx_count,"
+        "tx_bytes=tx_bytes+excluded.tx_bytes, rx_bytes=rx_bytes+excluded.rx_bytes,"
+        "error_count=error_count+excluded.error_count,"
+        "reconnect_count=reconnect_count+excluded.reconnect_count,"
+        "last_event_ms=MAX(last_event_ms,excluded.last_event_ms),"
+        "last_rx_ms=CASE WHEN excluded.last_rx_ms>0 THEN MAX(last_rx_ms,excluded.last_rx_ms) ELSE last_rx_ms END"));
+    totals.addBindValue(normalizedId);
+    totals.addBindValue(category == QStringLiteral("TX") ? 1 : 0);
+    totals.addBindValue(category == QStringLiteral("RX") ? 1 : 0);
+    totals.addBindValue(txBytes);
+    totals.addBindValue(rxBytes);
+    totals.addBindValue(severity == QStringLiteral("Error") ? 1 : 0);
+    totals.addBindValue(category == QStringLiteral("重连") ? 1 : 0);
+    totals.addBindValue(nowMs);
+    totals.addBindValue(category == QStringLiteral("RX") ? nowMs : 0);
+    if (!totals.exec() || !m_database.commit()) {
+        const QString reason = totals.lastError().isValid() ? totals.lastError().text() : m_database.lastError().text();
+        m_database.rollback();
+        m_lastError = QStringLiteral("更新设备通信汇总失败：%1").arg(reason);
         emit storageError(m_lastError);
         return;
     }
