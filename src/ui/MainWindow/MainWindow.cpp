@@ -30,6 +30,38 @@ MainWindow::MainWindow(QWidget *parent)
     m_protocolManager = new ProtocolManager(this);
     m_businessDataManager = new BusinessDataManager(this);
     m_alarmManager = new AlarmManager(this);
+    if (m_alarmManager->isReady()) {
+        // 首次运行时为三台虚拟设备建立演示温度高限规则；已有用户规则不覆盖。
+        const QStringList demoDeviceIds = {
+            QStringLiteral("DEMO-CAN-001"),
+            QStringLiteral("DEMO-CANFD-002"),
+            QStringLiteral("DEMO-TCP-003")
+        };
+        const QList<AlarmRule> existingRules = m_alarmManager->rules();
+        for (const QString &deviceId : demoDeviceIds) {
+            const QString ruleId = deviceId + QStringLiteral("-TEMP-HIGH");
+            bool exists = false;
+            for (const AlarmRule &existing : existingRules) {
+                if (existing.ruleId.compare(ruleId, Qt::CaseInsensitive) == 0) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                AlarmRule rule;
+                rule.ruleId = ruleId;
+                rule.deviceId = deviceId;
+                rule.variableId = QStringLiteral("temperature");
+                rule.name = QStringLiteral("模拟温度高限");
+                rule.highEnabled = true;
+                rule.highLimit = 80.0;
+                rule.severity = QStringLiteral("Warning");
+                QString alarmRuleError;
+                if (!m_alarmManager->addRule(rule, &alarmRuleError))
+                    qWarning() << "创建模拟报警规则失败：" << alarmRuleError;
+            }
+        }
+    }
 
     QString protocolError;
     if (!m_protocolManager->registerParser(
@@ -90,6 +122,10 @@ void MainWindow::init_class()
     dashboardPage = new DashboardPage(this);
     devicePage = new DevicePage(m_deviceManager, this);
     monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
+    connect(monitorPage, &MonitorPage::businessDataGenerated,
+            m_businessDataManager, &BusinessDataManager::updateDataPoints);
+    connect(monitorPage, &MonitorPage::businessDataGenerated,
+            m_alarmManager, &AlarmManager::evaluateDataPoints);
     trendPage = new TrendPage(m_communicationManager, this);
     alarmPage = new AlarmPage(m_alarmManager, this);
     historyPage = new HistoryPage(m_dataManager, this);
