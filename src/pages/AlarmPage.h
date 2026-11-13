@@ -12,6 +12,7 @@ public:
 private slots:
     void refreshEvents();
     void acknowledgeSelected();
+    void addThresholdRule();
 private:
     Ui::AlarmPage *ui;
     AlarmManager *m_alarmManager = nullptr;
