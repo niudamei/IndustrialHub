@@ -32,7 +32,7 @@
         <property name="minimumSize"><size><width>0</width><height>150</height></size></property>
         <property name="maximumHeight"><number>230</number></property>
         <property name="rowCount"><number>0</number></property>
-        <property name="columnCount"><number>13</number></property>
+        <property name="columnCount"><number>16</number></property>
        </widget>
       </item>
      </layout>
