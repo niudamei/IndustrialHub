@@ -30,6 +30,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_dataManager = new DataManager(m_communicationManager, this);
     m_protocolManager = new ProtocolManager(this);
     m_businessDataManager = new BusinessDataManager(this);
+    connect(m_businessDataManager, &BusinessDataManager::valuesUpdated,
+            m_dataManager, &DataManager::appendBusinessDataPoints);
     m_alarmManager = new AlarmManager(this);
     if (m_alarmManager->isReady()) {
         // 首次运行时为三台虚拟设备建立演示温度高限规则；已有用户规则不覆盖。
