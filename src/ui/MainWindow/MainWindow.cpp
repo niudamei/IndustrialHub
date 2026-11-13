@@ -19,7 +19,7 @@
 #include "src/security/authmanager.h"
 #include "src/security/logindialog.h"
 #include "src/security/usermanagementpage.h"
-#include "src/remote/remotepage.h"
+#include "src/remote/remotepage.h"\n#include "src/plugins/pluginmanager.h"\n#include "src/plugins/pluginpage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QDebug>
@@ -191,7 +191,7 @@ void MainWindow::onNavigationClicked(int index)
         QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
         QStringLiteral("alarm.view"), QStringLiteral("history.view"),
         QStringLiteral("communication.view"), QStringLiteral("system.manage"),
-        QStringLiteral("remote.manage"), QStringLiteral("users.manage")
+        QStringLiteral("remote.manage"), QStringLiteral("users.manage"),\n        QStringLiteral("plugins.manage")
     };
     if (index < 0 || index >= ui->stackedWidget->count()
         || index >= required.size() || !m_authManager
@@ -293,7 +293,7 @@ void MainWindow::init_class()
             m_businessDataManager, &BusinessDataManager::updateDataPoints);
     connect(m_remotePage, &RemotePage::businessDataReceived,
             m_alarmManager, &AlarmManager::evaluateDataPoints);
-    m_userManagementPage = new UserManagementPage(m_authManager, this);
+    m_userManagementPage = new UserManagementPage(m_authManager, this);\n    m_pluginManager = new PluginManager(this);\n    m_pluginPage = new PluginPage(m_pluginManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
@@ -305,19 +305,19 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(configPage);    // 6 通信配置
     ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置
     ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket
-    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
+    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色\n    ui->stackedWidget->addWidget(m_pluginPage); // 10 插件管理
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
     ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
         QStringLiteral("实时监控"), QStringLiteral("实时趋势"), QStringLiteral("报警中心"),
         QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置"),
-        QStringLiteral("远程通信"), QStringLiteral("用户与权限")});
+        QStringLiteral("远程通信"), QStringLiteral("用户与权限"), QStringLiteral("插件管理")});
     for (int i = 0; i < ui->listWidget->count(); ++i)
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.10.0 | SQLite + TCP/UDP/RS485/CAN-FD/Modbus/MQTT/WebSocket/HTTP"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.11.0 | SQLite + TCP/UDP/RS485/CAN-FD/Modbus/MQTT/WebSocket/HTTP/Plugins"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
