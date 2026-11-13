@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     if (lastRequest.isEmpty() || !poller.isPolling()) return 3;
     master.feedReceivedData(makeReadResponse(lastRequest, 250));
     QCoreApplication::processEvents();
-    if (lastRequest.isEmpty() || points.size() != 1) return 4;
+    if (lastRequest.isEmpty() || !points.isEmpty()) return 4;
     master.feedReceivedData(makeReadResponse(lastRequest, 1234));
     QCoreApplication::processEvents();
     if (cycles != 1 || points.size() != 2) return 5;
