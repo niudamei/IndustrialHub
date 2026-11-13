@@ -17,6 +17,7 @@ class AlarmPage : public QWidget
 public:
     explicit AlarmPage(AlarmManager *alarmManager, QWidget *parent = nullptr);
     ~AlarmPage() override;
+    void setPermissions(bool manageRules, bool acknowledge);
 
 private slots:
     void refreshEvents();
@@ -42,6 +43,8 @@ private:
     QLabel *m_activeSummary = nullptr;
     QLabel *m_todaySummary = nullptr;
     QLabel *m_durationSummary = nullptr;
+    bool m_canManageRules = true;
+    bool m_canAcknowledge = true;
 };
 
 #endif // ALARMPAGE_H
