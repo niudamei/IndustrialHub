@@ -44,6 +44,14 @@
 - 通信配置页面支持选择设备、连接/断开、发送 HEX 或 SLCAN 帧命令，并查看 TX/RX 和错误日志。
 - TCP/模拟连接状态会更新设备状态；UDP、RS485、CAN/CAN-FD 收到实际数据后才标记设备在线。
 
+### 通信历史数据与统一数据入口
+
+- `DataManager` 统一接收 `CommunicationManager` 发出的 TX/RX 事件。
+- 通信记录采用批量事务写入 SQLite，保存毫秒时间戳、设备编号、方向、原始字节和字节数。
+- 历史数据页面支持日期范围、设备编号、TX/RX 方向筛选，按 200 条分页查询。
+- 支持导出当前页 CSV（UTF-8 BOM），便于使用 Excel 查看。
+- 当前保存的是通信原始帧，不会在缺少设备协议定义时臆测温度、电流、位置等业务字段。
+
 ## 自动化测试
 
 启用 CMake 的 `BUILD_TESTING` 时构建：
@@ -81,11 +89,13 @@ ctest --test-dir build --output-on-failure
 
 - `app/`：程序入口
 - `src/pages/`：功能页面、设备数据结构和设备管理逻辑
-- `src/database/`：SQLite 数据持久化
+- `src/database/`：SQLite 设备信息持久化
+- `src/core/`：统一数据入口与通信历史记录
 - `src/communication/`：通信接口、TCP/UDP/RS485/SLCAN 驱动和通信管理器
 - `src/ui/MainWindow/`：主窗口
 - `CustomFolder/`：自定义控件
-- `tests/`：通信层自动化测试
+- `tests/`：通信层与数据持久化自动化测试
+- `docs/PROJECT_ROADMAP.md`：阶段完成情况与后续开发路线
 
 ## 后续路线
 
