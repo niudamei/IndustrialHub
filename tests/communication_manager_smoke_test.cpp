@@ -164,6 +164,12 @@ int main(int argc, char *argv[])
         std::cerr << "FAIL: TCP device did not disconnect." << std::endl;
         return 8;
     }
+    const int tcpConnectCountAfterManualDisconnect = tcpConnectCount;
+    waitUntil([&]() { return false; }, 1200);
+    if (tcpConnectCount != tcpConnectCountAfterManualDisconnect) {
+        std::cerr << "FAIL: manual TCP disconnect unexpectedly triggered auto reconnect." << std::endl;
+        return 15;
+    }
     if (!manager.isConnected(simulated.devId)) {
         std::cerr << "FAIL: disconnecting TCP also disconnected simulated device." << std::endl;
         return 9;
