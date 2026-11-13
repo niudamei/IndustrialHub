@@ -43,7 +43,6 @@ qt_add_executable(hhh
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
     src/core/historymaintenance.h src/core/historymaintenance.cpp
-    src/core/historymaintenance.h src/core/historymaintenance.cpp
     src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
     src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
