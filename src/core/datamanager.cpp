@@ -348,7 +348,7 @@ bool DataManager::queryBusinessDataHistory(
         "SELECT id, timestamp_ms, device_id, variable_id, variable_name, value, unit, quality, source_protocol "
         "FROM business_data_history") + where
         + QStringLiteral(" ORDER BY timestamp_ms DESC, id DESC LIMIT ? OFFSET ?"));
-    bindIndex = 0;
+    int bindIndex = 0;
     query.bindValue(bindIndex++, start.toMSecsSinceEpoch());
     query.bindValue(bindIndex++, end.toMSecsSinceEpoch());
     if (!deviceId.trimmed().isEmpty())
