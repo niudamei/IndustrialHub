@@ -21,6 +21,8 @@
 #include <QVBoxLayout>
 #include <QSplitter>
 #include <QAbstractItemView>
+#include <QFile>
+#include <QFileDialog>
 
 ConfigPage::ConfigPage(DeviceManager *deviceManager,
                        CommunicationManager *communicationManager,
@@ -46,8 +48,29 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});
     for (QTableWidget *table : {m_statisticsTable,m_diagnosticsTable}) { table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows); table->setAlternatingRowColors(true); table->verticalHeader()->setVisible(false); table->horizontalHeader()->setStretchLastSection(true); }
     splitter->addWidget(m_statisticsTable); splitter->addWidget(m_diagnosticsTable); splitter->setStretchFactor(0,1); splitter->setStretchFactor(1,2);
+    auto *exportDiagnosticsButton = new QPushButton(QStringLiteral("导出最近诊断记录 CSV"), diagnosticsGroup);
+    diagnosticsLayout->addWidget(exportDiagnosticsButton);
     diagnosticsLayout->addWidget(splitter);
     ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);
+    connect(exportDiagnosticsButton, &QPushButton::clicked, this, [this]() {
+        if (!m_diagnostics) return;
+        const auto events = m_diagnostics->recentEvents(1000);
+        if (events.isEmpty()) { QMessageBox::information(this, QStringLiteral("没有记录"), QStringLiteral("当前没有可导出的诊断事件。")); return; }
+        const QString name = QStringLiteral("communication_diagnostics_%1.csv").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+        const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("导出通信诊断"), name, QStringLiteral("CSV 文件 (*.csv)"));
+        if (path.isEmpty()) return;
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) { QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString()); return; }
+        QByteArray output = QByteArray::fromHex("EFBBBF");
+        output += QStringLiteral("时间,设备,类别,级别,详情\r\n").toUtf8();
+        for (const auto &event : events) {
+            QString message = event.message; message.replace(QStringLiteral("\""), QStringLiteral("\"\""));
+            const QStringList columns = {event.timestamp.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz")), event.deviceId, event.category, event.severity, QStringLiteral("\"%1\"").arg(message)};
+            output += columns.join(QLatin1Char(',')).toUtf8() + "\r\n";
+        }
+        if (file.write(output) != output.size()) { QMessageBox::warning(this, QStringLiteral("导出失败"), file.errorString()); return; }
+        QMessageBox::information(this, QStringLiteral("导出完成"), QStringLiteral("已导出最近 %1 条诊断记录。").arg(events.size()));
+    });
     if (m_diagnostics) connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged, this, &ConfigPage::refreshDiagnostics);
     refreshDiagnostics();
 
