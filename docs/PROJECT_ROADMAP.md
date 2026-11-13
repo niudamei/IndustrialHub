@@ -29,11 +29,11 @@
 
 `CommunicationManager TX/RX` → `DataManager` → `SQLite communication_history` → `HistoryPage`
 
-另已建立独立的解析基础：
+另已建立并接入业务解析链路：
 
-`原始帧` → `ProtocolManager` → `IProtocolParser` → `BusinessDataPoint`
+`CommunicationManager RX` → `ProtocolManager` → `IProtocolParser` → `BusinessDataPoint` → `BusinessDataManager（最新值内存缓存）`
 
-当前 JSON 示例解析器仅用于明确采用该 JSON 格式的设备或测试数据；解析层尚未自动接入通信接收链路，也未接入业务变量历史存储。历史页仍展示通信原始帧，不对未知设备协议做猜测性解码。
+通信配置页可按设备显式绑定 JSON 示例解析器；默认不解析。当前业务变量最新值只保存在内存，尚未接入业务变量历史存储和实时趋势页面。历史页仍展示通信原始帧，不对未知设备协议做猜测性解码。
 
 ## 后续开发顺序
 
@@ -47,7 +47,9 @@
 - [x] 定义标准数据点：设备 ID、变量 ID/名称、数值、单位、时间戳、质量状态和来源协议。
 - [x] 定义协议解析器接口与按设备绑定的 ProtocolManager。
 - [x] 实现 JSON 示例解析器及非法报文、质量状态、信号分发测试。
-- [ ] 将 ProtocolManager 接入通信接收链路，并明确原始帧与解析结果的独立存储策略。
+- [x] 将 ProtocolManager 接入通信 RX 链路；按设备显式绑定解析器，默认不解析。
+- [x] 增加 BusinessDataManager，维护每台设备各变量的最新值，并阻止旧时间戳覆盖新值。
+- [ ] 将业务变量持久化到独立历史表，并接入业务趋势页面。
 - [ ] 真实设备协议明确后再实现对应解析器，不臆造寄存器地址、CAN ID 或报文格式。
 
 ### P2：报警闭环
