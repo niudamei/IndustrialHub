@@ -173,6 +173,9 @@ void CommunicationManager::releaseDevice(const QString &deviceId)
     m_deviceConfigs.remove(key);
     m_autoReconnectDevices.remove(key);
     stopReconnect(key);
+    QTimer *reconnectTimer = m_reconnectTimers.take(key);
+    if (reconnectTimer)
+        reconnectTimer->deleteLater();
     m_reconnectAttempts.remove(key);
     if (!communication)
         return;
