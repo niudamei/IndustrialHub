@@ -100,7 +100,8 @@ bool AuthManager::initialize(QString *error)
         QStringLiteral("alarm.manage"), QStringLiteral("alarm.acknowledge"), QStringLiteral("history.view"),
         QStringLiteral("history.maintenance"), QStringLiteral("communication.view"),
         QStringLiteral("communication.manage"), QStringLiteral("remote.manage"),
-        QStringLiteral("system.manage"), QStringLiteral("users.manage")
+        QStringLiteral("system.manage"), QStringLiteral("users.manage"),
+        QStringLiteral("plugins.manage")
     };
     const QStringList operatorPermissions = {
         QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
