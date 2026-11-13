@@ -159,10 +159,10 @@ QList<AlarmEvent> AlarmManager::queryEvents(const QString &where, int limit,
         "SELECT id, rule_id, device_id, variable_id, variable_name, value, unit, "
         "severity, state, message, triggered_at_ms, acknowledged_at_ms, "
         "recovered_at_ms, acknowledged_by FROM alarm_events ")
-        + where + QStringLiteral(" ORDER BY triggered_at_ms DESC, id DESC LIMIT :limit"));
+        + where + QStringLiteral(" ORDER BY triggered_at_ms DESC, id DESC LIMIT ?"));
     for (int i = 0; i < bindings.size(); ++i)
         query.bindValue(i, bindings.at(i));
-    query.bindValue(QStringLiteral(":limit"), qMax(1, limit));
+    query.bindValue(bindings.size(), qMax(1, limit));
     if (!query.exec()) {
         if (errorMessage) *errorMessage = query.lastError().text();
         return result;
