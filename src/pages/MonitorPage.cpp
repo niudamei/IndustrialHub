@@ -5,6 +5,11 @@
 #include "src/pages/devicemanager.h"
 
 #include <QComboBox>
+#include <QChart>
+#include <QChartView>
+#include <QLineSeries>
+#include <QValueAxis>
+#include <QLegend>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
@@ -23,89 +28,6 @@
 #include <QTimer>
 #include <QtMath>
 #include <QVBoxLayout>
-
-class TrafficRateChart : public QWidget
-{
-public:
-    explicit TrafficRateChart(QWidget *parent = nullptr)
-        : QWidget(parent)
-    {
-        setMinimumHeight(125);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    }
-
-    void setSamples(const QVector<double> &samples)
-    {
-        m_samples = samples;
-        update();
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.fillRect(rect(), palette().color(QPalette::Base));
-
-        const QRectF plot = QRectF(rect()).adjusted(52.0, 24.0, -18.0, -25.0);
-        if (plot.width() <= 10.0 || plot.height() <= 10.0)
-            return;
-
-        painter.setPen(palette().color(QPalette::Text));
-        painter.drawText(QRectF(10.0, 2.0, width() - 20.0, 18.0),
-                         Qt::AlignLeft | Qt::AlignVCenter,
-                         QStringLiteral("总接收帧率（FPS）"));
-
-        double maxValue = 10.0;
-        for (double value : m_samples)
-            maxValue = qMax(maxValue, value);
-        maxValue = qMax(10.0, qCeil(maxValue / 5.0) * 5.0);
-
-        QPen gridPen(palette().color(QPalette::Mid));
-        gridPen.setStyle(Qt::DashLine);
-        painter.setPen(gridPen);
-        for (int i = 0; i <= 4; ++i) {
-            const qreal y = plot.bottom() - plot.height() * i / 4.0;
-            painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
-            painter.setPen(palette().color(QPalette::Text));
-            painter.drawText(QRectF(2.0, y - 8.0, 44.0, 16.0),
-                             Qt::AlignRight | Qt::AlignVCenter,
-                             QString::number(maxValue * i / 4.0, 'f', 0));
-            painter.setPen(gridPen);
-        }
-
-        if (m_samples.isEmpty()) {
-            painter.setPen(palette().color(QPalette::PlaceholderText));
-            painter.drawText(plot, Qt::AlignCenter,
-                             QStringLiteral("暂无数据，点击“开始模拟”生成演示数据"));
-            return;
-        }
-
-        QPainterPath path;
-        for (int i = 0; i < m_samples.size(); ++i) {
-            const qreal x = m_samples.size() == 1
-                ? plot.right()
-                : plot.left() + plot.width() * i / (m_samples.size() - 1.0);
-            const qreal y = plot.bottom()
-                - plot.height() * qBound(0.0, m_samples.at(i), maxValue) / maxValue;
-            if (i == 0)
-                path.moveTo(x, y);
-            else
-                path.lineTo(x, y);
-        }
-
-        QPen linePen(palette().color(QPalette::Highlight));
-        linePen.setWidth(2);
-        painter.setPen(linePen);
-        painter.drawPath(path);
-        painter.setPen(palette().color(QPalette::Text));
-        painter.drawText(QRectF(plot.left(), plot.bottom() + 3.0, plot.width(), 18.0),
-                         Qt::AlignCenter, QStringLiteral("最近 15 秒（每 250 ms 采样）"));
-    }
-
-private:
-    QVector<double> m_samples;
-};
 
 namespace {
 QString metricKey(const QString &deviceId)
@@ -162,11 +84,6 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     chartLayout->setContentsMargins(0, 0, 0, 0);
     chartLayout->addWidget(m_trafficChartView);
 
-
-    auto *chartLayout = new QVBoxLayout(ui->trafficChartHost);
-    chartLayout->setContentsMargins(4, 4, 4, 4);
-    m_trafficChart = new TrafficRateChart(ui->trafficChartHost);
-    chartLayout->addWidget(m_trafficChart);
 
     ui->eventTable->setColumnCount(4);
     ui->eventTable->setHorizontalHeaderLabels({
