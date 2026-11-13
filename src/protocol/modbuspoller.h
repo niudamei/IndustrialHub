@@ -9,6 +9,8 @@
 #include <QPointer>
 #include <QTimer>
 
+class BusinessDataManager;
+
 class ModbusPoller : public QObject
 {
     Q_OBJECT
@@ -16,6 +18,7 @@ public:
     explicit ModbusPoller(ModbusMaster *master, QString deviceId,
                           QObject *parent = nullptr);
 
+    bool bindBusinessDataManager(BusinessDataManager *manager);
     bool setMappings(const QVector<ModbusRegisterMap::Mapping> &mappings,
                      QString *error = nullptr);
     QVector<ModbusRegisterMap::Mapping> mappings() const;
@@ -44,6 +47,8 @@ private:
     void finishCycle();
 
     QPointer<ModbusMaster> m_master;
+    QPointer<BusinessDataManager> m_businessDataManager;
+    QMetaObject::Connection m_businessConnection;
     QString m_deviceId;
     QVector<ModbusRegisterMap::Mapping> m_mappings;
     QHash<quint64, int> m_requestMapping;
