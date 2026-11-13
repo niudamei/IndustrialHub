@@ -192,6 +192,101 @@ BusinessPageResult loadBusinessPage(
     return result;
 }
 
+
+HistoryExportResult exportHistoryCsv(
+    const QString &databasePath, const QString &filePath, bool business,
+    const QDateTime &start, const QDateTime &end,
+    const QString &deviceId, const QString &filter)
+{
+    HistoryExportResult result;
+    ScopedHistoryDatabase connection;
+    connection.database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection.connectionName);
+    connection.database.setDatabaseName(databasePath);
+    connection.database.setConnectOptions(QStringLiteral("QSQLITE_BUSY_TIMEOUT=10000"));
+    if (!connection.database.open()) {
+        result.error = QStringLiteral("打开历史数据库失败：%1").arg(connection.database.lastError().text());
+        return result;
+    }
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        result.error = QStringLiteral("创建 CSV 文件失败：%1").arg(file.errorString());
+        return result;
+    }
+    auto writeLine = [&file](const QStringList &columns) {
+        const QByteArray line = columns.join(QLatin1Char(',')).toUtf8() + "\r\n";
+        return file.write(line) == line.size();
+    };
+    if (file.write(QByteArray::fromHex("EFBBBF")) != 3) {
+        result.error = QStringLiteral("写入 CSV 文件头失败：%1").arg(file.errorString());
+        return result;
+    }
+
+    QSqlQuery query(connection.database);
+    QString sql;
+    if (!business) {
+        sql = QStringLiteral("SELECT timestamp_ms, device_id, direction, payload FROM communication_history WHERE timestamp_ms >= ? AND timestamp_ms <= ?");
+        if (!deviceId.trimmed().isEmpty()) sql += QStringLiteral(" AND device_id = ?");
+        if (filter == QStringLiteral("TX") || filter == QStringLiteral("RX")) sql += QStringLiteral(" AND direction = ?");
+    } else {
+        sql = QStringLiteral("SELECT timestamp_ms, device_id, variable_id, variable_name, value, unit, quality, source_protocol FROM business_data_history WHERE timestamp_ms >= ? AND timestamp_ms <= ?");
+        if (!deviceId.trimmed().isEmpty()) sql += QStringLiteral(" AND device_id = ?");
+        if (!filter.trimmed().isEmpty()) sql += QStringLiteral(" AND variable_id = ?");
+    }
+    sql += QStringLiteral(" ORDER BY timestamp_ms ASC, id ASC");
+    query.prepare(sql);
+    int bind = 0;
+    query.bindValue(bind++, start.toMSecsSinceEpoch());
+    query.bindValue(bind++, end.toMSecsSinceEpoch());
+    if (!deviceId.trimmed().isEmpty()) query.bindValue(bind++, deviceId.trimmed());
+    if ((!business && (filter == QStringLiteral("TX") || filter == QStringLiteral("RX")))
+        || (business && !filter.trimmed().isEmpty())) query.bindValue(bind++, filter);
+    if (!query.exec()) {
+        result.error = QStringLiteral("执行全量导出查询失败：%1").arg(query.lastError().text());
+        return result;
+    }
+
+    if (!business) {
+        if (!writeLine({QStringLiteral("时间"), QStringLiteral("设备编号"), QStringLiteral("方向"), QStringLiteral("字节数"), QStringLiteral("原始数据 HEX")})) {
+            result.error = file.errorString(); return result;
+        }
+        while (query.next()) {
+            const QByteArray payload = query.value(3).toByteArray();
+            if (!writeLine({
+                csvEscape(QDateTime::fromMSecsSinceEpoch(query.value(0).toLongLong()).toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"))),
+                csvEscape(query.value(1).toString()), csvEscape(query.value(2).toString()),
+                csvEscape(QString::number(payload.size())),
+                csvEscape(QString::fromLatin1(payload.toHex(' ').toUpper()))})) {
+                result.error = QStringLiteral("写入 CSV 失败：%1").arg(file.errorString()); return result;
+            }
+            ++result.rows;
+        }
+    } else {
+        if (!writeLine({QStringLiteral("时间"), QStringLiteral("设备编号"), QStringLiteral("变量 ID"), QStringLiteral("变量名称"), QStringLiteral("数值"), QStringLiteral("单位"), QStringLiteral("质量"), QStringLiteral("来源协议")})) {
+            result.error = file.errorString(); return result;
+        }
+        while (query.next()) {
+            const int q = query.value(6).toInt();
+            const QString quality = q == static_cast<int>(DataQuality::Good) ? QStringLiteral("Good") : QString::number(q);
+            if (!writeLine({
+                csvEscape(QDateTime::fromMSecsSinceEpoch(query.value(0).toLongLong()).toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"))),
+                csvEscape(query.value(1).toString()), csvEscape(query.value(2).toString()),
+                csvEscape(query.value(3).toString()), csvEscape(QString::number(query.value(4).toDouble(), 'g', 12)),
+                csvEscape(query.value(5).toString()), csvEscape(quality), csvEscape(query.value(7).toString())})) {
+                result.error = QStringLiteral("写入 CSV 失败：%1").arg(file.errorString()); return result;
+            }
+            ++result.rows;
+        }
+    }
+    file.flush();
+    if (file.error() != QFileDevice::NoError) {
+        result.error = QStringLiteral("完成 CSV 文件写入失败：%1").arg(file.errorString());
+        return result;
+    }
+    file.close();
+    result.ok = true;
+    return result;
+}
+
 }
 
 HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
@@ -204,6 +299,9 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     connect(m_communicationWatcher, &QFutureWatcher<CommunicationPageResult>::finished,
             this, [this]() { applyCommunicationResult(m_communicationWatcher->result()); });
     m_businessWatcher = new QFutureWatcher<BusinessPageResult>(this);
+    m_exportWatcher = new QFutureWatcher<HistoryExportResult>(this);
+    connect(m_exportWatcher, &QFutureWatcher<HistoryExportResult>::finished, this,
+            [this]() { applyExportResult(m_exportWatcher->result()); });
     connect(m_businessWatcher, &QFutureWatcher<BusinessPageResult>::finished,
             this, [this]() { applyBusinessResult(m_businessWatcher->result()); });
 
@@ -244,6 +342,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     m_businessVariableCombo->addItem(QStringLiteral("电流"), QStringLiteral("current"));
     m_businessQueryButton = new QPushButton(QStringLiteral("查询"), filterGroup);
     m_businessExportButton = new QPushButton(QStringLiteral("导出当前页 CSV"), filterGroup);
+    m_businessExportAllButton = new QPushButton(QStringLiteral("导出全部筛选结果"), filterGroup);
     filterLayout->addWidget(new QLabel(QStringLiteral("开始时间："), filterGroup), 0, 0);
     filterLayout->addWidget(m_businessStartEdit, 0, 1);
     filterLayout->addWidget(new QLabel(QStringLiteral("结束时间："), filterGroup), 0, 2);
@@ -254,6 +353,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     filterLayout->addWidget(m_businessVariableCombo, 1, 3);
     filterLayout->addWidget(m_businessQueryButton, 0, 4);
     filterLayout->addWidget(m_businessExportButton, 1, 4);
+    filterLayout->addWidget(m_businessExportAllButton, 2, 4);
     businessLayout->addWidget(filterGroup);
 
     m_businessChartView = new QChartView(businessTab);
@@ -297,6 +397,8 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
             this, &HistoryPage::showNextBusinessPage);
     connect(m_businessExportButton, &QPushButton::clicked,
             this, &HistoryPage::exportBusinessCurrentPage);
+    connect(m_businessExportAllButton, &QPushButton::clicked,
+            this, &HistoryPage::exportBusinessAll);
 
     auto invalidateBusinessQuery = [this]() {
         m_businessOffset = 0;
@@ -359,6 +461,11 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
             this, &HistoryPage::showNextPage);
     connect(ui->exportButton, &QPushButton::clicked,
             this, &HistoryPage::exportCurrentPage);
+    m_communicationExportAllButton = new QPushButton(QStringLiteral("导出全部筛选结果"), ui->dataGroup);
+    if (auto *grid = qobject_cast<QGridLayout *>(ui->dataGroup->layout()))
+        grid->addWidget(m_communicationExportAllButton, 2, 5);
+    connect(m_communicationExportAllButton, &QPushButton::clicked,
+            this, &HistoryPage::exportCommunicationAll);
 
     auto invalidateCommunicationQuery = [this]() {
         m_offset = 0;
@@ -385,6 +492,8 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
         ui->exportButton->setEnabled(false);
         m_businessQueryButton->setEnabled(false);
         m_businessExportButton->setEnabled(false);
+        m_businessExportAllButton->setEnabled(false);
+        m_communicationExportAllButton->setEnabled(false);
     } else {
         queryHistory();
         queryBusinessHistory();
@@ -552,6 +661,65 @@ void HistoryPage::exportCurrentPage()
 
     QMessageBox::information(this, QStringLiteral("导出完成"),
         QStringLiteral("已导出当前页 %1 条通信记录。").arg(m_currentRecords.size()));
+}
+
+
+void HistoryPage::exportCommunicationAll()
+{
+    if (!m_dataManager || m_exportWatcher->isRunning()) return;
+    const QDate sd = ui->startDateTimeEdit->date();
+    const QDate ed = ui->endDateTimeEdit->date();
+    if (sd > ed) {
+        QMessageBox::warning(this, QStringLiteral("查询条件无效"), QStringLiteral("开始日期不能晚于结束日期。"));
+        return;
+    }
+    const QString name = QStringLiteral("communication_history_all_%1.csv").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString file = QFileDialog::getSaveFileName(this, QStringLiteral("导出全部通信历史"), name, QStringLiteral("CSV 文件 (*.csv)"));
+    if (file.isEmpty()) return;
+    const QDateTime start(sd, QTime(0, 0, 0));
+    const QDateTime end(ed, QTime(23, 59, 59, 999));
+    const QString direction = ui->directionCombo->currentText() == QStringLiteral("全部方向") ? QString() : ui->directionCombo->currentText();
+    const QString db = m_dataManager->databasePath();
+    const QString device = ui->deviceFilterEdit->text();
+    ui->resultLabel->setText(QStringLiteral("正在后台导出全部通信历史…"));
+    m_communicationExportAllButton->setEnabled(false);
+    m_exportWatcher->setFuture(QtConcurrent::run([db, file, start, end, device, direction]() {
+        return exportHistoryCsv(db, file, false, start, end, device, direction);
+    }));
+}
+
+void HistoryPage::exportBusinessAll()
+{
+    if (!m_dataManager || m_exportWatcher->isRunning()) return;
+    const QDateTime start = m_businessStartEdit->dateTime();
+    const QDateTime end = m_businessEndEdit->dateTime();
+    if (start > end) {
+        QMessageBox::warning(this, QStringLiteral("查询条件无效"), QStringLiteral("开始时间不能晚于结束时间。"));
+        return;
+    }
+    const QString name = QStringLiteral("business_data_history_all_%1.csv").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString file = QFileDialog::getSaveFileName(this, QStringLiteral("导出全部业务历史"), name, QStringLiteral("CSV 文件 (*.csv)"));
+    if (file.isEmpty()) return;
+    const QString db = m_dataManager->databasePath();
+    const QString device = m_businessDeviceEdit->text();
+    const QString variable = m_businessVariableCombo->currentData().toString();
+    m_businessResultLabel->setText(QStringLiteral("正在后台导出全部业务历史…"));
+    m_businessExportAllButton->setEnabled(false);
+    m_exportWatcher->setFuture(QtConcurrent::run([db, file, start, end, device, variable]() {
+        return exportHistoryCsv(db, file, true, start, end, device, variable);
+    }));
+}
+
+void HistoryPage::applyExportResult(const HistoryExportResult &result)
+{
+    m_communicationExportAllButton->setEnabled(true);
+    m_businessExportAllButton->setEnabled(true);
+    if (!result.ok) {
+        QMessageBox::warning(this, QStringLiteral("全量导出失败"), result.error);
+        return;
+    }
+    QMessageBox::information(this, QStringLiteral("导出完成"),
+        QStringLiteral("已导出全部筛选结果，共 %1 条记录。").arg(result.rows));
 }
 
 void HistoryPage::queryBusinessHistory()
