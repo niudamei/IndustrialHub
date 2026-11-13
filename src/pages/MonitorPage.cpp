@@ -9,6 +9,7 @@
 #include <QHeaderView>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStringList>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -85,6 +86,9 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     });
     connect(ui->pauseButton, &QPushButton::clicked,
             this, &MonitorPage::onPauseClicked);
+    ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
+    connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
+            this, &MonitorPage::onReceiveTimeoutChanged);
 
     if (m_deviceManager) {
         connect(m_deviceManager, &DeviceManager::devicesChanged,
@@ -237,6 +241,12 @@ void MonitorPage::onPauseClicked()
         : QStringLiteral("实时统计中"));
 }
 
+void MonitorPage::onReceiveTimeoutChanged(int seconds)
+{
+    m_receiveTimeoutMs = seconds * 1000;
+    updateLiveStatistics();
+}
+
 void MonitorPage::updateLiveStatistics()
 {
     refreshMetricsTable();
@@ -316,7 +326,7 @@ QString MonitorPage::receiveStateText(const DeviceMetrics &metrics, qint64 nowMs
         return QStringLiteral("未连接");
     if (metrics.lastReceiveMs <= 0)
         return QStringLiteral("等待数据");
-    if (nowMs - metrics.lastReceiveMs > ReceiveTimeoutMs)
+    if (nowMs - metrics.lastReceiveMs > m_receiveTimeoutMs)
         return QStringLiteral("接收超时");
     return QStringLiteral("通信正常");
 }
