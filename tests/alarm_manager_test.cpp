@@ -89,6 +89,9 @@ int main(int argc, char *argv[])
         CHECK(persisted.size() == 1);
         CHECK(persisted.first().id == triggeredId);
         CHECK(persisted.first().state == QStringLiteral("RECOVERED_ACK"));
+        CHECK(persisted.first().acknowledgedAt.isValid());
+        CHECK(persisted.first().acknowledgedBy == QStringLiteral("operator"));
+        CHECK(persisted.first().recoveredAt.isValid());
     }
 
     qInfo() << "Alarm manager tests passed.";
