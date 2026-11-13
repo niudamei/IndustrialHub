@@ -12,6 +12,9 @@
 class DeviceManager;
 class CommunicationManager;
 class QTimer;
+class QChartView;
+class QLineSeries;
+class QValueAxis;
 
 class MonitorPage : public QWidget
 {
