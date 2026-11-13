@@ -34,6 +34,7 @@ private:
     struct DeviceState {
         bool connected = false;
         bool online = false;
+        bool timeoutReported = false;
         qint64 connectedAtMs = 0;
         qint64 lastSeenMs = 0;
         QDateTime lastSeenTime;
