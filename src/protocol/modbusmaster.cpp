@@ -1,5 +1,9 @@
 #include "modbusmaster.h"
 
+#include "src/communication/communicationmanager.h"
+
+#include <utility>
+
 #include <QtGlobal>
 
 ModbusMaster::ModbusMaster(ModbusCodec::Transport transport, QObject *parent)
@@ -13,6 +17,53 @@ ModbusMaster::ModbusMaster(ModbusCodec::Transport transport, QObject *parent)
 void ModbusMaster::setSendFunction(SendFunction sender)
 {
     m_sender = std::move(sender);
+}
+
+bool ModbusMaster::bindDevice(CommunicationManager *manager,
+                              const QString &deviceId, quint8 unitId)
+{
+    unbindDevice();
+    if (!manager || deviceId.trimmed().isEmpty() || unitId < 1 || unitId > 247)
+        return false;
+    m_manager = manager;
+    m_deviceId = deviceId.trimmed();
+    m_unitId = unitId;
+    QPointer<CommunicationManager> guardedManager(manager);
+    const QString boundId = m_deviceId;
+    m_sender = [guardedManager, boundId](const QByteArray &frame, QString *error) {
+        if (!guardedManager) {
+            if (error) *error = QStringLiteral("通信管理器已销毁。");
+            return false;
+        }
+        return guardedManager->sendData(boundId, frame, error);
+    };
+    m_managerConnections.append(connect(manager, &CommunicationManager::deviceDataReceived,
+        this, [this, boundId](const QString &id, const QByteArray &data) {
+            if (id.compare(boundId, Qt::CaseInsensitive) == 0)
+                feedReceivedData(data);
+        }));
+    m_managerConnections.append(connect(manager, &CommunicationManager::deviceErrorOccurred,
+        this, [this, boundId](const QString &id, const QString &message) {
+            if (id.compare(boundId, Qt::CaseInsensitive) == 0 && m_hasActive)
+                failActive(QStringLiteral("底层通信错误：%1").arg(message));
+        }));
+    m_managerConnections.append(connect(manager, &CommunicationManager::deviceConnectionStateChanged,
+        this, [this, boundId](const QString &id, bool connected) {
+            if (id.compare(boundId, Qt::CaseInsensitive) == 0 && !connected)
+                cancelAll(QStringLiteral("Modbus 设备连接已断开。"));
+        }));
+    return true;
+}
+
+void ModbusMaster::unbindDevice()
+{
+    for (const QMetaObject::Connection &connection : m_managerConnections)
+        disconnect(connection);
+    m_managerConnections.clear();
+    m_manager.clear();
+    m_deviceId.clear();
+    m_sender = {};
+    cancelAll(QStringLiteral("Modbus 设备绑定已解除。"));
 }
 
 void ModbusMaster::setUnitId(quint8 unitId)
