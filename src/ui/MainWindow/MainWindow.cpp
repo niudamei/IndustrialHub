@@ -163,7 +163,8 @@ void MainWindow::init_class()
     alarmPage = new AlarmPage(m_alarmManager, this);
     historyPage = new HistoryPage(m_dataManager, this);
     configPage = new ConfigPage(m_deviceManager, m_communicationManager,
-                                m_protocolManager, this, m_deviceHealthMonitor);
+                                m_protocolManager, this, m_deviceHealthMonitor,
+                                m_businessDataManager, m_alarmManager);
     settingsPage = new SettingsPage(this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
