@@ -47,8 +47,10 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
             this, &MonitorPage::applyFilters);
     connect(ui->directionFilterCombo, &QComboBox::currentIndexChanged,
             this, &MonitorPage::applyFilters);
-    connect(ui->clearButton, &QPushButton::clicked,
-            ui->eventTable, &QTableWidget::setRowCount);
+    connect(ui->clearButton, &QPushButton::clicked, this, [this]() {
+        ui->eventTable->setRowCount(0);
+        applyFilters();
+    });
     connect(ui->pauseButton, &QPushButton::clicked,
             this, &MonitorPage::onPauseClicked);
 
