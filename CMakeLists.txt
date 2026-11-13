@@ -53,6 +53,7 @@ qt_add_executable(hhh
     src/protocol/protocolmanager.h src/protocol/protocolmanager.cpp
     src/protocol/modbuscodec.h src/protocol/modbuscodec.cpp
     src/protocol/modbusmaster.h src/protocol/modbusmaster.cpp
+    src/protocol/modbusregistermap.h src/protocol/modbusregistermap.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
@@ -265,6 +266,16 @@ if(BUILD_TESTING)
     target_include_directories(modbus_master_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(modbus_master_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME modbus_master_test COMMAND modbus_master_test)
+
+    add_executable(modbus_register_map_test
+        tests/modbus_register_map_test.cpp
+        src/protocol/modbusregistermap.h
+        src/protocol/modbusregistermap.cpp
+        src/protocol/businessdatapoint.h
+    )
+    target_include_directories(modbus_register_map_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(modbus_register_map_test PRIVATE Qt6::Core)
+    add_test(NAME modbus_register_map_test COMMAND modbus_register_map_test)
 
     add_executable(modbus_codec_test
         tests/modbus_codec_test.cpp
