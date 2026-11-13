@@ -88,6 +88,11 @@ void ModbusMaster::setTimeoutMs(int timeoutMs)
 }
 
 int ModbusMaster::timeoutMs() const { return m_timeoutMs; }
+void ModbusMaster::setInterRequestDelayMs(int delayMs)
+{
+    if (!isBusy()) m_interRequestDelayMs = qBound(0, delayMs, 1000);
+}
+int ModbusMaster::interRequestDelayMs() const { return m_interRequestDelayMs; }
 int ModbusMaster::pendingCount() const { return m_queue.size() + (m_hasActive ? 1 : 0); }
 bool ModbusMaster::isBusy() const { return m_hasActive || !m_queue.isEmpty(); }
 
@@ -300,7 +305,7 @@ void ModbusMaster::finishActive(const ModbusCodec::Response &response)
     emit requestCompleted(id, response);
     emit queueChanged(pendingCount());
     if (!isBusy()) emit busyChanged(false);
-    sendNext();
+    scheduleNext();
 }
 
 void ModbusMaster::failActive(const QString &reason)
@@ -312,7 +317,14 @@ void ModbusMaster::failActive(const QString &reason)
     emit requestFailed(id, reason);
     emit queueChanged(pendingCount());
     if (!isBusy()) emit busyChanged(false);
-    QTimer::singleShot(0, this, &ModbusMaster::sendNext);
+    scheduleNext();
+}
+
+void ModbusMaster::scheduleNext()
+{
+    const int delay = m_transport == ModbusCodec::Transport::Rtu
+        ? m_interRequestDelayMs : 0;
+    QTimer::singleShot(delay, this, &ModbusMaster::sendNext);
 }
 
 void ModbusMaster::onTimeout()
