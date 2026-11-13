@@ -341,13 +341,19 @@ bool AlarmManager::updateEventState(qint64 eventId, const QString &state,
                                     const QDateTime &time, const QString &user)
 {
     QSqlQuery query(m_database);
-    if (state == QStringLiteral("ACKNOWLEDGED")
-        || state == QStringLiteral("RECOVERED_ACK")) {
+    if (state == QStringLiteral("ACKNOWLEDGED")) {
         query.prepare(QStringLiteral(
             "UPDATE alarm_events SET state = ?, acknowledged_at_ms = ?, acknowledged_by = ? WHERE id = ?"));
         query.addBindValue(state);
         query.addBindValue(time.toMSecsSinceEpoch());
         query.addBindValue(user);
+        query.addBindValue(eventId);
+    } else if (state == QStringLiteral("RECOVERED_ACK")) {
+        // 报警已确认后恢复：保留原确认人和确认时间，只补写恢复时间。
+        query.prepare(QStringLiteral(
+            "UPDATE alarm_events SET state = ?, recovered_at_ms = ? WHERE id = ?"));
+        query.addBindValue(state);
+        query.addBindValue(time.toMSecsSinceEpoch());
         query.addBindValue(eventId);
     } else {
         query.prepare(QStringLiteral(
