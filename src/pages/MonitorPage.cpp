@@ -108,6 +108,8 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
             this, &MonitorPage::exportEventsToCsv);
     connect(ui->demoButton, &QPushButton::clicked,
             this, &MonitorPage::toggleDemoMode);
+    connect(ui->demoIntervalSpinBox, &QSpinBox::valueChanged,
+            this, &MonitorPage::onDemoIntervalChanged);
     ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
     connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onReceiveTimeoutChanged);
@@ -317,7 +319,7 @@ void MonitorPage::toggleDemoMode()
 {
     if (!m_demoTimer) {
         m_demoTimer = new QTimer(this);
-        m_demoTimer->setInterval(300);
+        m_demoTimer->setInterval(ui->demoIntervalSpinBox->value());
         connect(m_demoTimer, &QTimer::timeout,
                 this, &MonitorPage::generateDemoTraffic);
     }
@@ -356,8 +358,8 @@ void MonitorPage::toggleDemoMode()
         }
 
         ui->demoButton->setText(QStringLiteral("停止模拟"));
-        ui->monitorStateLabel->setText(QStringLiteral("模拟数据运行中（非真实设备）"));
-        m_demoDeviceIndex = 0;
+        ui->demoStatusLabel->setText(QStringLiteral("状态：运行中（仅虚拟数据）"));
+        ui->demoIntervalSpinBox->setEnabled(false);
         m_demoTimer->start();
         generateDemoTraffic();
     } else {
@@ -376,11 +378,18 @@ void MonitorPage::toggleDemoMode()
                         QStringLiteral("模拟数据已停止"));
         }
         ui->demoButton->setText(QStringLiteral("开始模拟"));
-        ui->monitorStateLabel->setText(QStringLiteral("模拟数据已停止"));
+        ui->demoStatusLabel->setText(QStringLiteral("状态：已停止"));
+        ui->demoIntervalSpinBox->setEnabled(true);
     }
 
     refreshDeviceFilter();
     updateLiveStatistics();
+}
+
+void MonitorPage::onDemoIntervalChanged(int milliseconds)
+{
+    if (m_demoTimer && m_demoMode)
+        m_demoTimer->setInterval(milliseconds);
 }
 
 void MonitorPage::generateDemoTraffic()
