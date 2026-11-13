@@ -5,11 +5,6 @@
 #include "src/pages/devicemanager.h"
 
 #include <QComboBox>
-#include <QChart>
-#include <QChartView>
-#include <QLineSeries>
-#include <QValueAxis>
-#include <QLegend>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
@@ -57,33 +52,6 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
       m_communicationManager(communicationManager)
 {
     ui->setupUi(this);
-
-    auto *chart = new QChart();
-    chart->setTitle(QStringLiteral("总接收帧率趋势（最近 15 秒）"));
-    chart->legend()->hide();
-    m_receiveRateSeries = new QLineSeries(chart);
-    m_receiveRateSeries->setName(QStringLiteral("RX FPS"));
-    chart->addSeries(m_receiveRateSeries);
-
-    m_receiveRateAxisX = new QValueAxis(chart);
-    m_receiveRateAxisX->setTitleText(QStringLiteral("时间（秒）"));
-    m_receiveRateAxisX->setRange(0.0, 15.0);
-    m_receiveRateAxisX->setLabelFormat("%.1f");
-    chart->addAxis(m_receiveRateAxisX, Qt::AlignBottom);
-    m_receiveRateSeries->attachAxis(m_receiveRateAxisX);
-
-    m_receiveRateAxisY = new QValueAxis(chart);
-    m_receiveRateAxisY->setTitleText(QStringLiteral("帧/秒"));
-    m_receiveRateAxisY->setRange(0.0, 10.0);
-    chart->addAxis(m_receiveRateAxisY, Qt::AlignLeft);
-    m_receiveRateSeries->attachAxis(m_receiveRateAxisY);
-
-    m_trafficChartView = new QChartView(chart, ui->trafficChartHost);
-    m_trafficChartView->setRenderHint(QPainter::Antialiasing);
-    auto *chartLayout = new QVBoxLayout(ui->trafficChartHost);
-    chartLayout->setContentsMargins(0, 0, 0, 0);
-    chartLayout->addWidget(m_trafficChartView);
-
 
     ui->eventTable->setColumnCount(4);
     ui->eventTable->setHorizontalHeaderLabels({
@@ -536,22 +504,6 @@ void MonitorPage::updateLiveStatistics()
         totalErrors += it->errorCount;
         if (it->connected)
             ++connectedCount;
-    }
-
-    double totalReceiveRate = 0.0;
-    for (auto it = m_deviceMetrics.cbegin(); it != m_deviceMetrics.cend(); ++it)
-        totalReceiveRate += receiveRate(it.value(), nowMs);
-    if (m_receiveRateSeries && m_receiveRateAxisX && m_receiveRateAxisY) {
-        const qreal x = static_cast<qreal>(m_chartSampleIndex++) * 0.25;
-        m_receiveRateSeries->append(x, totalReceiveRate);
-        while (m_receiveRateSeries->count() > 61)
-            m_receiveRateSeries->remove(0);
-        const qreal left = qMax<qreal>(0.0, x - 15.0);
-        m_receiveRateAxisX->setRange(left, qMax<qreal>(15.0, x));
-        qreal maxRate = 10.0;
-        for (const QPointF &point : m_receiveRateSeries->points())
-            maxRate = qMax(maxRate, point.y());
-        m_receiveRateAxisY->setRange(0.0, qMax<qreal>(10.0, qCeil(maxRate / 5.0) * 5.0));
     }
 
     ui->connectedCountLabel->setText(
