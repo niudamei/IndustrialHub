@@ -25,20 +25,44 @@
    </item>
    <item>
     <widget class="QGroupBox" name="demoGroup">
-     <property name="title"><string>模拟设备</string></property>
-     <layout class="QHBoxLayout" name="demoLayout">
+     <property name="title"><string>模拟设备（独立演示区）</string></property>
+     <layout class="QVBoxLayout" name="demoLayout">
       <item>
        <widget class="QLabel" name="demoDescriptionLabel">
-        <property name="text"><string>启动三台虚拟设备（CAN、CAN-FD、TCP），自动生成模拟收发数据；仅用于界面与通信流程演示，不连接真实硬件、不写入设备数据库。</string></property>
+        <property name="text"><string>无需连接真实硬件。启动后会创建 3 台仅存在于监控页面的虚拟设备，持续生成 TX/RX 数据，供事件记录、设备统计和实时趋势页面测试。模拟数据不会发送到真实设备，也不会写入设备数据库。</string></property>
         <property name="wordWrap"><bool>true</bool></property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="demoButton">
-        <property name="minimumSize"><size><width>120</width><height>32</height></size></property>
-        <property name="text"><string>开始模拟</string></property>
-        <property name="toolTip"><string>生成虚拟设备和通信数据，不连接真实硬件、不写入设备数据库</string></property>
-       </widget>
+       <layout class="QHBoxLayout" name="demoDeviceLayout">
+        <item><widget class="QLabel" name="demoCanLabel"><property name="text"><string>CAN 采集盒 1  |  DEMO-CAN-001</string></property></widget></item>
+        <item><widget class="QLabel" name="demoCanFdLabel"><property name="text"><string>CAN-FD 采集盒 2  |  DEMO-CANFD-002</string></property></widget></item>
+        <item><widget class="QLabel" name="demoTcpLabel"><property name="text"><string>导航控制器  |  DEMO-TCP-003</string></property></widget></item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="demoControlLayout">
+        <item><widget class="QLabel" name="demoIntervalLabel"><property name="text"><string>模拟周期：</string></property></widget></item>
+        <item>
+         <widget class="QSpinBox" name="demoIntervalSpinBox">
+          <property name="minimum"><number>100</number></property>
+          <property name="maximum"><number>3000</number></property>
+          <property name="singleStep"><number>100</number></property>
+          <property name="value"><number>300</number></property>
+          <property name="suffix"><string> ms</string></property>
+          <property name="toolTip"><string>每隔指定时间为三台模拟设备各生成一组 TX/RX 数据</string></property>
+         </widget>
+        </item>
+        <item><widget class="QLabel" name="demoStatusLabel"><property name="text"><string>状态：未启动</string></property></widget></item>
+        <item><spacer name="demoControlSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
+        <item>
+         <widget class="QPushButton" name="demoButton">
+          <property name="minimumSize"><size><width>130</width><height>34</height></size></property>
+          <property name="text"><string>开始模拟</string></property>
+          <property name="toolTip"><string>启动或停止三台虚拟设备的数据模拟</string></property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
