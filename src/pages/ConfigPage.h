@@ -6,12 +6,12 @@
 #include <QString>
 #include <QVector>
 #include "ui_configpage.h"
+#include "src/protocol/businessdatapoint.h"
 
 class DeviceManager;
 class CommunicationManager;
 class ProtocolManager;
 class QComboBox;
-struct BusinessDataPoint;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
