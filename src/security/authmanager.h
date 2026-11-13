@@ -40,7 +40,7 @@ public:
                  QString *error = nullptr);
     bool setUserRole(qint64 userId, const QString &role, QString *error = nullptr);
     bool setUserEnabled(qint64 userId, bool enabled, QString *error = nullptr);
-    QList<AuthUser> users(QString *error = nullptr) const;
+    QList<AuthUser> users(QString *error = nullptr) const;\n    QList<AuthAuditRecord> auditEntries(int limit = 500, QString *error = nullptr) const;
     void audit(const QString &action, const QString &target = QString(),
                const QString &detail = QString());
 
