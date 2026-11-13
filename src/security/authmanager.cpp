@@ -267,6 +267,8 @@ bool AuthManager::setUserRole(qint64 userId, const QString &role, QString *error
 {
     if (!roleExists(role))
         return setError(QStringLiteral("角色不存在。"), error);
+    if (userId == m_currentUser.id)
+        return setError(QStringLiteral("不能在当前会话中修改自己的角色，请由另一名管理员操作。"), error);
     QSqlQuery current(m_db);
     current.prepare(QStringLiteral("SELECT role FROM auth_users WHERE id=?"));
     current.addBindValue(userId);
