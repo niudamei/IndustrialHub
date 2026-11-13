@@ -28,6 +28,8 @@ public:
 private slots:
     void onDataSent(const QString &deviceId, const QByteArray &data);
     void onDataReceived(const QString &deviceId, const QByteArray &data);
+    void onConnectionStateChanged(const QString &deviceId, bool connected);
+    void onCommunicationError(const QString &deviceId, const QString &message);
     void updateTrend();
 
 private:
@@ -35,6 +37,13 @@ private:
     {
         QQueue<qint64> txTimes;
         QQueue<qint64> rxTimes;
+        quint64 txFrames = 0;
+        quint64 rxFrames = 0;
+        quint64 txBytes = 0;
+        quint64 rxBytes = 0;
+        quint64 errors = 0;
+        bool connected = false;
+        qint64 lastRxMs = 0;
     };
 
     void recordTraffic(const QString &deviceId, bool isTx);
