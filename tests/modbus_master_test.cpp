@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
     CommunicationManager manager;
     DeviceInfo loopbackDevice;
     loopbackDevice.devId = QStringLiteral("MODBUS-RTU-LOOPBACK");
-    loopbackDevice.commType = QStringLiteral("MODBUS-LOOPBACK");
+    loopbackDevice.commType = QStringLiteral("RS485");
     ModbusMaster boundMaster(Transport::Rtu);
     if (!manager.registerFactory(QStringLiteral("MODBUS-LOOPBACK"),
             [](QObject *parent) { return new ModbusLoopbackCommunication(parent); })) return 11;
