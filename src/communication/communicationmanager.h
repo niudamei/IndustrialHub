@@ -39,6 +39,7 @@ public:
 
 signals:
     void deviceConnectionStateChanged(const QString &deviceId, bool connected);
+    void deviceDataSent(const QString &deviceId, const QByteArray &data);
     void deviceDataReceived(const QString &deviceId, const QByteArray &data);
     void deviceErrorOccurred(const QString &deviceId, const QString &message);
 
