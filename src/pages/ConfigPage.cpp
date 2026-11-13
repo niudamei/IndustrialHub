@@ -46,8 +46,14 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     auto *diagnosticsLayout = new QVBoxLayout(diagnosticsGroup);
     auto *splitter = new QSplitter(Qt::Vertical, diagnosticsGroup);
     m_statisticsTable = new QTableWidget(splitter);
-    m_statisticsTable->setColumnCount(7);
-    m_statisticsTable->setHorizontalHeaderLabels({QStringLiteral("设备"),QStringLiteral("TX 次数"),QStringLiteral("RX 次数"),QStringLiteral("TX 字节"),QStringLiteral("RX 字节"),QStringLiteral("错误"),QStringLiteral("重连")});
+    m_statisticsTable->setColumnCount(14);
+    m_statisticsTable->setHorizontalHeaderLabels({
+        QStringLiteral("设备"), QStringLiteral("TX 总次数"), QStringLiteral("RX 总次数"),
+        QStringLiteral("TX 总字节"), QStringLiteral("RX 总字节"),
+        QStringLiteral("TX 帧/秒"), QStringLiteral("RX 帧/秒"),
+        QStringLiteral("TX 字节/秒"), QStringLiteral("RX 字节/秒"),
+        QStringLiteral("最近 RX"), QStringLiteral("RX 静默秒数"),
+        QStringLiteral("近 5 分钟错误"), QStringLiteral("错误率"), QStringLiteral("通信质量")});
     m_diagnosticsTable = new QTableWidget(splitter);
     m_diagnosticsTable->setColumnCount(5);
     m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});
@@ -99,6 +105,11 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     m_diagnosticsRefreshTimer->setInterval(300);
     connect(m_diagnosticsRefreshTimer, &QTimer::timeout,
             this, &ConfigPage::refreshDiagnostics);
+    m_qualityRefreshTimer = new QTimer(this);
+    m_qualityRefreshTimer->setInterval(1000);
+    connect(m_qualityRefreshTimer, &QTimer::timeout,
+            this, &ConfigPage::refreshDiagnostics);
+    m_qualityRefreshTimer->start();
     if (m_diagnostics) {
         connect(m_diagnostics, &CommunicationDiagnostics::diagnosticsChanged,
                 this, [this]() { m_diagnosticsRefreshTimer->start(); });
@@ -472,14 +483,33 @@ void ConfigPage::refreshDiagnostics()
     if (!m_diagnostics || !m_diagnostics->isReady()) return;
     const auto stats = m_diagnostics->statistics();
     m_statisticsTable->setUpdatesEnabled(false);
-    m_statisticsTable->setRowCount(stats.size());
-    for (int row=0; row<stats.size(); ++row) {
-        const auto &s=stats.at(row);
-        const QStringList values={s.deviceId,QString::number(s.txCount),QString::number(s.rxCount),
-            QString::number(s.txBytes),QString::number(s.rxBytes),QString::number(s.errorCount),
-            QString::number(s.reconnectCount)};
-        for(int col=0;col<values.size();++col)
-            m_statisticsTable->setItem(row,col,new QTableWidgetItem(values.at(col)));
+    m_statisticsTable->setRowCount(0);
+    int visibleRow = 0;
+    for (const auto &s : stats) {
+        if (!m_diagnosticsDeviceFilter->text().trimmed().isEmpty()
+            && !s.deviceId.contains(m_diagnosticsDeviceFilter->text().trimmed(), Qt::CaseInsensitive))
+            continue;
+        m_statisticsTable->insertRow(visibleRow);
+        const QString lastRx = s.lastRx.isValid()
+            ? s.lastRx.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))
+            : QStringLiteral("尚未收到");
+        const QString silence = s.lastRxSilenceMs >= 0
+            ? QString::number(s.lastRxSilenceMs / 1000.0, 'f', 1)
+            : QStringLiteral("-");
+        const QStringList values = {
+            s.deviceId, QString::number(s.txCount), QString::number(s.rxCount),
+            QString::number(s.txBytes), QString::number(s.rxBytes),
+            QString::number(s.txPerSecond, 'f', 2), QString::number(s.rxPerSecond, 'f', 2),
+            QString::number(s.txBytesPerSecond, 'f', 1), QString::number(s.rxBytesPerSecond, 'f', 1),
+            lastRx, silence, QString::number(s.recentErrorCount),
+            QStringLiteral("%1%").arg(QString::number(s.recentErrorRatePercent, 'f', 1)),
+            s.quality
+        };
+        for (int col = 0; col < values.size(); ++col)
+            m_statisticsTable->setItem(visibleRow, col, new QTableWidgetItem(values.at(col)));
+        if (auto *qualityItem = m_statisticsTable->item(visibleRow, 13))
+            qualityItem->setToolTip(s.qualityReason);
+        ++visibleRow;
     }
     m_statisticsTable->setUpdatesEnabled(true);
     const auto events=m_diagnostics->recentEvents(100, m_diagnosticsDeviceFilter->text(),
