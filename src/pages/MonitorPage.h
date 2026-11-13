@@ -13,6 +13,7 @@
 
 class DeviceManager;
 class CommunicationManager;
+class DeviceHealthMonitor;
 class QTimer;
 class QCheckBox;
 
@@ -23,6 +24,7 @@ class MonitorPage : public QWidget
 public:
     explicit MonitorPage(DeviceManager *deviceManager,
                          CommunicationManager *communicationManager,
+                         DeviceHealthMonitor *healthMonitor = nullptr,
                          QWidget *parent = nullptr);
     ~MonitorPage() override;
 
@@ -80,6 +82,7 @@ private:
     Ui::MonitorPage *ui = nullptr;
     DeviceManager *m_deviceManager = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
+    DeviceHealthMonitor *m_healthMonitor = nullptr;
     QTimer *m_statisticsTimer = nullptr;
     QTimer *m_demoTimer = nullptr;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
