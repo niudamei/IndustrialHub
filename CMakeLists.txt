@@ -50,6 +50,7 @@ qt_add_executable(hhh
     src/protocol/iprotocolparser.h
     src/protocol/jsonprotocolparser.h src/protocol/jsonprotocolparser.cpp
     src/protocol/protocolmanager.h src/protocol/protocolmanager.cpp
+    src/protocol/modbuscodec.h src/protocol/modbuscodec.cpp
     src/communication/icommunication.h src/communication/icommunication.cpp
     src/communication/simulatedcommunication.h src/communication/simulatedcommunication.cpp
     src/communication/tcpcommunication.h src/communication/tcpcommunication.cpp
