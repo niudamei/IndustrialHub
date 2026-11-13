@@ -250,10 +250,9 @@ void MainWindow::applyPermissions()
             button->setEnabled(canOperateMonitor);
     }
     const bool canAcknowledge = m_authManager->hasPermission(QStringLiteral("alarm.acknowledge"));
-    if (alarmPage) {
-        for (QPushButton *button : alarmPage->findChildren<QPushButton *>())
-            button->setEnabled(canAcknowledge);
-    }
+    const bool canManageAlarmRules = m_authManager->hasPermission(QStringLiteral("alarm.manage"));
+    if (alarmPage)
+        alarmPage->setPermissions(canManageAlarmRules, canAcknowledge);
     const bool canMaintainHistory = m_authManager->hasPermission(QStringLiteral("history.maintenance"));
     if (historyPage && !canMaintainHistory) {
         for (QPushButton *button : historyPage->findChildren<QPushButton *>()) {
