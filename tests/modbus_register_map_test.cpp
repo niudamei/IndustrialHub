@@ -52,6 +52,12 @@ int main(int argc, char *argv[])
     invalid = temperature;
     invalid.scale = qQNaN();
     if (validate(invalid, &error)) return 8;
+    invalid = temperature;
+    invalid.dataType = static_cast<DataType>(99);
+    if (validate(invalid, &error)) return 10;
+    invalid = temperature;
+    invalid.wordOrder = static_cast<WordOrder>(99);
+    if (validate(invalid, &error)) return 11;
     if (decode(temperature, {1}, QString(), "Modbus RTU", now, point, &error)) return 9;
     return 0;
 }
