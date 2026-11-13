@@ -300,7 +300,11 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
 
     auto invalidateBusinessQuery = [this]() {
         m_businessOffset = 0;
+        m_businessTotalCount = 0;
         m_businessCountValid = false;
+        m_businessPreviousButton->setEnabled(false);
+        m_businessNextButton->setEnabled(false);
+        m_businessResultLabel->setText(QStringLiteral("查询条件已修改，请点击查询"));
     };
     connect(m_businessStartEdit, &QDateTimeEdit::dateTimeChanged, this,
             [invalidateBusinessQuery](const QDateTime &) { invalidateBusinessQuery(); });
@@ -358,7 +362,11 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
 
     auto invalidateCommunicationQuery = [this]() {
         m_offset = 0;
+        m_totalCount = 0;
         m_communicationCountValid = false;
+        ui->previousButton->setEnabled(false);
+        ui->nextButton->setEnabled(false);
+        ui->resultLabel->setText(QStringLiteral("查询条件已修改，请点击查询"));
     };
     connect(ui->startDateTimeEdit, &QDateTimeEdit::dateChanged, this,
             [invalidateCommunicationQuery](const QDate &) { invalidateCommunicationQuery(); });
