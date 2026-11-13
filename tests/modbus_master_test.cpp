@@ -3,8 +3,79 @@
 #include <QTimer>
 #include <QVector>
 #include "src/protocol/modbusmaster.h"
+#include "src/communication/communicationmanager.h"
+#include "src/communication/icommunication.h"
+#include "src/pages/deviceinfo.h"
 
 using namespace ModbusCodec;
+
+
+class ModbusLoopbackCommunication : public ICommunication
+{
+public:
+    explicit ModbusLoopbackCommunication(QObject *parent = nullptr)
+        : ICommunication(parent) {}
+    bool open(const DeviceInfo &, QString *) override
+    {
+        m_open = true;
+        emit connectionStateChanged(true);
+        return true;
+    }
+    void close() override
+    {
+        if (!m_open) return;
+        m_open = false;
+        emit connectionStateChanged(false);
+    }
+    bool isOpen() const override { return m_open; }
+    bool sendData(const QByteArray &request, QString *) override
+    {
+        if (!m_open || request.size() < 8) return false;
+        const quint8 unit = static_cast<quint8>(request.at(0));
+        const quint8 function = static_cast<quint8>(
+            request.at(request.size() > 8 ? (request.size() - 6) : 1));
+        QByteArray response;
+        if (request.size() >= 12 && request.at(2) == 0 && request.at(3) == 0) {
+            const quint16 tid = (static_cast<quint8>(request.at(0)) << 8)
+                | static_cast<quint8>(request.at(1));
+            const quint8 tcpUnit = static_cast<quint8>(request.at(6));
+            const quint8 tcpFunction = static_cast<quint8>(request.at(7));
+            const quint16 quantity = (static_cast<quint8>(request.at(10)) << 8)
+                | static_cast<quint8>(request.at(11));
+            response.append(static_cast<char>((tid >> 8) & 0xFF));
+            response.append(static_cast<char>(tid & 0xFF));
+            response.append(QByteArray::fromHex("0000"));
+            response.append(static_cast<char>(0));
+            response.append(static_cast<char>(3 + quantity * 2));
+            response.append(static_cast<char>(tcpUnit));
+            response.append(static_cast<char>(tcpFunction));
+            response.append(static_cast<char>(quantity * 2));
+            for (quint16 i = 0; i < quantity; ++i) {
+                response.append(static_cast<char>(0));
+                response.append(static_cast<char>(0x2A + i));
+            }
+        } else {
+            const quint16 quantity = (static_cast<quint8>(request.at(4)) << 8)
+                | static_cast<quint8>(request.at(5));
+            response.append(static_cast<char>(unit));
+            response.append(static_cast<char>(function));
+            response.append(static_cast<char>(quantity * 2));
+            for (quint16 i = 0; i < quantity; ++i) {
+                response.append(static_cast<char>(0));
+                response.append(static_cast<char>(0x2A + i));
+            }
+            const quint16 crc = ModbusCodec::crc16(response);
+            response.append(static_cast<char>(crc & 0xFF));
+            response.append(static_cast<char>((crc >> 8) & 0xFF));
+        }
+        QTimer::singleShot(5, this, [this, response]() {
+            if (m_open) emit dataReceived(response);
+        });
+        return true;
+    }
+private:
+    bool m_open = false;
+};
 
 static QByteArray rtuReadResponse()
 {
@@ -93,5 +164,30 @@ int main(int argc, char *argv[])
     limited.cancelAll();
 
     master.cancelAll();
+
+    CommunicationManager manager;
+    manager.registerFactory(QStringLiteral("MODBUS-LOOPBACK"),
+        [](QObject *parent) { return new ModbusLoopbackCommunication(parent); });
+    DeviceInfo loopbackDevice;
+    loopbackDevice.devId = QStringLiteral("MODBUS-RTU-LOOPBACK");
+    loopbackDevice.commType = QStringLiteral("MODBUS-LOOPBACK");
+    ModbusMaster boundMaster(Transport::Rtu);
+    if (!boundMaster.bindDevice(&manager, loopbackDevice.devId, 1)
+        || !manager.connectDevice(loopbackDevice)) return 11;
+    bool boundComplete = false;
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     [&](quint64, const Response &r) {
+        boundComplete = r.ok && r.registers.size() == 2
+            && r.registers.at(0) == 0x2A && r.registers.at(1) == 0x2B;
+    });
+    boundMaster.setTimeoutMs(500);
+    if (boundMaster.readHoldingRegisters(0, 2) == 0) return 12;
+    QEventLoop boundLoop;
+    QTimer::singleShot(1000, &boundLoop, &QEventLoop::quit);
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     &boundLoop, &QEventLoop::quit);
+    boundLoop.exec();
+    if (!boundComplete) return 13;
+    manager.disconnectAll();
     return 0;
 }
