@@ -301,6 +301,9 @@ if(BUILD_TESTING)
         src/communication/udpcommunication.h
         src/communication/udpcommunication.cpp
         src/pages/deviceinfo.h
+        src/core/businessdatamanager.h
+        src/core/businessdatamanager.cpp
+        src/protocol/businessdatapoint.h
     )
     target_include_directories(modbus_poller_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(modbus_poller_test PRIVATE Qt6::Core Qt6::Network)
