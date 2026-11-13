@@ -245,21 +245,21 @@ void MainWindow::applyPermissions()
             button->setEnabled(canManageCommunication);
     }
     const bool canOperateMonitor = m_authManager->hasPermission(QStringLiteral("device.manage"));
-    if (monitorPage && !canOperateMonitor) {
+    if (monitorPage) {
         for (QPushButton *button : monitorPage->findChildren<QPushButton *>())
-            button->setEnabled(false);
+            button->setEnabled(canOperateMonitor);
     }
     const bool canAcknowledge = m_authManager->hasPermission(QStringLiteral("alarm.acknowledge"));
-    if (alarmPage && !canAcknowledge) {
+    if (alarmPage) {
         for (QPushButton *button : alarmPage->findChildren<QPushButton *>())
-            button->setEnabled(false);
+            button->setEnabled(canAcknowledge);
     }
     const bool canMaintainHistory = m_authManager->hasPermission(QStringLiteral("history.maintenance"));
     if (historyPage && !canMaintainHistory) {
         for (QPushButton *button : historyPage->findChildren<QPushButton *>()) {
             const QString text = button->text();
             if (text.contains(QStringLiteral("清理")) || text.contains(QStringLiteral("维护")))
-                button->setEnabled(false);
+                button->setEnabled(canMaintainHistory);
         }
     }
 
