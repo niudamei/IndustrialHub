@@ -6,6 +6,8 @@
 #include <QHash>
 #include <QObject>
 #include <QStringList>
+#include <QSet>
+#include <QTimer>
 #include <functional>
 
 // 管理多个设备各自的通信对象。
@@ -42,6 +44,7 @@ signals:
     void deviceDataSent(const QString &deviceId, const QByteArray &data);
     void deviceDataReceived(const QString &deviceId, const QByteArray &data);
     void deviceErrorOccurred(const QString &deviceId, const QString &message);
+    void deviceReconnecting(const QString &deviceId, int attempt, int delayMs);
 
 private:
     ICommunication *createCommunication(const QString &commType,
@@ -50,10 +53,17 @@ private:
     static QString deviceKey(const QString &deviceId);
     void attachSignals(const QString &deviceId, ICommunication *communication);
     bool setError(const QString &message, QString *errorMessage);
+    void scheduleReconnect(const QString &key);
+    void stopReconnect(const QString &key);
+    void attemptReconnect(const QString &key);
 
     QHash<QString, ICommunication *> m_communications;
     QHash<QString, QString> m_commTypes;
     QHash<QString, QString> m_deviceIds;
+    QHash<QString, DeviceInfo> m_deviceConfigs;
+    QHash<QString, QTimer *> m_reconnectTimers;
+    QHash<QString, int> m_reconnectAttempts;
+    QSet<QString> m_autoReconnectDevices;
     QHash<QString, CommunicationFactory> m_factories;
 };
 
