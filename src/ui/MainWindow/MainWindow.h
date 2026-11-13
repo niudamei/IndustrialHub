@@ -5,8 +5,9 @@
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
-class DashboardPage; class DevicePage; class DeviceManager; class CommunicationManager; class AlarmPage;
-class ConfigPage; class HistoryPage; class MonitorPage; class TrendPage; class SettingsPage;
+class DashboardPage; class DevicePage; class DeviceManager; class CommunicationManager;
+class DataManager; class AlarmPage; class ConfigPage; class HistoryPage; class MonitorPage;
+class TrendPage; class SettingsPage;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -20,6 +21,7 @@ private:
     Ui::MainWindow *ui = nullptr;
     DeviceManager *m_deviceManager = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
+    DataManager *m_dataManager = nullptr;
     DashboardPage *dashboardPage = nullptr;
     DevicePage *devicePage = nullptr;
     AlarmPage *alarmPage = nullptr;
