@@ -22,6 +22,8 @@
 #include <QSplitter>
 #include <QAbstractItemView>
 #include <QTimer>
+#include <QDateTimeEdit>
+#include <QLineEdit>
 #include <QFile>
 #include <QFileDialog>
 
@@ -49,13 +51,30 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     m_diagnosticsTable->setHorizontalHeaderLabels({QStringLiteral("时间"),QStringLiteral("设备"),QStringLiteral("类别"),QStringLiteral("级别"),QStringLiteral("事件详情")});
     for (QTableWidget *table : {m_statisticsTable,m_diagnosticsTable}) { table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows); table->setAlternatingRowColors(true); table->verticalHeader()->setVisible(false); table->horizontalHeader()->setStretchLastSection(true); }
     splitter->addWidget(m_statisticsTable); splitter->addWidget(m_diagnosticsTable); splitter->setStretchFactor(0,1); splitter->setStretchFactor(1,2);
-    auto *exportDiagnosticsButton = new QPushButton(QStringLiteral("导出最近诊断记录 CSV"), diagnosticsGroup);
+    auto *filterLayout = new QHBoxLayout;
+    filterLayout->addWidget(new QLabel(QStringLiteral("设备筛选："), diagnosticsGroup));
+    m_diagnosticsDeviceFilter = new QLineEdit(diagnosticsGroup);
+    m_diagnosticsDeviceFilter->setPlaceholderText(QStringLiteral("留空表示全部设备"));
+    filterLayout->addWidget(m_diagnosticsDeviceFilter, 1);
+    filterLayout->addWidget(new QLabel(QStringLiteral("开始："), diagnosticsGroup));
+    m_diagnosticsStart = new QDateTimeEdit(QDateTime::currentDateTime().addDays(-7), diagnosticsGroup);
+    m_diagnosticsStart->setCalendarPopup(true);
+    filterLayout->addWidget(m_diagnosticsStart);
+    filterLayout->addWidget(new QLabel(QStringLiteral("结束："), diagnosticsGroup));
+    m_diagnosticsEnd = new QDateTimeEdit(QDateTime::currentDateTime(), diagnosticsGroup);
+    m_diagnosticsEnd->setCalendarPopup(true);
+    filterLayout->addWidget(m_diagnosticsEnd);
+    auto *queryDiagnosticsButton = new QPushButton(QStringLiteral("查询"), diagnosticsGroup);
+    filterLayout->addWidget(queryDiagnosticsButton);
+    diagnosticsLayout->addLayout(filterLayout);
+    auto *exportDiagnosticsButton = new QPushButton(QStringLiteral("导出筛选结果 CSV（最多 1000 条）"), diagnosticsGroup);
     diagnosticsLayout->addWidget(exportDiagnosticsButton);
     diagnosticsLayout->addWidget(splitter);
     ui->verticalLayout->insertWidget(2, diagnosticsGroup, 2);
+    connect(queryDiagnosticsButton, &QPushButton::clicked, this, &ConfigPage::refreshDiagnostics);
     connect(exportDiagnosticsButton, &QPushButton::clicked, this, [this]() {
         if (!m_diagnostics) return;
-        const auto events = m_diagnostics->recentEvents(1000);
+        const auto events = m_diagnostics->recentEvents(1000, m_diagnosticsDeviceFilter->text(),\n            m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
         if (events.isEmpty()) { QMessageBox::information(this, QStringLiteral("没有记录"), QStringLiteral("当前没有可导出的诊断事件。")); return; }
         const QString name = QStringLiteral("communication_diagnostics_%1.csv").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
         const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("导出通信诊断"), name, QStringLiteral("CSV 文件 (*.csv)"));
@@ -454,7 +473,7 @@ void ConfigPage::refreshDiagnostics()
             m_statisticsTable->setItem(row,col,new QTableWidgetItem(values.at(col)));
     }
     m_statisticsTable->setUpdatesEnabled(true);
-    const auto events=m_diagnostics->recentEvents(100);
+    const auto events=m_diagnostics->recentEvents(100, m_diagnosticsDeviceFilter->text(),\n        m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
     m_diagnosticsTable->setUpdatesEnabled(false);
     m_diagnosticsTable->setRowCount(events.size());
     for(int row=0;row<events.size();++row) {
