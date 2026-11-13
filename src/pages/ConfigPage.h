@@ -62,6 +62,7 @@ private:
     QTableWidget *m_diagnosticsTable = nullptr;
     QTableWidget *m_statisticsTable = nullptr;
     QTimer *m_diagnosticsRefreshTimer = nullptr;
+    QTimer *m_qualityRefreshTimer = nullptr;
     QLineEdit *m_diagnosticsDeviceFilter = nullptr;
     QDateTimeEdit *m_diagnosticsStart = nullptr;
     QDateTimeEdit *m_diagnosticsEnd = nullptr;
