@@ -2,19 +2,26 @@
 #define TRENDPAGE_H
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QHash>
+#include <QPointF>
 #include <QString>
 #include <QStringList>
 #include <QQueue>
+#include <QVector>
 #include <QWidget>
 
 #include "ui_trendpage.h"
 
+class BusinessDataManager;
 class CommunicationManager;
+class QChart;
 class QChartView;
+class QLabel;
 class QLineSeries;
 class QValueAxis;
 class QTimer;
+class QTabWidget;
 
 class TrendPage : public QWidget
 {
@@ -22,6 +29,7 @@ class TrendPage : public QWidget
 
 public:
     explicit TrendPage(CommunicationManager *communicationManager,
+                       BusinessDataManager *businessDataManager,
                        QWidget *parent = nullptr);
     ~TrendPage() override;
 
@@ -30,6 +38,8 @@ private slots:
     void onDataReceived(const QString &deviceId, const QByteArray &data);
     void onConnectionStateChanged(const QString &deviceId, bool connected);
     void onCommunicationError(const QString &deviceId, const QString &message);
+    void onBusinessValuesUpdated(const QString &deviceId,
+                                 const QVector<BusinessDataPoint> &points);
     void updateTrend();
 
 private:
@@ -49,9 +59,12 @@ private:
     void recordTraffic(const QString &deviceId, bool isTx);
     void refreshDeviceList();
     int countRecent(const QQueue<qint64> &times, qint64 nowMs) const;
+    void setupBusinessTrend();
+    void updateBusinessTrend(qint64 nowMs);
 
     Ui::TrendPage *ui = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
+    BusinessDataManager *m_businessDataManager = nullptr;
     QTimer *m_timer = nullptr;
     QChartView *m_chartView = nullptr;
     QLineSeries *m_txSeries = nullptr;
@@ -60,6 +73,14 @@ private:
     QValueAxis *m_axisY = nullptr;
     QHash<QString, DeviceTraffic> m_traffic;
     quint64 m_sampleIndex = 0;
+
+    QTabWidget *m_businessTabs = nullptr;
+    QVector<QChart *> m_businessCharts;
+    QVector<QValueAxis *> m_businessAxisY;
+    QVector<QLabel *> m_businessStats;
+    QVector<QHash<QString, QLineSeries *>> m_businessSeries;
+    QHash<QString, qint64> m_lastBusinessTimestamp;
+    QHash<QString, QVector<QPointF>> m_businessSamples;
 };
 
 #endif // TRENDPAGE_H
