@@ -285,14 +285,19 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
                 this, &ConfigPage::refreshDeviceList);
         connect(m_deviceManager, &DeviceManager::deviceRemoved,
                 this, [this](const QString &deviceId) {
+            destroyModbusSession(deviceId);
             if (m_communicationManager) m_communicationManager->releaseDevice(deviceId);
+            updateModbusControls();
         });
         connect(m_deviceManager, &DeviceManager::deviceUpdated,
                 this, [this](const DeviceInfo &device) {
             const QString key = device.commType.toCaseFolded() + QChar(0x1f) + device.devAddr;
             const QString previous = m_communicationConfigByDevice.value(device.devId.toCaseFolded());
-            if ((!device.enabled || (!previous.isEmpty() && previous != key)) && m_communicationManager)
-                m_communicationManager->releaseDevice(device.devId);
+            if (!device.enabled || (!previous.isEmpty() && previous != key)) {
+                destroyModbusSession(device.devId);
+                if (m_communicationManager)
+                    m_communicationManager->releaseDevice(device.devId);
+            }
             m_communicationConfigByDevice.insert(device.devId.toCaseFolded(), key);
         });
     }
@@ -329,6 +334,16 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
 
 ConfigPage::~ConfigPage()
 {
+    const auto pollerKeys = m_modbusPollersByDevice.keys();
+    for (const QString &key : pollerKeys) {
+        if (auto *poller = m_modbusPollersByDevice.value(key))
+            poller->stop();
+    }
+    const auto masterKeys = m_modbusMastersByDevice.keys();
+    for (const QString &key : masterKeys) {
+        if (auto *master = m_modbusMastersByDevice.value(key))
+            master->cancelAll(QStringLiteral("通信配置页面正在关闭。"));
+    }
     delete ui;
 }
 
@@ -361,6 +376,7 @@ void ConfigPage::refreshDeviceList()
         ui->deviceCombo->setCurrentIndex(previousIndex);
 
     updateConnectionDisplay();
+    refreshModbusMappings();
 }
 
 void ConfigPage::onConnectClicked()
@@ -467,8 +483,18 @@ void ConfigPage::onConnectionStateChanged(const QString &deviceId, bool connecte
     // 在线/离线状态统一由 MainWindow 中的 DeviceHealthMonitor 判定，
     // 避免 TCP 握手或本地串口打开被误判为远端设备在线。
 
-    if (deviceId.compare(selectedDeviceId(), Qt::CaseInsensitive) == 0)
+    if (!connected) {
+        const QString key = deviceId.toCaseFolded();
+        if (auto *poller = m_modbusPollersByDevice.value(key)) {
+            poller->stop();
+            if (auto *master = m_modbusMastersByDevice.value(key))
+                master->cancelAll(QStringLiteral("Modbus 设备连接已断开。"));
+        }
+    }
+    if (deviceId.compare(selectedDeviceId(), Qt::CaseInsensitive) == 0) {
         updateConnectionDisplay();
+        updateModbusControls();
+    }
 }
 
 void ConfigPage::onDataReceived(const QString &deviceId, const QByteArray &data)
@@ -603,6 +629,7 @@ void ConfigPage::updateConnectionDisplay()
         ui->deviceAddressLabel->setText(QStringLiteral("--"));
         ui->sendHexEdit->setPlaceholderText(QStringLiteral("请选择设备"));
     }
+    updateModbusControls();
 }
 
 void ConfigPage::appendLog(const QString &message)
