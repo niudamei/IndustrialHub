@@ -1,7 +1,5 @@
 #include "modbuspoller.h"
 
-#include "src/core/businessdatamanager.h"
-
 #include <QSet>
 #include <utility>
 
@@ -24,7 +22,7 @@ bool ModbusPoller::bindBusinessDataManager(BusinessDataManager *manager)
         disconnect(m_businessConnection);
     m_businessDataManager = manager;
     if (!manager) {
-        m_businessConnection = {};
+        m_businessConnection = QMetaObject::Connection();
         return false;
     }
     m_businessConnection = connect(this, &ModbusPoller::pointsReady,
