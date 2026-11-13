@@ -3,6 +3,8 @@
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 
 #include "src/communication/communicationmanager.h"
 #include "src/core/communicationdiagnostics.h"
@@ -16,6 +18,45 @@ int main(int argc, char *argv[])
     const QString dbPath = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
                                .filePath(QStringLiteral("industrialhub.db"));
     QFile::remove(dbPath);
+    {
+        QSqlDatabase legacyDb = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"),
+                                                            QStringLiteral("legacy_seed"));
+        legacyDb.setDatabaseName(dbPath);
+        if (!legacyDb.open()) {
+            qCritical() << "FAIL: cannot create legacy diagnostics database";
+            return 1;
+        }
+        {
+            QSqlQuery seed(legacyDb);
+            if (!seed.exec(QStringLiteral(
+                    "CREATE TABLE communication_diagnostics ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp_ms INTEGER NOT NULL,"
+                    "device_id TEXT NOT NULL COLLATE NOCASE, category TEXT NOT NULL,"
+                    "severity TEXT NOT NULL, message TEXT NOT NULL,"
+                    "tx_bytes INTEGER NOT NULL DEFAULT 0, rx_bytes INTEGER NOT NULL DEFAULT 0)"))) {
+                qCritical() << "FAIL: cannot create legacy diagnostics schema" << seed.lastError();
+                return 1;
+            }
+            seed.prepare(QStringLiteral(
+                "INSERT INTO communication_diagnostics "
+                "(timestamp_ms,device_id,category,severity,message,tx_bytes,rx_bytes) "
+                "VALUES(?,?,?,?,?,?,?)"));
+            seed.addBindValue(QDateTime::currentMSecsSinceEpoch());
+            seed.addBindValue(QStringLiteral("LEGACY"));
+            seed.addBindValue(QStringLiteral("TX"));
+            seed.addBindValue(QStringLiteral("Info"));
+            seed.addBindValue(QStringLiteral("legacy row"));
+            seed.addBindValue(3);
+            seed.addBindValue(0);
+            if (!seed.exec()) {
+                qCritical() << "FAIL: cannot seed legacy diagnostics row" << seed.lastError();
+                return 1;
+            }
+        }
+        legacyDb.close();
+        legacyDb = QSqlDatabase();
+        QSqlDatabase::removeDatabase(QStringLiteral("legacy_seed"));
+    }
 
     CommunicationManager manager;
     {
@@ -44,15 +85,16 @@ int main(int argc, char *argv[])
 
     if (a.txCount != 1 || a.rxCount != 1 || a.txBytes != 4 || a.rxBytes != 7
         || a.errorCount != 1 || a.reconnectCount != 1
-        || b.txCount != 1 || b.txBytes != 2 || events.size() != 7
-        || deviceEvents.size() != 6 || timeEvents.size() != 7) {
+        || b.txCount != 1 || b.txBytes != 2 || events.size() != 8
+        || deviceEvents.size() != 6 || timeEvents.size() != 8) {
         qCritical() << "FAIL: unexpected statistics/events"
                     << a.txCount << a.rxCount << a.txBytes << a.rxBytes
                     << a.errorCount << a.reconnectCount << b.txCount << events.size();
         return 1;
     }
 
-    if (allStats.size() != 2
+    const auto legacy = diagnostics.statisticsFor(QStringLiteral("LEGACY"));
+    if (allStats.size() != 3 || legacy.txCount != 1 || legacy.txBytes != 3
         || a.txPerSecond <= 0.0 || a.rxPerSecond <= 0.0
         || a.txBytesPerSecond <= 0.0 || a.rxBytesPerSecond <= 0.0
         || !a.lastRx.isValid() || a.lastRxSilenceMs < 0
@@ -76,7 +118,8 @@ int main(int argc, char *argv[])
     {
         CommunicationDiagnostics reopened(nullptr);
         if (!reopened.isReady() || reopened.statisticsFor(QStringLiteral("DEV-A")).txCount != 1
-            || reopened.recentEvents(100).size() != 7
+            || reopened.recentEvents(100).size() != 8
+            || reopened.statisticsFor(QStringLiteral("LEGACY")).txBytes != 3
             || reopened.statisticsFor(QStringLiteral("DEV-A")).quality != QStringLiteral("警告")) {
             qCritical() << "FAIL: diagnostic events were not persisted across reopen";
             return 1;
