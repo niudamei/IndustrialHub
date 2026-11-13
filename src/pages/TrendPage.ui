@@ -39,6 +39,21 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="analysisGroup">
+     <property name="title"><string>通信质量与累计统计（自本页面运行起）</string></property>
+     <layout class="QVBoxLayout" name="analysisLayout">
+      <item><widget class="QLabel" name="analysisSummaryLabel"><property name="text"><string>累计 TX 0 帧 / 0 B    RX 0 帧 / 0 B    错误 0</string></property></widget></item>
+      <item>
+       <widget class="QTableWidget" name="analysisTable">
+        <property name="minimumSize"><size><width>0</width><height>150</height></size></property>
+        <property name="rowCount"><number>0</number></property>
+        <property name="columnCount"><number>9</number></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="noteLabel">
      <property name="text"><string>说明：TX 表示本软件向通信驱动提交且驱动接受的发送帧数，不代表远端已收到；RX 表示本软件实际收到的帧数。此图不是带宽、网络吞吐量或往返时延（RTT）。</string></property>
      <property name="wordWrap"><bool>true</bool></property>
