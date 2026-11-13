@@ -1,5 +1,7 @@
 #include "modbuscodec.h"
 
+#include <utility>
+
 namespace ModbusCodec {
 namespace {
 
