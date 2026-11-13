@@ -42,6 +42,7 @@ qt_add_executable(hhh
     src/pages/devicemanager.h src/pages/devicemanager.cpp
     src/database/devicedatabase.h src/database/devicedatabase.cpp
     src/core/datamanager.h src/core/datamanager.cpp
+    src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/protocol/businessdatapoint.h
     src/protocol/iprotocolparser.h
     src/protocol/jsonprotocolparser.h src/protocol/jsonprotocolparser.cpp
@@ -126,6 +127,16 @@ if(BUILD_TESTING)
     target_include_directories(communication_manager_smoke_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(communication_manager_smoke_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME communication_manager_smoke_test COMMAND communication_manager_smoke_test)
+
+    add_executable(business_data_manager_test
+        tests/business_data_manager_test.cpp
+        src/core/businessdatamanager.h
+        src/core/businessdatamanager.cpp
+        src/protocol/businessdatapoint.h
+    )
+    target_include_directories(business_data_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(business_data_manager_test PRIVATE Qt6::Core)
+    add_test(NAME business_data_manager_test COMMAND business_data_manager_test)
 
     add_executable(json_protocol_parser_test
         tests/json_protocol_parser_test.cpp
