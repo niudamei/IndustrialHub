@@ -2,6 +2,11 @@
 
 #include <QMetaObject>
 
+namespace {
+constexpr int MaxPendingSendRequests = 1024;
+constexpr qsizetype MaxPayloadBytes = 1024 * 1024;
+}
+
 CommunicationWorker::CommunicationWorker(Factory factory, QObject *parent)
     : QObject(parent),
       m_context(new QObject)
@@ -111,21 +116,38 @@ bool CommunicationWorker::sendData(const QByteArray &data, QString *errorMessage
             *errorMessage = QStringLiteral("设备尚未连接，发送请求未入队。");
         return false;
     }
+    if (data.size() > MaxPayloadBytes) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("单次发送数据超过 1 MiB 上限。");
+        return false;
+    }
+
+    const int pending = m_pendingSendRequests.fetchAndAddRelaxed(1);
+    if (pending >= MaxPendingSendRequests) {
+        m_pendingSendRequests.fetchAndAddRelaxed(-1);
+        if (errorMessage)
+            *errorMessage = QStringLiteral("设备发送队列已满（最多 1024 条），请降低发送频率。");
+        return false;
+    }
 
     QObject *context = m_context;
     const bool invoked = QMetaObject::invokeMethod(context, [this, data]() {
-        if (!m_communication)
-            return;
-        QString error;
-        if (m_communication->sendData(data, &error)) {
-            QMetaObject::invokeMethod(this, [this, data]() {
-                emit dataSent(data);
-            }, Qt::QueuedConnection);
+        if (m_communication) {
+            QString error;
+            if (m_communication->sendData(data, &error)) {
+                QMetaObject::invokeMethod(this, [this, data]() {
+                    emit dataSent(data);
+                }, Qt::QueuedConnection);
+            }
         }
+        m_pendingSendRequests.fetchAndAddRelaxed(-1);
     }, Qt::QueuedConnection);
 
-    if (!invoked && errorMessage)
-        *errorMessage = QStringLiteral("无法向设备 I/O 线程提交发送请求。");
+    if (!invoked) {
+        m_pendingSendRequests.fetchAndAddRelaxed(-1);
+        if (errorMessage)
+            *errorMessage = QStringLiteral("无法向设备 I/O 线程提交发送请求。");
+    }
     return invoked;
 }
 
