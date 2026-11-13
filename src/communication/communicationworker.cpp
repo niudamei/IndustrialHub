@@ -106,18 +106,31 @@ bool CommunicationWorker::sendData(const QByteArray &data, QString *errorMessage
             *errorMessage = QStringLiteral("通信工作线程尚未就绪。");
         return false;
     }
-    bool result = false;
-    QString error;
+    if (!isOpen()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("设备尚未连接，发送请求未入队。");
+        return false;
+    }
+
     QObject *context = m_context;
-    QMetaObject::invokeMethod(context, [this, &data, &result, &error]() {
-        if (m_communication)
-            result = m_communication->sendData(data, &error);
-        else
-            error = QStringLiteral("通信实例不存在。");
-    }, Qt::BlockingQueuedConnection);
-    if (errorMessage)
-        *errorMessage = error;
-    return result;
+    const bool invoked = QMetaObject::invokeMethod(context, [this, data]() {
+        if (!m_communication)
+            return;
+        QString error;
+        if (m_communication->sendData(data, &error)) {
+            QMetaObject::invokeMethod(this, [this, data]() {
+                emit dataSent(data);
+            }, Qt::QueuedConnection);
+        } else if (!error.isEmpty()) {
+            QMetaObject::invokeMethod(this, [this, error]() {
+                emit errorOccurred(error);
+            }, Qt::QueuedConnection);
+        }
+    }, Qt::QueuedConnection);
+
+    if (!invoked && errorMessage)
+        *errorMessage = QStringLiteral("无法向设备 I/O 线程提交发送请求。");
+    return invoked;
 }
 
 bool CommunicationWorker::isOpen() const
