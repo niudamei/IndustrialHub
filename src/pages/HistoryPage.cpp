@@ -728,7 +728,8 @@ void HistoryPage::exportCommunicationAll()
 
 void HistoryPage::exportBusinessAll()
 {
-    if (!m_dataManager || m_exportWatcher->isRunning()) return;
+    if (!m_dataManager || m_exportWatcher->isRunning()
+        || m_retentionCleanupWatcher->isRunning()) return;
     const QDateTime start = m_businessStartEdit->dateTime();
     const QDateTime end = m_businessEndEdit->dateTime();
     if (start > end) {
