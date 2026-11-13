@@ -2,9 +2,9 @@
 #define BUSINESSDATAPOINT_H
 
 #include <QDateTime>
+#include <QMetaType>
 #include <QString>
 #include <QVector>
-#include <QMetaType>
 
 // 业务变量质量状态。Bad 表示值不可用于控制或报警计算。
 enum class DataQuality
