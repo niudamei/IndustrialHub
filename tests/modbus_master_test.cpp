@@ -138,6 +138,34 @@ int main(int argc, char *argv[])
                      &boundLoop, &QEventLoop::quit);
     boundLoop.exec();
     if (!boundComplete) return 14;
+
+    bool writeComplete = false;
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     [&](quint64, const Response &response) {
+        writeComplete = response.ok && response.address == 0 && response.value == 300;
+    });
+    if (boundMaster.writeSingleRegister(0, 300) == 0) return 17;
+    QEventLoop writeLoop;
+    QTimer::singleShot(1000, &writeLoop, &QEventLoop::quit);
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     &writeLoop, &QEventLoop::quit);
+    writeLoop.exec();
+    if (!writeComplete) return 18;
+
+    bool readBackComplete = false;
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     [&](quint64, const Response &response) {
+        readBackComplete = response.ok && response.registers.size() == 1
+            && response.registers.at(0) == 300;
+    });
+    if (boundMaster.readHoldingRegisters(0, 1) == 0) return 19;
+    QEventLoop readBackLoop;
+    QTimer::singleShot(1000, &readBackLoop, &QEventLoop::quit);
+    QObject::connect(&boundMaster, &ModbusMaster::requestCompleted,
+                     &readBackLoop, &QEventLoop::quit);
+    readBackLoop.exec();
+    if (!readBackComplete) return 20;
+
     manager.disconnectAll();
     return 0;
 }
