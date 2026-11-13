@@ -79,7 +79,6 @@ private:
     QVector<QLabel *> m_businessStats;
     QVector<QHash<QString, QLineSeries *>> m_businessSeries;
     QHash<QString, qint64> m_lastBusinessTimestamp;
-    QHash<QString, QVector<QPointF>> m_businessSamples;
 };
 
 #endif // TRENDPAGE_H
