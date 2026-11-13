@@ -1,12 +1,11 @@
 #include "communicationmanager.h"
 
+#include "communicationworker.h"
 #include "simulatedcommunication.h"
 #include "tcpcommunication.h"
 #include "udpcommunication.h"
 #ifdef INDUSTRIALHUB_HAS_SERIALPORT
 #include "slcancommunication.h"
-#endif
-#ifdef INDUSTRIALHUB_HAS_SERIALPORT
 #include "rs485communication.h"
 #endif
 
@@ -48,6 +47,9 @@ CommunicationManager::CommunicationManager(QObject *parent)
 CommunicationManager::~CommunicationManager()
 {
     disconnectAll();
+    const QStringList keys = m_workers.keys();
+    for (const QString &key : keys)
+        releaseDevice(m_deviceIds.value(key));
 }
 
 bool CommunicationManager::registerFactory(const QString &commType,
@@ -56,7 +58,6 @@ bool CommunicationManager::registerFactory(const QString &commType,
     const QString key = commType.trimmed().toUpper();
     if (key.isEmpty() || !factory)
         return false;
-
     m_factories.insert(key, std::move(factory));
     return true;
 }
@@ -73,40 +74,40 @@ bool CommunicationManager::connectDevice(const DeviceInfo &device,
     if (commType.isEmpty())
         return setError(QStringLiteral("连接失败：设备通信类型不能为空。"), errorMessage);
 
-    ICommunication *communication = communicationFor(deviceId);
-    if (communication && m_commTypes.value(key) != commType) {
-        stopReconnect(key);
-        m_autoReconnectDevices.remove(key);
-        m_reconnectAttempts.insert(key, 0);
-        m_deviceConfigs.remove(key);
-        communication->close();
-        communication->deleteLater();
-        m_communications.remove(key);
-        m_commTypes.remove(key);
-        m_deviceIds.remove(key);
-        communication = nullptr;
+    CommunicationWorker *worker = m_workers.value(key, nullptr);
+    if (worker && m_commTypes.value(key) != commType) {
+        releaseDevice(deviceId);
+        worker = nullptr;
     }
 
-    if (!communication) {
-        communication = createCommunication(commType, errorMessage);
-        if (!communication)
-            return false;
+    if (!worker) {
+        const auto factory = m_factories.constFind(commType);
+        if (factory == m_factories.cend())
+            return setError(QStringLiteral("不支持的通信类型：%1").arg(commType), errorMessage);
 
-        communication->setParent(this);
-        m_communications.insert(key, communication);
+        worker = new CommunicationWorker(factory.value(), this);
+        if (!worker->isReady()) {
+            delete worker;
+            return setError(QStringLiteral("通信工作线程初始化失败：%1").arg(deviceId),
+                            errorMessage);
+        }
+        m_workers.insert(key, worker);
         m_commTypes.insert(key, commType);
         m_deviceIds.insert(key, deviceId);
-        attachSignals(deviceId, communication);
+        attachSignals(deviceId, worker);
     }
-
-    if (!communication->open(device, errorMessage))
-        return false;
 
     m_deviceConfigs.insert(key, device);
     if (commType == QStringLiteral("TCP"))
         m_autoReconnectDevices.insert(key);
     else
         m_autoReconnectDevices.remove(key);
+
+    if (!worker->open(device, errorMessage)) {
+        if (worker->isOpen())
+            m_connectedDevices.insert(key);
+        return false;
+    }
     return true;
 }
 
@@ -116,9 +117,9 @@ void CommunicationManager::disconnectDevice(const QString &deviceId)
     m_autoReconnectDevices.remove(key);
     stopReconnect(key);
     m_reconnectAttempts.insert(key, 0);
-    ICommunication *communication = communicationFor(deviceId);
-    if (communication)
-        communication->close();
+    CommunicationWorker *worker = m_workers.value(key, nullptr);
+    if (worker)
+        worker->close();
 }
 
 void CommunicationManager::disconnectAll()
@@ -127,10 +128,10 @@ void CommunicationManager::disconnectAll()
     const auto timerKeys = m_reconnectTimers.keys();
     for (const QString &key : timerKeys)
         stopReconnect(key);
-    const auto communications = m_communications.values();
-    for (ICommunication *communication : communications) {
-        if (communication)
-            communication->close();
+    const auto workers = m_workers.values();
+    for (CommunicationWorker *worker : workers) {
+        if (worker)
+            worker->close();
     }
 }
 
@@ -138,24 +139,23 @@ bool CommunicationManager::sendData(const QString &deviceId,
                                      const QByteArray &data,
                                      QString *errorMessage)
 {
-    ICommunication *communication = communicationFor(deviceId);
-    if (!communication) {
+    CommunicationWorker *worker = m_workers.value(deviceKey(deviceId), nullptr);
+    if (!worker) {
         return setError(QStringLiteral("发送失败：设备 %1 尚未创建通信实例。")
                             .arg(deviceId), errorMessage);
     }
-
-    if (!communication->sendData(data, errorMessage))
+    if (!worker->sendData(data, errorMessage))
         return false;
 
-    // 通信驱动接受发送请求后通知监控页面；这不代表远端已经收到数据。
     emit deviceDataSent(m_deviceIds.value(deviceKey(deviceId), deviceId), data);
     return true;
 }
 
 bool CommunicationManager::isConnected(const QString &deviceId) const
 {
-    ICommunication *communication = communicationFor(deviceId);
-    return communication && communication->isOpen();
+    const QString key = deviceKey(deviceId);
+    CommunicationWorker *worker = m_workers.value(key, nullptr);
+    return worker && m_connectedDevices.contains(key) && worker->isOpen();
 }
 
 QStringList CommunicationManager::managedDeviceIds() const
@@ -168,67 +168,46 @@ QStringList CommunicationManager::managedDeviceIds() const
 void CommunicationManager::releaseDevice(const QString &deviceId)
 {
     const QString key = deviceKey(deviceId);
-    ICommunication *communication = m_communications.take(key);
+    CommunicationWorker *worker = m_workers.take(key);
     m_commTypes.remove(key);
     m_deviceIds.remove(key);
     m_deviceConfigs.remove(key);
     m_autoReconnectDevices.remove(key);
+    m_connectedDevices.remove(key);
     stopReconnect(key);
-    QTimer *reconnectTimer = m_reconnectTimers.take(key);
-    if (reconnectTimer)
-        reconnectTimer->deleteLater();
+    QTimer *timer = m_reconnectTimers.take(key);
+    if (timer)
+        delete timer;
     m_reconnectAttempts.remove(key);
-    if (!communication)
+    if (!worker)
         return;
-
-    communication->close();
-    communication->deleteLater();
-}
-
-ICommunication *CommunicationManager::createCommunication(
-    const QString &commType, QString *errorMessage)
-{
-    const auto it = m_factories.constFind(commType);
-    if (it == m_factories.cend()) {
-        setError(QStringLiteral("不支持的通信类型：%1").arg(commType), errorMessage);
-        return nullptr;
-    }
-
-    ICommunication *communication = it.value()(nullptr);
-    if (!communication) {
-        setError(QStringLiteral("通信类型 %1 的工厂创建实例失败。").arg(commType),
-                 errorMessage);
-    }
-    return communication;
-}
-
-ICommunication *CommunicationManager::communicationFor(
-    const QString &deviceId) const
-{
-    return m_communications.value(deviceKey(deviceId), nullptr);
+    worker->close();
+    delete worker;
 }
 
 void CommunicationManager::attachSignals(const QString &deviceId,
-                                         ICommunication *communication)
+                                         CommunicationWorker *worker)
 {
     const QString key = deviceKey(deviceId);
-    connect(communication, &ICommunication::connectionStateChanged,
+    connect(worker, &CommunicationWorker::connectionStateChanged,
             this, [this, deviceId, key](bool connected) {
         if (connected) {
+            m_connectedDevices.insert(key);
             stopReconnect(key);
             m_reconnectAttempts.insert(key, 0);
         } else {
+            m_connectedDevices.remove(key);
             scheduleReconnect(key);
         }
         emit deviceConnectionStateChanged(deviceId, connected);
     });
 
-    connect(communication, &ICommunication::dataReceived,
+    connect(worker, &CommunicationWorker::dataReceived,
             this, [this, deviceId](const QByteArray &data) {
         emit deviceDataReceived(deviceId, data);
     });
 
-    connect(communication, &ICommunication::errorOccurred,
+    connect(worker, &CommunicationWorker::errorOccurred,
             this, [this, deviceId, key](const QString &message) {
         emit deviceErrorOccurred(deviceId, message);
         scheduleReconnect(key);
@@ -240,8 +219,8 @@ void CommunicationManager::scheduleReconnect(const QString &key)
     if (!m_autoReconnectDevices.contains(key) || !m_deviceConfigs.contains(key))
         return;
 
-    ICommunication *communication = m_communications.value(key, nullptr);
-    if (!communication || communication->isOpen())
+    CommunicationWorker *worker = m_workers.value(key, nullptr);
+    if (!worker || worker->isOpen())
         return;
 
     QTimer *timer = m_reconnectTimers.value(key, nullptr);
@@ -275,10 +254,10 @@ void CommunicationManager::attemptReconnect(const QString &key)
     if (!m_autoReconnectDevices.contains(key))
         return;
 
-    ICommunication *communication = m_communications.value(key, nullptr);
-    if (!communication)
+    CommunicationWorker *worker = m_workers.value(key, nullptr);
+    if (!worker)
         return;
-    if (communication->isOpen()) {
+    if (worker->isOpen()) {
         stopReconnect(key);
         m_reconnectAttempts.insert(key, 0);
         return;
@@ -286,7 +265,7 @@ void CommunicationManager::attemptReconnect(const QString &key)
 
     m_reconnectAttempts.insert(key, m_reconnectAttempts.value(key, 0) + 1);
     QString error;
-    if (!communication->open(m_deviceConfigs.value(key), &error)) {
+    if (!worker->open(m_deviceConfigs.value(key), &error)) {
         if (!error.isEmpty())
             emit deviceErrorOccurred(m_deviceIds.value(key), error);
         scheduleReconnect(key);
