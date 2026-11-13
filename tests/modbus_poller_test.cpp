@@ -2,6 +2,7 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <QVector>
+#include <QtMath>
 
 #include "src/protocol/modbusmaster.h"
 #include "src/protocol/modbuspoller.h"
