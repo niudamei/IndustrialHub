@@ -105,6 +105,7 @@ RemotePage::RemotePage(QWidget *parent)
     m_httpMethod->addItems({QStringLiteral("GET"), QStringLiteral("POST"),
                             QStringLiteral("PUT"), QStringLiteral("PATCH"),
                             QStringLiteral("DELETE")});
+    m_httpMethod->setCurrentText(QStringLiteral("POST"));
     m_httpUrl = new QLineEdit(QStringLiteral("http://127.0.0.1:8080/api/telemetry"), httpGroup);
     m_httpToken = new QLineEdit(httpGroup);
     m_httpToken->setEchoMode(QLineEdit::Password);
