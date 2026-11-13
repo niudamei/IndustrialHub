@@ -144,18 +144,23 @@ QString CommunicationDiagnostics::classifyError(const QString &message)
 }
 
 QList<CommunicationDiagnosticEvent> CommunicationDiagnostics::recentEvents(
-    int limit, const QString &deviceId) const
+    int limit, const QString &deviceId, const QDateTime &start, const QDateTime &end) const
 {
     QList<CommunicationDiagnosticEvent> result;
     if (!isReady()) return result;
     QSqlQuery q(m_database);
-    const bool filtered = !deviceId.trimmed().isEmpty();
+    QString where;
+    if (!deviceId.trimmed().isEmpty()) where += QStringLiteral("device_id=?");
+    if (start.isValid()) where += (where.isEmpty() ? QString() : QStringLiteral(" AND ")) + QStringLiteral("timestamp_ms>=?");
+    if (end.isValid()) where += (where.isEmpty() ? QString() : QStringLiteral(" AND ")) + QStringLiteral("timestamp_ms<=?");
     q.prepare(QStringLiteral(
         "SELECT id,timestamp_ms,device_id,category,severity,message "
         "FROM communication_diagnostics %1 ORDER BY timestamp_ms DESC,id DESC LIMIT ?")
-        .arg(filtered ? QStringLiteral("WHERE device_id=?") : QString()));
+        .arg(where.isEmpty() ? QString() : QStringLiteral("WHERE ") + where));
     int index = 0;
-    if (filtered) q.bindValue(index++, deviceId.trimmed());
+    if (!deviceId.trimmed().isEmpty()) q.bindValue(index++, deviceId.trimmed());
+    if (start.isValid()) q.bindValue(index++, start.toMSecsSinceEpoch());
+    if (end.isValid()) q.bindValue(index++, end.toMSecsSinceEpoch());
     q.bindValue(index, qBound(1, limit, 1000));
     if (!q.exec()) return result;
     while (q.next()) {
