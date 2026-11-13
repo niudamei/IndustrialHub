@@ -541,12 +541,6 @@ void MonitorPage::updateLiveStatistics()
     double totalReceiveRate = 0.0;
     for (auto it = m_deviceMetrics.cbegin(); it != m_deviceMetrics.cend(); ++it)
         totalReceiveRate += receiveRate(it.value(), nowMs);
-    m_totalRxRateHistory.append(totalReceiveRate);
-    while (m_totalRxRateHistory.size() > 60)
-        m_totalRxRateHistory.remove(0);
-    if (m_trafficChart)
-        m_trafficChart->setSamples(m_totalRxRateHistory);
-
     if (m_receiveRateSeries && m_receiveRateAxisX && m_receiveRateAxisY) {
         const qreal x = static_cast<qreal>(m_chartSampleIndex++) * 0.25;
         m_receiveRateSeries->append(x, totalReceiveRate);
