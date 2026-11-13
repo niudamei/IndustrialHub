@@ -10,6 +10,51 @@
 #include <iostream>
 #include <functional>
 
+#include <QThread>
+
+class ThreadProbeCommunication : public ICommunication
+{
+public:
+    explicit ThreadProbeCommunication(QObject *parent = nullptr)
+        : ICommunication(parent), m_ownerThread(QThread::currentThread()) {}
+
+    bool open(const DeviceInfo &, QString *) override
+    {
+        m_openThread = QThread::currentThread();
+        m_open = true;
+        emit connectionStateChanged(true);
+        return true;
+    }
+
+    void close() override
+    {
+        m_open = false;
+        emit connectionStateChanged(false);
+    }
+
+    bool isOpen() const override { return m_open; }
+
+    bool sendData(const QByteArray &data, QString *) override
+    {
+        m_sendThread = QThread::currentThread();
+        if (!m_open)
+            return false;
+        emit dataReceived(data);
+        return true;
+    }
+
+    QThread *ownerThread() const { return m_ownerThread; }
+    QThread *openThread() const { return m_openThread; }
+    QThread *sendThread() const { return m_sendThread; }
+
+private:
+    QThread *m_ownerThread = nullptr;
+    QThread *m_openThread = nullptr;
+    QThread *m_sendThread = nullptr;
+    bool m_open = false;
+};
+
+
 static bool waitUntil(const std::function<bool()> &condition, int timeoutMs)
 {
     QElapsedTimer timer;
@@ -154,6 +199,36 @@ int main(int argc, char *argv[])
     }
     std::cout << "PASS: TCP connection automatically recovers after an unexpected disconnect." << std::endl;
 
+    // 每个设备的驱动对象、open 和 send 都必须运行在独立 I/O 线程。
+    ThreadProbeCommunication *probe = nullptr;
+    if (!manager.registerFactory(QStringLiteral("THREAD-PROBE"),
+            [&probe](QObject *parent) {
+                probe = new ThreadProbeCommunication(parent);
+                return probe;
+            })) {
+        std::cerr << "FAIL: could not register thread probe factory." << std::endl;
+        return 16;
+    }
+    DeviceInfo probeDevice;
+    probeDevice.devId = QStringLiteral("THREAD-001");
+    probeDevice.commType = QStringLiteral("THREAD-PROBE");
+    if (!manager.connectDevice(probeDevice, &error)
+        || !waitUntil([&]() { return manager.isConnected(probeDevice.devId); }, 1000)) {
+        std::cerr << "FAIL: worker-thread probe device did not connect." << std::endl;
+        return 17;
+    }
+    if (!probe || probe->ownerThread() == QThread::currentThread()
+        || probe->ownerThread() != probe->openThread()) {
+        std::cerr << "FAIL: communication driver was not created/opened in its I/O thread." << std::endl;
+        return 18;
+    }
+    if (!manager.sendData(probeDevice.devId, QByteArray::fromHex("CAFE"), &error)
+        || probe->sendThread() != probe->ownerThread()) {
+        std::cerr << "FAIL: sendData did not execute in the device I/O thread." << std::endl;
+        return 19;
+    }
+    std::cout << "PASS: communication driver creation, open and send run off the UI thread." << std::endl;
+
     if (!manager.isConnected(simulated.devId) || !manager.isConnected(tcp.devId)) {
         std::cerr << "FAIL: managing one device affected another device." << std::endl;
         return 7;
@@ -177,6 +252,7 @@ int main(int argc, char *argv[])
 
     manager.releaseDevice(simulated.devId);
     manager.releaseDevice(tcp.devId);
+    manager.releaseDevice(probeDevice.devId);
     if (!manager.managedDeviceIds().isEmpty()) {
         std::cerr << "FAIL: released devices remain managed." << std::endl;
         return 11;
