@@ -165,6 +165,11 @@ bool CommunicationManager::isConnected(const QString &deviceId) const
     return worker && m_connectedDevices.contains(key) && worker->isOpen();
 }
 
+QString CommunicationManager::communicationType(const QString &deviceId) const
+{
+    return m_commTypes.value(deviceKey(deviceId));
+}
+
 QStringList CommunicationManager::managedDeviceIds() const
 {
     QStringList ids = m_deviceIds.values();
