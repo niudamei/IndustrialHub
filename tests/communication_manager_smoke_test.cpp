@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
     }
 
     QObject::connect(&server, &QTcpServer::newConnection, &server, [&]() {
-        QTcpSocket *peer = server.nextPendingConnection();
-        QObject::connect(peer, &QTcpSocket::readyRead, peer, [peer]() {
+        tcpPeer = server.nextPendingConnection();
+        QObject::connect(tcpPeer, &QTcpSocket::readyRead, tcpPeer, [peer = tcpPeer]() {
             peer->write(peer->readAll());
         });
     });
@@ -98,10 +98,17 @@ int main(int argc, char *argv[])
     QByteArray tcpRx;
     QByteArray tcpTx;
     bool tcpConnected = false;
+    bool tcpDisconnected = false;
+    int tcpConnectCount = 0;
+    QTcpSocket *tcpPeer = nullptr;
     QObject::connect(&manager, &CommunicationManager::deviceConnectionStateChanged,
                      [&](const QString &id, bool connected) {
-        if (id == tcp.devId && connected)
+        if (id == tcp.devId && connected) {
             tcpConnected = true;
+            ++tcpConnectCount;
+        } else if (id == tcp.devId) {
+            tcpDisconnected = true;
+        }
     });
     QObject::connect(&manager, &CommunicationManager::deviceDataSent,
                      [&](const QString &id, const QByteArray &data) {
@@ -128,6 +135,24 @@ int main(int argc, char *argv[])
         return 6;
     }
     std::cout << "PASS: manager publishes TCP TX and routes TCP RX data." << std::endl;
+
+    // TCP 连接意外中断后，管理器应按退避策略自动恢复连接。
+    if (!tcpPeer) {
+        std::cerr << "FAIL: TCP server did not accept the initial connection." << std::endl;
+        return 12;
+    }
+    const int initialConnectCount = tcpConnectCount;
+    tcpPeer->abort();
+    if (!waitUntil([&]() { return tcpDisconnected; }, 1000)) {
+        std::cerr << "FAIL: TCP disconnect event was not observed." << std::endl;
+        return 13;
+    }
+    if (!waitUntil([&]() { return tcpConnectCount > initialConnectCount
+                                  && manager.isConnected(tcp.devId); }, 5000)) {
+        std::cerr << "FAIL: TCP automatic reconnect did not restore the connection." << std::endl;
+        return 14;
+    }
+    std::cout << "PASS: TCP connection automatically recovers after an unexpected disconnect." << std::endl;
 
     if (!manager.isConnected(simulated.devId) || !manager.isConnected(tcp.devId)) {
         std::cerr << "FAIL: managing one device affected another device." << std::endl;
