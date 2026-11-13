@@ -261,4 +261,9 @@ ctest --test-dir build --output-on-failure
 
 ## Modbus 主站事务层
 
-新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。新增 ModbusRegisterMap，支持 UInt16/Int16/UInt32/Int32/Float32、ABCD/CDAB/BADC/DCBA 字序、缩放和偏移；新增 ModbusPoller，可按显式映射周期读取并输出 BusinessDataPoint，也可直接绑定 BusinessDataManager，使采集值进入统一最新值缓存和已有 SQLite 历史写入链路。当前尚未增加寄存器映射编辑器和轮询周期配置 UI，也未进行真实设备联调；实际寄存器地址、字节序和缩放仍必须依据设备手册。
+新增 ModbusMaster，可通过 bindDevice(CommunicationManager*, deviceId, unitId) 绑定现有 TCP 或 RS485 设备，也可注入发送函数用于模拟测试。主站采用单请求在途的串行队列，最多 1024 个待处理请求；支持 0x03/0x04/0x06/0x10，TCP 事务 ID 匹配、RTU/TCP 响应分帧、碎片接收、响应超时、异常码、底层通信错误和断线取消。写入响应会核对地址及回显值/数量。新增 ModbusRegisterMap，支持 UInt16/Int16/UInt32/Int32/Float32、ABCD/CDAB/BADC/DCBA 字序、缩放和偏移；新增 ModbusPoller，可按显式映射周期读取并批量输出 BusinessDataPoint，也可直接绑定 BusinessDataManager，使采集值进入统一最新值缓存和已有 SQLite 历史写入链路。通信配置页已增加寄存器映射编辑、单元地址、轮询间隔/超时、映射本地持久化和启动/停止控制。真实设备寄存器地址、字节序和缩放仍必须依据设备手册。
+
+
+## 离线 Modbus 模拟设备
+
+设备管理中可新增通信类型 MODBUS-SIM，设备地址填写 RTU 单元地址（1–247，留空默认 1）。该驱动在进程内模拟 Modbus RTU，不需要串口或真实硬件。连接后进入“通信配置”，点击“加载模拟示例映射”，即可轮询温度、电流、转速、状态和 Float32 示例寄存器；示例映射只适用于 MODBUS-SIM，不可直接套用到真实设备。轮询数据会进入 BusinessDataManager、报警规则评估及 SQLite 业务历史存储。真实设备可使用 TCP 或 RS485 设备配置，并按设备手册自行添加寄存器映射。
