@@ -397,6 +397,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
     auto *retentionLayout = new QGridLayout(retentionGroup);
     m_retentionCutoffEdit = new QDateEdit(QDate::currentDate().addDays(-180), retentionGroup);
     m_retentionCutoffEdit->setCalendarPopup(true);
+    m_retentionCutoffEdit->setMaximumDate(QDate::currentDate());
     m_retentionCutoffEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
     m_retentionPreviewButton = new QPushButton(QStringLiteral("统计并预览"), retentionGroup);
     m_retentionCleanupButton = new QPushButton(QStringLiteral("确认清理过期数据"), retentionGroup);
@@ -701,7 +702,8 @@ void HistoryPage::exportCurrentPage()
 
 void HistoryPage::exportCommunicationAll()
 {
-    if (!m_dataManager || m_exportWatcher->isRunning()) return;
+    if (!m_dataManager || m_exportWatcher->isRunning()
+        || m_retentionCleanupWatcher->isRunning()) return;
     const QDate sd = ui->startDateTimeEdit->date();
     const QDate ed = ui->endDateTimeEdit->date();
     if (sd > ed) {
@@ -764,7 +766,10 @@ void HistoryPage::previewHistoryCleanup()
 {
     if (!m_dataManager || !m_dataManager->isReady()
         || m_retentionPreviewWatcher->isRunning()
-        || m_retentionCleanupWatcher->isRunning())
+        || m_retentionCleanupWatcher->isRunning()
+        || (m_exportWatcher && m_exportWatcher->isRunning())
+        || (m_communicationWatcher && m_communicationWatcher->isRunning())
+        || (m_businessWatcher && m_businessWatcher->isRunning()))
         return;
     const QString databasePath = m_dataManager->databasePath();
     const QDateTime cutoff(m_retentionCutoffEdit->date(), QTime(0, 0, 0));
@@ -805,6 +810,9 @@ void HistoryPage::applyHistoryPreview(const HistoryStoragePreview &preview)
 void HistoryPage::startHistoryCleanup()
 {
     if (!m_dataManager || m_retentionCleanupWatcher->isRunning()
+        || m_exportWatcher->isRunning()
+        || m_communicationWatcher->isRunning()
+        || m_businessWatcher->isRunning()
         || !m_lastRetentionPreview.ok)
         return;
     const QDateTime cutoff(m_retentionCutoffEdit->date(), QTime(0, 0, 0));
