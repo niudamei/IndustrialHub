@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
     CHECK(timeoutSignals == 2, "first-frame and online silence timeouts are each emitted once");
     CHECK(!monitor.isOnline(QStringLiteral("DEV-B")), "device without a first RX frame remains offline");
 
+    monitor.setConnected(QStringLiteral("DEV-A"), false);
     monitor.markActivity(QStringLiteral("DEV-A"));
     CHECK(!monitor.isOnline(QStringLiteral("DEV-A")), "activity while disconnected does not mark online");
     monitor.setConnected(QStringLiteral("DEV-A"), true);
@@ -46,6 +47,12 @@ int main(int argc, char *argv[])
     CHECK(!monitor.isOnline(QStringLiteral("DEV-A")), "manual disconnect forces offline");
     CHECK(monitor.lastSeen(QStringLiteral("DEV-A")).isValid() == false,
           "manual disconnect clears stale last-seen timestamp");
+    const int timeoutCountAfterDisconnect = timeoutSignals;
+    QEventLoop disconnectWait;
+    QTimer::singleShot(400, &disconnectWait, &QEventLoop::quit);
+    disconnectWait.exec();
+    CHECK(timeoutSignals == timeoutCountAfterDisconnect,
+          "manual disconnect does not produce a later timeout event");
 
     std::cout << "ALL DEVICE HEALTH MONITOR TESTS PASSED." << std::endl;
     return 0;
