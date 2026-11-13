@@ -40,11 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_communicationManager, &CommunicationManager::deviceDataReceived,
             m_protocolManager,
             [this](const QString &deviceId, const QByteArray &payload) {
-        QString error;
-        if (!m_protocolManager->parseFrame(deviceId, payload, &error)
-            && !error.contains(QStringLiteral("尚未绑定协议解析器"))) {
-            // parseFailed 信号会将详细错误送到通信配置页面。
-        }
+        m_protocolManager->parseFrame(deviceId, payload);
     });
 
     connect(m_protocolManager, &ProtocolManager::businessDataDecoded,
