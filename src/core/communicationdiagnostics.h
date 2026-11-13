@@ -73,7 +73,7 @@ private:
     QSqlDatabase m_database;
     QString m_connectionName;
     QString m_databasePath;
-    QString m_lastError;
+    mutable QString m_lastError;
     bool m_ready = false;
 };
 
