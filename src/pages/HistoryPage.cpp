@@ -385,6 +385,10 @@ void HistoryPage::queryHistory()
     const bool refreshCount = !m_communicationCountValid;
 
     ui->queryButton->setEnabled(false);
+    ui->startDateTimeEdit->setEnabled(false);
+    ui->endDateTimeEdit->setEnabled(false);
+    ui->deviceFilterEdit->setEnabled(false);
+    ui->directionCombo->setEnabled(false);
     ui->exportButton->setEnabled(false);
     ui->previousButton->setEnabled(false);
     ui->nextButton->setEnabled(false);
@@ -399,6 +403,10 @@ void HistoryPage::queryHistory()
 void HistoryPage::applyCommunicationResult(const CommunicationPageResult &result)
 {
     ui->queryButton->setEnabled(true);
+    ui->startDateTimeEdit->setEnabled(true);
+    ui->endDateTimeEdit->setEnabled(true);
+    ui->deviceFilterEdit->setEnabled(true);
+    ui->directionCombo->setEnabled(true);
     ui->exportButton->setEnabled(!m_currentRecords.isEmpty());
     if (!result.ok) {
         QMessageBox::warning(this, QStringLiteral("查询失败"), result.error);
@@ -532,6 +540,10 @@ void HistoryPage::queryBusinessHistory()
     const int cachedCount = m_businessTotalCount;
     const bool refreshCount = !m_businessCountValid;
     m_businessQueryButton->setEnabled(false);
+    m_businessStartEdit->setEnabled(false);
+    m_businessEndEdit->setEnabled(false);
+    m_businessDeviceEdit->setEnabled(false);
+    m_businessVariableCombo->setEnabled(false);
     m_businessExportButton->setEnabled(false);
     m_businessPreviousButton->setEnabled(false);
     m_businessNextButton->setEnabled(false);
@@ -546,6 +558,10 @@ void HistoryPage::queryBusinessHistory()
 void HistoryPage::applyBusinessResult(const BusinessPageResult &result)
 {
     m_businessQueryButton->setEnabled(true);
+    m_businessStartEdit->setEnabled(true);
+    m_businessEndEdit->setEnabled(true);
+    m_businessDeviceEdit->setEnabled(true);
+    m_businessVariableCombo->setEnabled(true);
     m_businessExportButton->setEnabled(!m_businessRecords.isEmpty());
     if (!result.ok) {
         QMessageBox::warning(this, QStringLiteral("业务历史查询失败"), result.error);
