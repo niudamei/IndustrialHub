@@ -16,6 +16,8 @@ class ProtocolManager;
 class QComboBox;
 class QTableWidget;
 class QTimer;
+class QDateTimeEdit;
+class QLineEdit;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
@@ -58,6 +60,9 @@ private:
     QTableWidget *m_diagnosticsTable = nullptr;
     QTableWidget *m_statisticsTable = nullptr;
     QTimer *m_diagnosticsRefreshTimer = nullptr;
+    QLineEdit *m_diagnosticsDeviceFilter = nullptr;
+    QDateTimeEdit *m_diagnosticsStart = nullptr;
+    QDateTimeEdit *m_diagnosticsEnd = nullptr;
 };
 
 #endif // CONFIGPAGE_H
