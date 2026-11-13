@@ -24,6 +24,26 @@
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="demoGroup">
+     <property name="title"><string>模拟设备</string></property>
+     <layout class="QHBoxLayout" name="demoLayout">
+      <item>
+       <widget class="QLabel" name="demoDescriptionLabel">
+        <property name="text"><string>启动三台虚拟设备（CAN、CAN-FD、TCP），自动生成模拟收发数据；仅用于界面与通信流程演示，不连接真实硬件、不写入设备数据库。</string></property>
+        <property name="wordWrap"><bool>true</bool></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="demoButton">
+        <property name="minimumSize"><size><width>120</width><height>32</height></size></property>
+        <property name="text"><string>开始模拟</string></property>
+        <property name="toolTip"><string>生成虚拟设备和通信数据，不连接真实硬件、不写入设备数据库</string></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="metricsGroup">
      <property name="title"><string>设备通信状态与时间统计（250 ms 刷新，超时阈值可调整）</string></property>
      <layout class="QVBoxLayout" name="metricsLayout">
@@ -68,7 +88,6 @@
       </widget></item>
       <item><spacer name="filterSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
       <item><widget class="QPushButton" name="pauseButton"><property name="text"><string>暂停记录</string></property></widget></item>
-      <item><widget class="QPushButton" name="demoButton"><property name="text"><string>开始模拟</string></property><property name="toolTip"><string>生成虚拟设备和通信数据，不连接真实硬件、不写入设备数据库</string></property></widget></item>
       <item><widget class="QPushButton" name="exportButton"><property name="text"><string>导出 CSV</string></property></widget></item>
       <item><widget class="QPushButton" name="clearButton"><property name="text"><string>清空记录</string></property></widget></item>
      </layout>
