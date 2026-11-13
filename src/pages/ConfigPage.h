@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QString>
 #include <QVector>
+#include <QHash>
 #include "ui_configpage.h"
 #include "src/protocol/businessdatapoint.h"
 
@@ -48,6 +49,7 @@ private:
     CommunicationManager *m_communicationManager = nullptr;
     ProtocolManager *m_protocolManager = nullptr;
     QComboBox *m_parserCombo = nullptr;
+    QHash<QString, QString> m_communicationConfigByDevice;
 };
 
 #endif // CONFIGPAGE_H
