@@ -229,6 +229,46 @@ int main(int argc, char *argv[])
     }
     std::cout << "PASS: communication driver creation, open and send run off the UI thread." << std::endl;
 
+    // 首次 TCP 连接失败后，设备仍应进入自动重连流程。
+    QTcpServer lateServer;
+    if (!lateServer.listen(QHostAddress::LocalHost, 0)) {
+        std::cerr << "FAIL: could not reserve a port for initial-connect retry test." << std::endl;
+        return 20;
+    }
+    const quint16 latePort = lateServer.serverPort();
+    lateServer.close();
+
+    DeviceInfo lateTcp;
+    lateTcp.devId = QStringLiteral("TCP-LATE-001");
+    lateTcp.commType = QStringLiteral("TCP");
+    lateTcp.devAddr = QStringLiteral("127.0.0.1:%1").arg(latePort);
+    bool lateReconnectScheduled = false;
+    bool lateTcpConnected = false;
+    QObject::connect(&manager, &CommunicationManager::deviceReconnecting,
+                     [&](const QString &id, int, int) {
+        if (id == lateTcp.devId)
+            lateReconnectScheduled = true;
+    });
+    QObject::connect(&manager, &CommunicationManager::deviceConnectionStateChanged,
+                     [&](const QString &id, bool connected) {
+        if (id == lateTcp.devId && connected)
+            lateTcpConnected = true;
+    });
+    if (!manager.connectDevice(lateTcp, &error)
+        || !waitUntil([&]() { return lateReconnectScheduled; }, 2500)) {
+        std::cerr << "FAIL: initial TCP failure did not schedule automatic reconnect." << std::endl;
+        return 21;
+    }
+    if (!lateServer.listen(QHostAddress::LocalHost, latePort)) {
+        std::cerr << "FAIL: could not start TCP server after initial failure." << std::endl;
+        return 22;
+    }
+    if (!waitUntil([&]() { return lateTcpConnected && manager.isConnected(lateTcp.devId); }, 4000)) {
+        std::cerr << "FAIL: TCP did not recover after the initial connection failure." << std::endl;
+        return 23;
+    }
+    std::cout << "PASS: initial TCP connection failure is retried and recovers." << std::endl;
+
     if (!manager.isConnected(simulated.devId) || !manager.isConnected(tcp.devId)) {
         std::cerr << "FAIL: managing one device affected another device." << std::endl;
         return 7;
@@ -253,6 +293,7 @@ int main(int argc, char *argv[])
     manager.releaseDevice(simulated.devId);
     manager.releaseDevice(tcp.devId);
     manager.releaseDevice(probeDevice.devId);
+    manager.releaseDevice(lateTcp.devId);
     if (!manager.managedDeviceIds().isEmpty()) {
         std::cerr << "FAIL: released devices remain managed." << std::endl;
         return 11;
