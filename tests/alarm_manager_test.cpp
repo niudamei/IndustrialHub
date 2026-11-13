@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
         events = manager.events();
         CHECK(events.first().state == QStringLiteral("ACKNOWLEDGED"));
         CHECK(events.first().acknowledgedBy == QStringLiteral("operator"));
+        CHECK(!manager.removeRule(rule.ruleId, &error));
+        CHECK(error.contains(QStringLiteral("活动报警")));
 
         // 禁用规则后不再触发新报警，但已有报警在数据恢复时仍应闭环。
         CHECK(manager.setRuleEnabled(rule.ruleId, false, &error));
