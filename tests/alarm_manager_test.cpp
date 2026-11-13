@@ -48,6 +48,14 @@ int main(int argc, char *argv[])
         QString error;
         CHECK(manager.addRule(rule, &error));
 
+        // 禁用规则后不应触发报警，重新启用后才恢复阈值判断。
+        CHECK(manager.setRuleEnabled(rule.ruleId, false, &error));
+        CHECK(!manager.rules().first().enabled);
+        manager.evaluateDataPoints(rule.deviceId, {point(90.0)});
+        CHECK(manager.events().isEmpty());
+        CHECK(manager.setRuleEnabled(rule.ruleId, true, &error));
+        CHECK(manager.rules().first().enabled);
+
         manager.evaluateDataPoints(rule.deviceId, {point(85.0, DataQuality::Uncertain)});
         CHECK(manager.events().isEmpty()); // 不可信数据不能触发报警
 
