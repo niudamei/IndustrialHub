@@ -8,6 +8,7 @@
 #include "src/pages/ConfigPage.h"
 #include "src/pages/HistoryPage.h"
 #include "src/pages/MonitorPage.h"
+#include "src/pages/TrendPage.h"
 #include "src/pages/SettingsPage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
@@ -55,6 +56,7 @@ void MainWindow::init_class()
     dashboardPage = new DashboardPage(this);
     devicePage = new DevicePage(m_deviceManager, this);
     monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
+    trendPage = new TrendPage(m_communicationManager, this);
     alarmPage = new AlarmPage(this);
     historyPage = new HistoryPage(this);
     configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
@@ -64,16 +66,17 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
     ui->stackedWidget->addWidget(devicePage);    // 1 设备管理
     ui->stackedWidget->addWidget(monitorPage);   // 2 实时监控
-    ui->stackedWidget->addWidget(alarmPage);     // 3 报警中心
-    ui->stackedWidget->addWidget(historyPage);   // 4 历史数据
-    ui->stackedWidget->addWidget(configPage);    // 5 通信配置
-    ui->stackedWidget->addWidget(settingsPage);  // 6 系统设置
+    ui->stackedWidget->addWidget(trendPage);     // 3 实时趋势
+    ui->stackedWidget->addWidget(alarmPage);     // 4 报警中心
+    ui->stackedWidget->addWidget(historyPage);   // 5 历史数据
+    ui->stackedWidget->addWidget(configPage);    // 6 通信配置
+    ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
     ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
-        QStringLiteral("实时监控"), QStringLiteral("报警中心"), QStringLiteral("历史数据"),
-        QStringLiteral("通信配置"), QStringLiteral("系统设置")});
+        QStringLiteral("实时监控"), QStringLiteral("实时趋势"), QStringLiteral("报警中心"),
+        QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置")});
     for (int i = 0; i < ui->listWidget->count(); ++i)
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
