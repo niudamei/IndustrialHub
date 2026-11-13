@@ -30,7 +30,8 @@ bool ModbusMaster::bindDevice(CommunicationManager *manager,
     const QString commType = manager->communicationType(deviceId).trimmed().toUpper();
     const bool compatible = m_transport == ModbusCodec::Transport::Tcp
         ? commType == QStringLiteral("TCP")
-        : (commType == QStringLiteral("RS485") || commType == QStringLiteral("SERIAL"));
+        : (commType == QStringLiteral("RS485") || commType == QStringLiteral("SERIAL")
+            || commType == QStringLiteral("MODBUS-SIM"));
     if (!compatible) return false;
     m_manager = manager;
     m_deviceId = deviceId.trimmed();
