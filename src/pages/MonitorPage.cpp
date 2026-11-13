@@ -25,9 +25,9 @@
 #include <QStringList>
 #include <QTableWidgetItem>
 #include <QTimer>
+#include <QtMath>
 #include <QVBoxLayout>
 
-namespace {
 class TrafficRateChart : public QWidget
 {
 public:
@@ -111,6 +111,7 @@ private:
     QVector<double> m_samples;
 };
 
+namespace {
 QString metricKey(const QString &deviceId)
 {
     return deviceId.trimmed().toCaseFolded();
