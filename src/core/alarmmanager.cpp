@@ -194,6 +194,32 @@ bool AlarmManager::removeRule(const QString &ruleId)
     return false;
 }
 
+bool AlarmManager::setRuleEnabled(const QString &ruleId, bool enabled,
+                                   QString *errorMessage)
+{
+    const QString key = normalized(ruleId);
+    for (int i = 0; i < m_rules.size(); ++i) {
+        if (normalized(m_rules.at(i).ruleId) != key)
+            continue;
+
+        QSqlQuery update(m_database);
+        update.prepare(QStringLiteral(
+            "UPDATE alarm_rules SET enabled = ? WHERE rule_id = ?"));
+        update.addBindValue(enabled ? 1 : 0);
+        update.addBindValue(m_rules.at(i).ruleId);
+        if (!update.exec())
+            return writeError(QStringLiteral("更新报警规则状态失败：%1")
+                                  .arg(update.lastError().text()), errorMessage);
+        if (update.numRowsAffected() != 1)
+            return writeError(QStringLiteral("报警规则不存在或状态未更新。"), errorMessage);
+
+        m_rules[i].enabled = enabled;
+        emit rulesChanged();
+        return true;
+    }
+    return writeError(QStringLiteral("未找到指定的报警规则：%1").arg(ruleId), errorMessage);
+}
+
 QList<AlarmRule> AlarmManager::rules() const
 {
     return m_rules;
