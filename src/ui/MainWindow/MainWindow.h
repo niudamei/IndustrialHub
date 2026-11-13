@@ -6,7 +6,7 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 class DashboardPage; class DevicePage; class DeviceManager; class CommunicationManager; class AlarmPage;
-class ConfigPage; class HistoryPage; class MonitorPage; class SettingsPage;
+class ConfigPage; class HistoryPage; class MonitorPage; class TrendPage; class SettingsPage;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -26,6 +26,7 @@ private:
     ConfigPage *configPage = nullptr;
     HistoryPage *historyPage = nullptr;
     MonitorPage *monitorPage = nullptr;
+    TrendPage *trendPage = nullptr;
     SettingsPage *settingsPage = nullptr;
     CustomLabel *m_statusLabel = nullptr;
 };
