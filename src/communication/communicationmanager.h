@@ -23,10 +23,12 @@ public:
     ~CommunicationManager() override;
 
     bool registerFactory(const QString &commType, CommunicationFactory factory);
+    // true 表示驱动已接受连接请求；TCP 远端握手结果通过状态信号异步返回。
     bool connectDevice(const DeviceInfo &device, QString *errorMessage = nullptr);
     void disconnectDevice(const QString &deviceId);
     void disconnectAll();
 
+    // true 表示 TX 请求已进入设备工作线程队列；实际写入成功后发出 deviceDataSent。
     bool sendData(const QString &deviceId,
                   const QByteArray &data,
                   QString *errorMessage = nullptr);
