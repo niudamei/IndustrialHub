@@ -820,6 +820,12 @@ void ConfigPage::loadSimulatedModbusMappings()
         return;
     }
 
+    if (!m_modbusMappingsByDevice.value(deviceId.toCaseFolded()).isEmpty()
+        && QMessageBox::question(this, QStringLiteral("覆盖现有映射"),
+            QStringLiteral("加载模拟示例会替换当前设备已有的寄存器映射，是否继续？"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+
     QVector<ModbusRegisterMap::Mapping> mappings;
     auto add = [&mappings](const QString &id, const QString &name, const QString &unit,
                            quint16 address, ModbusRegisterMap::DataType type, double scale) {
@@ -884,8 +890,9 @@ void ConfigPage::startModbusPolling()
     destroyModbusSession(deviceId);
     int unitId = m_modbusUnitIdSpin->value();
     if (type == QStringLiteral("MODBUS-SIM")) {
-        bool ok = false;
-        const int configured = device.devAddr.trimmed().toInt(&ok);
+        bool ok = true;
+        const int configured = device.devAddr.trimmed().isEmpty()
+            ? 1 : device.devAddr.trimmed().toInt(&ok);
         if (!ok || configured < 1 || configured > 247) {
             QMessageBox::warning(this, QStringLiteral("模拟设备地址无效"),
                                  QStringLiteral("MODBUS-SIM 的设备地址必须是 1–247。"));
