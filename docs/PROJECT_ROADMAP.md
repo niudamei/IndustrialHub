@@ -83,7 +83,8 @@
 - [x] 增加 Modbus RTU/TCP 帧编码与响应解码基础（0x03/0x04/0x06/0x10），包含 RTU CRC16、TCP MBAP 校验和异常响应。
 - [x] 增加 Modbus 编解码自动化测试目标。
 - [x] 增加 ModbusMaster 串行请求队列、TCP 事务 ID 匹配、RTU/TCP 分帧、碎片接收、响应超时、异常响应与断线取消，并提供 CommunicationManager 设备绑定接口。
-- [ ] 增加寄存器映射配置、周期轮询 UI 和真实 RS485/TCP 设备联调。
+- [x] 增加寄存器映射配置、周期轮询 UI、MODBUS-SIM 离线 RTU 驱动及业务数据/报警/历史链路集成。
+- [ ] 真实 RS485/TCP Modbus 设备联调。
 - [ ] 按真实需求增加 MQTT、WebSocket。
 
 ### P5：产品化
