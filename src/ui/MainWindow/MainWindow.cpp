@@ -19,7 +19,9 @@
 #include "src/security/authmanager.h"
 #include "src/security/logindialog.h"
 #include "src/security/usermanagementpage.h"
-#include "src/remote/remotepage.h"\n#include "src/plugins/pluginmanager.h"\n#include "src/plugins/pluginpage.h"
+#include "src/remote/remotepage.h"
+#include "src/plugins/pluginmanager.h"
+#include "src/plugins/pluginpage.h"
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QDebug>
@@ -191,7 +193,8 @@ void MainWindow::onNavigationClicked(int index)
         QStringLiteral("monitor.view"), QStringLiteral("trend.view"),
         QStringLiteral("alarm.view"), QStringLiteral("history.view"),
         QStringLiteral("communication.view"), QStringLiteral("system.manage"),
-        QStringLiteral("remote.manage"), QStringLiteral("users.manage"),\n        QStringLiteral("plugins.manage")
+        QStringLiteral("remote.manage"), QStringLiteral("users.manage"),
+        QStringLiteral("plugins.manage")
     };
     if (index < 0 || index >= ui->stackedWidget->count()
         || index >= required.size() || !m_authManager
@@ -293,7 +296,9 @@ void MainWindow::init_class()
             m_businessDataManager, &BusinessDataManager::updateDataPoints);
     connect(m_remotePage, &RemotePage::businessDataReceived,
             m_alarmManager, &AlarmManager::evaluateDataPoints);
-    m_userManagementPage = new UserManagementPage(m_authManager, this);\n    m_pluginManager = new PluginManager(this);\n    m_pluginPage = new PluginPage(m_pluginManager, this);
+    m_userManagementPage = new UserManagementPage(m_authManager, this);
+    m_pluginManager = new PluginManager(this);
+    m_pluginPage = new PluginPage(m_pluginManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
@@ -305,7 +310,8 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(configPage);    // 6 通信配置
     ui->stackedWidget->addWidget(settingsPage);  // 7 系统设置
     ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket
-    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色\n    ui->stackedWidget->addWidget(m_pluginPage); // 10 插件管理
+    ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
+    ui->stackedWidget->addWidget(m_pluginPage); // 10 插件管理
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
