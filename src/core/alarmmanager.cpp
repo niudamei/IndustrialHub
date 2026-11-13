@@ -176,22 +176,29 @@ bool AlarmManager::addRule(const AlarmRule &rule, QString *errorMessage)
     return true;
 }
 
-bool AlarmManager::removeRule(const QString &ruleId)
+bool AlarmManager::removeRule(const QString &ruleId, QString *errorMessage)
 {
     const QString key = normalized(ruleId);
+    if (m_activeEventByRule.value(key, 0) != 0)
+        return writeError(QStringLiteral("该规则仍有关联的活动报警，请等待报警恢复后再删除。"),
+                          errorMessage);
+
     for (int i = m_rules.size() - 1; i >= 0; --i) {
         if (normalized(m_rules.at(i).ruleId) == key) {
             QSqlQuery remove(m_database);
             remove.prepare(QStringLiteral("DELETE FROM alarm_rules WHERE rule_id = ?"));
             remove.addBindValue(m_rules.at(i).ruleId);
             if (!remove.exec())
-                return writeError(QStringLiteral("删除报警规则失败：%1").arg(remove.lastError().text()));
+                return writeError(QStringLiteral("删除报警规则失败：%1").arg(remove.lastError().text()),
+                                  errorMessage);
+            if (remove.numRowsAffected() != 1)
+                return writeError(QStringLiteral("规则不存在或未被删除。"), errorMessage);
             m_rules.removeAt(i);
             emit rulesChanged();
             return true;
         }
     }
-    return false;
+    return writeError(QStringLiteral("未找到指定的报警规则：%1").arg(ruleId), errorMessage);
 }
 
 bool AlarmManager::setRuleEnabled(const QString &ruleId, bool enabled,
