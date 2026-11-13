@@ -196,7 +196,7 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
         "SUM(CASE WHEN category='TX' AND timestamp_ms>=? THEN tx_bytes ELSE 0 END),"
         "SUM(CASE WHEN category='RX' AND timestamp_ms>=? THEN rx_bytes ELSE 0 END),"
         "MAX(CASE WHEN category='RX' THEN timestamp_ms ELSE NULL END),"
-        "SUM(CASE WHEN severity='Error' AND timestamp_ms>=? THEN 1 ELSE 0 END),"
+        "SUM(CASE WHEN (severity='Error' OR category='超时') AND timestamp_ms>=? THEN 1 ELSE 0 END),"
         "SUM(CASE WHEN (category='TX' OR category='RX' OR severity='Error') "
         "AND timestamp_ms>=? THEN 1 ELSE 0 END) "
         "FROM communication_diagnostics GROUP BY device_id "
@@ -236,10 +236,10 @@ QList<CommunicationDeviceStatistics> CommunicationDiagnostics::statistics() cons
         if (recentActivityCount == 0) {
             s.quality = QStringLiteral("空闲");
             s.qualityReason = QStringLiteral("最近 60 秒没有 TX/RX 或错误事件");
-        } else if (s.recentErrorCount >= 5 || s.recentErrorRatePercent >= 10.0) {
+        } else if (s.recentErrorCount >= 5 || (recentActivityCount >= 10 && s.recentErrorRatePercent >= 10.0)) {
             s.quality = QStringLiteral("差");
             s.qualityReason = QStringLiteral("最近 5 分钟错误较多，请检查链路和设备");
-        } else if (s.recentErrorCount >= 2 || s.recentErrorRatePercent >= 3.0) {
+        } else if (s.recentErrorCount >= 1 || (recentActivityCount >= 10 && s.recentErrorRatePercent >= 3.0)) {
             s.quality = QStringLiteral("警告");
             s.qualityReason = QStringLiteral("近期出现通信错误，建议检查设备日志");
         } else {
