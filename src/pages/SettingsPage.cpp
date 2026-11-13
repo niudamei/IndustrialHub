@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QRadioButton>
 #include <QSettings>
 #include <QSystemTrayIcon>
 #include <QVBoxLayout>
