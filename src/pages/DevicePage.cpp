@@ -35,7 +35,6 @@ QJsonObject deviceToJson(const DeviceInfo &d) {
     o.insert(QStringLiteral("address"), d.devAddr);
     o.insert(QStringLiteral("group"), d.groupName);
     o.insert(QStringLiteral("enabled"), d.enabled);
-    o.insert(QStringLiteral("status"), static_cast<int>(d.status));
     o.insert(QStringLiteral("addedAt"), d.addTime.toString(Qt::ISODateWithMs));
     return o;
 }
@@ -47,12 +46,8 @@ bool deviceFromJson(const QJsonObject &o, DeviceInfo &d, QString *error) {
     d.devAddr = o.value(QStringLiteral("address")).toString().trimmed();
     d.groupName = o.value(QStringLiteral("group")).toString().trimmed();
     d.enabled = o.value(QStringLiteral("enabled")).toBool(true);
-    const int status = o.value(QStringLiteral("status")).toInt(static_cast<int>(DeviceStatus::Offline));
-    if (status < static_cast<int>(DeviceStatus::Online) || status > static_cast<int>(DeviceStatus::Fault)) {
-        if (error) *error = QStringLiteral("设备 %1 的状态值无效。").arg(d.devId);
-        return false;
-    }
-    d.status = static_cast<DeviceStatus>(status);
+    // Runtime connection state is never restored from an imported configuration.
+    d.status = DeviceStatus::Offline;
     d.addTime = QDateTime::fromString(o.value(QStringLiteral("addedAt")).toString(), Qt::ISODateWithMs);
     if (!d.addTime.isValid()) d.addTime = QDateTime::currentDateTime();
     if (d.devId.isEmpty() || d.devName.isEmpty()) {
@@ -99,7 +94,9 @@ DevicePage::DevicePage(DeviceManager *manager, QWidget *parent)
         for (const QString &id : ids) {
             DeviceInfo d;
             if (!m_deviceManager->getDeviceById(id, d)) continue;
-            d.enabled = false; QString error;
+            d.enabled = false;
+            d.status = DeviceStatus::Offline;
+            QString error;
             if (m_deviceManager->updateDevice(d, &error)) ++changed; else errors << error;
         }
         refreshTable();
