@@ -74,7 +74,8 @@ ConfigPage::ConfigPage(DeviceManager *deviceManager,
     connect(queryDiagnosticsButton, &QPushButton::clicked, this, &ConfigPage::refreshDiagnostics);
     connect(exportDiagnosticsButton, &QPushButton::clicked, this, [this]() {
         if (!m_diagnostics) return;
-        const auto events = m_diagnostics->recentEvents(1000, m_diagnosticsDeviceFilter->text(),\n            m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
+        const auto events = m_diagnostics->recentEvents(1000, m_diagnosticsDeviceFilter->text(),
+            m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
         if (events.isEmpty()) { QMessageBox::information(this, QStringLiteral("没有记录"), QStringLiteral("当前没有可导出的诊断事件。")); return; }
         const QString name = QStringLiteral("communication_diagnostics_%1.csv").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
         const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("导出通信诊断"), name, QStringLiteral("CSV 文件 (*.csv)"));
@@ -473,7 +474,8 @@ void ConfigPage::refreshDiagnostics()
             m_statisticsTable->setItem(row,col,new QTableWidgetItem(values.at(col)));
     }
     m_statisticsTable->setUpdatesEnabled(true);
-    const auto events=m_diagnostics->recentEvents(100, m_diagnosticsDeviceFilter->text(),\n        m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
+    const auto events=m_diagnostics->recentEvents(100, m_diagnosticsDeviceFilter->text(),
+        m_diagnosticsStart->dateTime(), m_diagnosticsEnd->dateTime());
     m_diagnosticsTable->setUpdatesEnabled(false);
     m_diagnosticsTable->setRowCount(events.size());
     for(int row=0;row<events.size();++row) {
