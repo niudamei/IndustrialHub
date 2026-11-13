@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     ModbusMaster master(Transport::Rtu);
     QByteArray lastRequest;
+    master.setInterRequestDelayMs(0);
     master.setSendFunction([&lastRequest](const QByteArray &frame, QString *) {
         lastRequest = frame;
         return true;
