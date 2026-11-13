@@ -53,6 +53,7 @@ bool DeviceManager::addDevice(const DeviceInfo &device, QString *error)
     d.devType = d.devType.trimmed();
     d.commType = d.commType.trimmed();
     d.devAddr = d.devAddr.trimmed();
+    d.groupName = d.groupName.trimmed();
 
     if (d.devId.isEmpty() || d.devName.isEmpty())
         return setError(QStringLiteral("设备编号和设备名称不能为空。"), error);
