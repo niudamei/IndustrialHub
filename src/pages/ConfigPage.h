@@ -7,12 +7,14 @@
 #include <QVector>
 #include <QHash>
 #include "ui_configpage.h"
-#include "src/protocol/businessdatapoint.h"\n#include "src/core/communicationdiagnostics.h"
+#include "src/protocol/businessdatapoint.h"
+#include "src/core/communicationdiagnostics.h"
 
 class DeviceManager;
 class CommunicationManager;
 class ProtocolManager;
-class QComboBox;\nclass QTableWidget;
+class QComboBox;
+class QTableWidget;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
@@ -37,7 +39,8 @@ private slots:
     void onApplyParserClicked();
     void onBusinessDataDecoded(const QString &deviceId,
                                const QVector<BusinessDataPoint> &points);
-    void onParseFailed(const QString &deviceId, const QString &message);\n    void refreshDiagnostics();
+    void onParseFailed(const QString &deviceId, const QString &message);
+    void refreshDiagnostics();
 
 private:
     QString selectedDeviceId() const;
@@ -49,7 +52,10 @@ private:
     CommunicationManager *m_communicationManager = nullptr;
     ProtocolManager *m_protocolManager = nullptr;
     QComboBox *m_parserCombo = nullptr;
-    QHash<QString, QString> m_communicationConfigByDevice;\n    CommunicationDiagnostics *m_diagnostics = nullptr;\n    QTableWidget *m_diagnosticsTable = nullptr;\n    QTableWidget *m_statisticsTable = nullptr;
+    QHash<QString, QString> m_communicationConfigByDevice;
+    CommunicationDiagnostics *m_diagnostics = nullptr;
+    QTableWidget *m_diagnosticsTable = nullptr;
+    QTableWidget *m_statisticsTable = nullptr;
 };
 
 #endif // CONFIGPAGE_H
