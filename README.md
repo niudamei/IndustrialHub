@@ -57,6 +57,7 @@
 - `BusinessDataPoint` 统一描述设备编号、变量编号、变量名称、数值、单位、时间戳、质量状态和来源协议。
 - `IProtocolParser` 定义协议解析接口；具体设备协议通过独立解析器实现，不耦合通信驱动。
 - `ProtocolManager` 支持注册解析器、按设备编号绑定解析器，并通过 Qt signal 发布解析结果。
+- 新增 Modbus RTU/TCP 编解码基础：读保持寄存器（0x03）、读输入寄存器（0x04）、写单寄存器（0x06）、写多寄存器（0x10），包含 RTU CRC16、TCP MBAP 长度/事务 ID 校验、异常响应解析；当前为协议帧层，尚未接入串口/TCP 轮询 UI。
 - 当前提供 `JsonProtocolParser` 作为通用 JSON 示例解析器，支持 ISO 8601 时间戳、多个业务变量和 Good/Uncertain/Bad 质量状态。
 - JSON 示例解析器不会自动套用到 CAN、CAN-FD 或私有 RS485 报文。真实设备必须在拿到协议文档后单独实现和绑定解析器。
 - 解析采用整帧校验：任意变量字段不合法时整帧失败，不输出半帧数据。
@@ -95,6 +96,7 @@ JSON 示例：
 - `slcan_frame_codec_test`：SLCAN 经典 CAN/CAN-FD 帧编解码、DLC 映射和非法帧校验。
 - `slcan_communication_smoke_test`：Qt SerialPort 可用时，检查适配器参数校验。
 - `datamanager_history_test`：检查 TX/RX 事件入库、历史筛选、原始字节回读及复用总数的分页查询。
+- `modbus_codec_test`：检查 Modbus RTU/TCP 请求帧、CRC、MBAP、寄存器响应、异常响应和非法参数。
 - `device_database_test`：检查设备分组、启用状态和通信配置字段的 SQLite 持久化。
 - `device_health_monitor_test`：检查每设备独立活动跟踪、首帧超时、在线超时、RX 恢复和手动断开。
 - `json_protocol_parser_test`：检查 JSON 业务变量解析、质量状态、设备绑定、信号分发和非法报文拒绝。
@@ -242,3 +244,8 @@ ctest --test-dir build --output-on-failure
 ## 设备通信质量分析
 
 通信诊断中心按设备展示全量 TX/RX 次数与字节数，并以最近 60 秒事件计算帧率和字节速率；同时显示最近一次 RX 时间、接收静默时长、近 5 分钟错误/超时数量及错误率。质量分级为“良好 / 警告 / 差 / 空闲”，悬停质量状态可查看判定原因。全量累计值通过事务维护的设备汇总表增量更新，历史事件仅按最近 5 分钟时间索引扫描，避免每秒刷新都全表聚合；旧版诊断数据库会自动回填汇总数据，不要求删除数据库。质量指标每秒刷新，不会把 TX 当作设备存活证明；TX 仅代表驱动接受写入，RX 静默时长只描述接收活动，不自行推断设备故障。错误率在样本较少时采用错误数量辅助判定，避免少量事件导致比例失真。
+
+
+## Modbus 协议帧基础
+
+新增独立 ModbusCodec，与具体通信驱动解耦。当前支持 RTU 与 TCP 请求帧编码、读保持寄存器（0x03）、读输入寄存器（0x04）、写单寄存器（0x06）、写多寄存器（0x10）；RTU 使用 CRC16，TCP 校验 MBAP 协议标识、长度和事务 ID。响应解析覆盖寄存器数据、写入回显和 Modbus 异常码。当前仅完成协议帧层及自动化测试目标，尚未接入 RS485/TCP 轮询界面，也不会假定任何真实设备的寄存器地址或数据缩放规则。
