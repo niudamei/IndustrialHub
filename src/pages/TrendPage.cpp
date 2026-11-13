@@ -118,6 +118,7 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
                 this, &TrendPage::onCommunicationError);
     }
 
+    refreshDeviceList();
     m_timer = new QTimer(this);
     m_timer->setInterval(250);
     connect(m_timer, &QTimer::timeout, this, &TrendPage::updateTrend);
@@ -515,8 +516,13 @@ void TrendPage::setupCommunicationHistoryTrend()
 
 void TrendPage::refreshCommunicationHistoryTrend()
 {
-    if (!m_diagnostics || !m_diagnostics->isReady() || !m_historyRangeCombo)
+    if (!m_historySummaryLabel || !m_historyRangeCombo)
         return;
+    if (!m_diagnostics || !m_diagnostics->isReady()) {
+        m_historySummaryLabel->setText(QStringLiteral("通信诊断数据库不可用：%1")
+            .arg(m_diagnostics ? m_diagnostics->lastError() : QStringLiteral("服务未初始化")));
+        return;
+    }
     const int hours = m_historyRangeCombo->currentData().toInt();
     const int bucketSeconds = hours <= 1 ? 10 : (hours <= 24 ? 60 : (hours <= 168 ? 300 : 1800));
     const QDateTime end = QDateTime::currentDateTime();
@@ -559,8 +565,11 @@ void TrendPage::refreshCommunicationHistoryTrend()
 
 void TrendPage::exportCommunicationHistoryTrend()
 {
-    if (!m_diagnostics || !m_diagnostics->isReady())
+    if (!m_diagnostics || !m_diagnostics->isReady()) {
+        QMessageBox::warning(this, QStringLiteral("导出失败"),
+            m_diagnostics ? m_diagnostics->lastError() : QStringLiteral("通信诊断服务未初始化。"));
         return;
+    }
     const int hours = m_historyRangeCombo->currentData().toInt();
     const int bucketSeconds = hours <= 1 ? 10 : (hours <= 24 ? 60 : (hours <= 168 ? 300 : 1800));
     const QDateTime end = QDateTime::currentDateTime();
