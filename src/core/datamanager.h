@@ -52,7 +52,8 @@ public:
                                    int limit,
                                    QList<CommunicationHistoryRecord> &records,
                                    int &totalCount,
-                                   QString *errorMessage = nullptr);
+                                   QString *errorMessage = nullptr,
+                                   bool refreshTotalCount = true);
 
     bool queryBusinessDataHistory(const QDateTime &start,
                                   const QDateTime &end,
@@ -62,7 +63,8 @@ public:
                                   int limit,
                                   QList<BusinessDataHistoryRecord> &records,
                                   int &totalCount,
-                                  QString *errorMessage = nullptr);
+                                  QString *errorMessage = nullptr,
+                                  bool refreshTotalCount = true);
 
 public slots:
     void appendBusinessDataPoints(const QString &deviceId,
