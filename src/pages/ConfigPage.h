@@ -12,7 +12,7 @@
 class DeviceManager;
 class CommunicationManager;
 class ProtocolManager;
-class QComboBox;
+class QComboBox;\nclass QTableWidget;
 struct DeviceInfo;
 
 class ConfigPage : public QWidget
