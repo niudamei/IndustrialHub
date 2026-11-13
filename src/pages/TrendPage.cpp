@@ -25,6 +25,7 @@
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QValueAxis>
+#include <QDateTimeAxis>
 #include <QtMath>
 #include <QVBoxLayout>
 
@@ -230,11 +231,11 @@ void TrendPage::setupBusinessTrend()
         auto *chart = new QChart();
         chart->setTitle(names.at(i) + QStringLiteral("（") + units.at(i) + QStringLiteral("）"));
         chart->legend()->setVisible(true);
-        auto *axisX = new QValueAxis(chart);
+        auto *axisX = new QDateTimeAxis(chart);
         axisX->setTitleText(QStringLiteral("时间"));
-        axisX->setLabelFormat("%H:%M:%S");
-        axisX->setRange(QDateTime::currentMSecsSinceEpoch() / 1000.0 - 60.0,
-                        QDateTime::currentMSecsSinceEpoch() / 1000.0);
+        axisX->setFormat(QStringLiteral("HH:mm:ss"));
+        axisX->setRange(QDateTime::currentDateTime().addSecs(-60),
+                        QDateTime::currentDateTime());
         auto *axisY = new QValueAxis(chart);
         axisY->setTitleText(units.at(i));
         axisY->setRange(0.0, 100.0);
@@ -270,8 +271,8 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
     const QStringList variableIds = {
         QStringLiteral("temperature"), QStringLiteral("rpm"), QStringLiteral("current")
     };
-    const qreal nowSeconds = nowMs / 1000.0;
-    const qreal leftSeconds = nowSeconds - 60.0;
+    const qreal nowValue = static_cast<qreal>(nowMs);
+    const qreal leftValue = nowValue - 60000.0;
 
     for (const BusinessDataPoint &point : points) {
         if (point.quality != DataQuality::Good || !point.timestamp.isValid())
@@ -294,7 +295,7 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
             series->attachAxis(m_businessAxisY[index]);
             m_businessSeries[index].insert(point.deviceId, series);
         }
-        series->append(timestamp / 1000.0, point.value);
+        series->append(static_cast<qreal>(timestamp), point.value);
         m_lastBusinessTimestamp.insert(seriesKey, timestamp);
     }
 
@@ -311,7 +312,7 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
             QVector<QPointF> kept;
             const auto oldPoints = series->points();
             for (const QPointF &sample : oldPoints) {
-                if (sample.x() >= leftSeconds) {
+                if (sample.x() >= leftValue) {
                     kept.append(sample);
                     minValue = qMin(minValue, sample.y());
                     maxValue = qMax(maxValue, sample.y());
@@ -325,8 +326,9 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
                 series->replace(kept);
         }
 
-        auto *axisX = qobject_cast<QValueAxis *>(m_businessCharts[i]->axes(Qt::Horizontal).first());
-        axisX->setRange(leftSeconds, nowSeconds);
+        auto *axisX = qobject_cast<QDateTimeAxis *>(m_businessCharts[i]->axes(Qt::Horizontal).first());
+        axisX->setRange(QDateTime::fromMSecsSinceEpoch(nowMs - 60000),
+                        QDateTime::fromMSecsSinceEpoch(nowMs));
         if (count > 0) {
             const qreal margin = qMax<qreal>(1.0, (maxValue - minValue) * 0.15);
             m_businessAxisY[i]->setRange(minValue - margin, maxValue + margin);
