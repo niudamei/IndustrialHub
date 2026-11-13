@@ -209,7 +209,8 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 串行请求队列，最多 1024 个在途/排队请求，避免同一 RTU 总线请求响应交错。
 - [x] RTU/TCP 响应分帧，支持 TCP 粘包/半包与 RTU 分段接收。
 - [x] 增加响应超时、TCP 事务 ID 过滤、写入回显核对、异常响应和底层错误/断线取消。
-- [x] 新增 modbus_master_test，覆盖排队、分段响应、写入回显、超时、TCP 事务响应及 CommunicationManager 模拟设备绑定。\n- [x] 新增 modbus_register_map_test 和 modbus_poller_test，覆盖数值类型、字序、缩放、周期轮询和 BusinessDataPoint 输出。
+- [x] 新增 modbus_master_test，覆盖排队、分段响应、写入回显、超时、TCP 事务响应及 CommunicationManager 模拟设备绑定。
+- [x] 新增 modbus_register_map_test 和 modbus_poller_test，覆盖数值类型、字序、缩放、周期轮询和 BusinessDataPoint 输出。
 - [ ] 增加设备寄存器映射、周期轮询 UI、轮询数据解析到 BusinessDataPoint。
 - [ ] 使用真实 RS485/TCP Modbus 设备验证寄存器地址、数据类型、字节序和缩放规则。
 
