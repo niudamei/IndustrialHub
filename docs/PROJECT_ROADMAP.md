@@ -220,7 +220,8 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 新增显式寄存器映射定义，要求调用方提供变量 ID/名称、功能码、寄存器地址、数值类型、字序、缩放、偏移和单位。
 - [x] 支持 UInt16、Int16、UInt32、Int32、Float32；32 位数据支持 ABCD/CDAB/BADC/DCBA 四种字序。
 - [x] 映射值转换后统一输出 BusinessDataPoint，质量状态标记 Good，来源标记 Modbus RTU/TCP。
-- [x] 新增 ModbusPoller，按配置周期串行读取映射并输出数据点，报告单变量错误。\n- [x] 支持将 ModbusPoller 输出直接绑定到 BusinessDataManager，复用现有最新值与 SQLite 历史持久化链路。
+- [x] 新增 ModbusPoller，按配置周期串行读取映射并输出数据点，报告单变量错误。
+- [x] 支持将 ModbusPoller 输出直接绑定到 BusinessDataManager，复用现有最新值与 SQLite 历史持久化链路。
 - [x] 新增寄存器映射和轮询自动化测试。
 - [ ] 增加可视化寄存器映射配置、轮询周期 UI，并接入 BusinessDataManager/DataManager。
 - [ ] 真实设备寄存器地址、字序、比例和周期需按设备手册及现场测试确认。
