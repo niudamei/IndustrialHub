@@ -3,8 +3,10 @@
 
 #include "src/communication/communicationmanager.h"
 #include "src/pages/devicemanager.h"
+#include "src/protocol/businessdatapoint.h"
 
 #include <QComboBox>
+#include <QCheckBox>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
@@ -52,6 +54,13 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
       m_communicationManager(communicationManager)
 {
     ui->setupUi(this);
+
+    // 业务变量模拟与原始通信帧分开，避免把虚拟测点伪装成真实协议报文。
+    m_demoOverTemperatureCheckBox = new QCheckBox(
+        QStringLiteral("温度超限演示（触发报警）"), this);
+    m_demoOverTemperatureCheckBox->setToolTip(
+        QStringLiteral("仅影响模拟业务变量，不修改 CAN/TCP 原始帧，也不会影响真实设备。"));
+    ui->demoControlLayout->addWidget(m_demoOverTemperatureCheckBox);
 
     ui->eventTable->setColumnCount(4);
     ui->eventTable->setHorizontalHeaderLabels({
@@ -499,6 +508,44 @@ void MonitorPage::generateDemoTraffic()
         }
 
         onDataReceived(id, rxData);
+    }
+
+    // 独立生成标准业务数据点，直接进入 BusinessDataManager / AlarmManager 链路。
+    const qint64 timestampMs = QDateTime::currentMSecsSinceEpoch();
+    for (int index = 0; index < ids.size(); ++index) {
+        const QString &id = ids.at(index);
+        if (m_demoDisconnectedDevices.contains(id))
+            continue;
+
+        const double phase = static_cast<double>(m_demoSequence) * 0.16 + index;
+        const bool forceHighTemperature = m_demoOverTemperatureCheckBox
+            && m_demoOverTemperatureCheckBox->isChecked();
+        const double temperature = forceHighTemperature
+            ? 95.0 : 35.0 + 8.0 * qSin(phase);
+        const double rpm = 1200.0 + 300.0 * qSin(phase * 0.7);
+        const double current = 4.5 + 1.2 * qSin(phase * 1.3);
+
+        QVector<BusinessDataPoint> points;
+        auto appendPoint = [&](const QString &variableId, const QString &name,
+                               double value, const QString &unit) {
+            BusinessDataPoint point;
+            point.deviceId = id;
+            point.variableId = variableId;
+            point.name = name;
+            point.value = value;
+            point.unit = unit;
+            point.timestamp = QDateTime::fromMSecsSinceEpoch(timestampMs);
+            point.quality = DataQuality::Good;
+            point.sourceProtocol = QStringLiteral("SIMULATED-BUSINESS");
+            points.append(point);
+        };
+        appendPoint(QStringLiteral("temperature"), QStringLiteral("温度"),
+                    temperature, QStringLiteral("°C"));
+        appendPoint(QStringLiteral("rpm"), QStringLiteral("转速"),
+                    rpm, QStringLiteral("rpm"));
+        appendPoint(QStringLiteral("current"), QStringLiteral("电流"),
+                    current, QStringLiteral("A"));
+        emit businessDataGenerated(id, points);
     }
 }
 
