@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QStandardPaths>
+#include <QUuid>
 
 #include "src/communication/communicationmanager.h"
 #include "src/core/datamanager.h"
@@ -16,7 +17,8 @@ int main(int argc, char *argv[])
     if (!dataManager.isReady())
         return 1;
 
-    const QString deviceId = QStringLiteral("HISTORY-TEST-DEVICE");
+    const QString deviceId = QStringLiteral("HISTORY-TEST-%1")
+                                .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
     const QByteArray txPayload = QByteArray::fromHex("010203AABB");
     const QByteArray rxPayload = QByteArray::fromHex("10203040");
 
@@ -36,6 +38,13 @@ int main(int argc, char *argv[])
         return 2;
     if (totalCount != 2 || records.size() != 2)
         return 3;
+
+    if (!dataManager.queryCommunicationHistory(
+            start, end, deviceId, QString(), 0, 1,
+            records, totalCount, &error))
+        return 7;
+    if (totalCount != 2 || records.size() != 1)
+        return 8;
 
     if (!dataManager.queryCommunicationHistory(
             start, end, deviceId, QStringLiteral("RX"), 0, 20,
