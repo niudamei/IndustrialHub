@@ -42,7 +42,9 @@ public:
     bool isReady() const;
     QString lastError() const;
     QList<CommunicationDiagnosticEvent> recentEvents(int limit = 100,
-                                                       const QString &deviceId = {}) const;
+                                                       const QString &deviceId = {},
+                                                       const QDateTime &start = {},
+                                                       const QDateTime &end = {}) const;
     QList<CommunicationDeviceStatistics> statistics() const;
     CommunicationDeviceStatistics statisticsFor(const QString &deviceId) const;
 
