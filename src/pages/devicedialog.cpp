@@ -39,7 +39,7 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
     enabledRow->addWidget(enabledCheck);
     ui->verticalLayout->insertLayout(7, enabledRow);
     setWindowTitle(QStringLiteral("设备信息"));
-    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "Modbus"});
+    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "MODBUS-SIM"});
     connect(ui->cmbCommType_C, &QComboBox::currentTextChanged,
             this, [this](const QString &type) {
         QString hint;
@@ -55,6 +55,8 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
             hint = QStringLiteral("COM4,1000000,2000000（仲裁段/数据段）");
         } else if (type == QStringLiteral("SIMULATED")) {
             hint = QStringLiteral("模拟通信无需填写");
+        } else if (type == QStringLiteral("MODBUS-SIM")) {
+            hint = QStringLiteral("Modbus RTU 离线模拟，单元地址 1–247，默认 1");
         } else {
             hint = QStringLiteral("当前版本暂未实现该通信驱动");
         }
