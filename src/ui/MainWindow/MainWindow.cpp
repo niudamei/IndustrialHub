@@ -4,6 +4,7 @@
 #include "src/pages/devicepage.h"
 #include "src/pages/devicemanager.h"
 #include "src/communication/communicationmanager.h"
+#include "src/core/datamanager.h"
 #include "src/pages/AlarmPage.h"
 #include "src/pages/ConfigPage.h"
 #include "src/pages/HistoryPage.h"
@@ -19,6 +20,12 @@ MainWindow::MainWindow(QWidget *parent)
       m_communicationManager(new CommunicationManager(this))
 {
     ui->setupUi(this);
+
+    m_dataManager = new DataManager(m_communicationManager, this);
+    if (!m_dataManager->isReady()) {
+        QMessageBox::warning(this, QStringLiteral("历史数据服务初始化失败"),
+                             m_dataManager->lastError());
+    }
 
     if (!m_deviceManager->isDatabaseReady()) {
         QMessageBox::warning(this, QStringLiteral("数据库初始化失败"),
@@ -58,7 +65,7 @@ void MainWindow::init_class()
     monitorPage = new MonitorPage(m_deviceManager, m_communicationManager, this);
     trendPage = new TrendPage(m_communicationManager, this);
     alarmPage = new AlarmPage(this);
-    historyPage = new HistoryPage(this);
+    historyPage = new HistoryPage(m_dataManager, this);
     configPage = new ConfigPage(m_deviceManager, m_communicationManager, this);
     settingsPage = new SettingsPage(this);
 
