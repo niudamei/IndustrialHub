@@ -123,7 +123,9 @@ bool CommunicationDiagnostics::initialize()
         m_lastError = QStringLiteral("读取诊断迁移状态失败：%1").arg(marker.lastError().text());
         return false;
     }
-    if (!marker.next()) {
+    const bool hasTotalsMigration = marker.next();
+    marker.finish();
+    if (!hasTotalsMigration) {
         if (!m_database.transaction()) {
             m_lastError = QStringLiteral("启动诊断汇总迁移事务失败：%1").arg(m_database.lastError().text());
             return false;
@@ -143,7 +145,10 @@ bool CommunicationDiagnostics::initialize()
         saveMarker.prepare(QStringLiteral("INSERT OR REPLACE INTO communication_diagnostics_meta(key,value) VALUES(?,?)"));
         saveMarker.addBindValue(QStringLiteral("totals_v1"));
         saveMarker.addBindValue(QStringLiteral("1"));
-        if (!migrated || !saveMarker.exec() || !m_database.commit()) {
+        const bool markerSaved = saveMarker.exec();
+        migrate.finish();
+        saveMarker.finish();
+        if (!migrated || !markerSaved || !m_database.commit()) {
             const QString reason = !migrated ? migrate.lastError().text()
                 : (!saveMarker.lastError().isValid() ? m_database.lastError().text() : saveMarker.lastError().text());
             m_database.rollback();
@@ -187,6 +192,7 @@ void CommunicationDiagnostics::record(const QString &deviceId, const QString &ca
         emit storageError(m_lastError);
         return;
     }
+    q.finish();
     QSqlQuery totals(m_database);
     totals.prepare(QStringLiteral(
         "INSERT INTO communication_device_totals "
@@ -208,7 +214,9 @@ void CommunicationDiagnostics::record(const QString &deviceId, const QString &ca
     totals.addBindValue(category == QStringLiteral("重连") ? 1 : 0);
     totals.addBindValue(nowMs);
     totals.addBindValue(category == QStringLiteral("RX") ? nowMs : 0);
-    if (!totals.exec() || !m_database.commit()) {
+    const bool totalsUpdated = totals.exec();
+    totals.finish();
+    if (!totalsUpdated || !m_database.commit()) {
         const QString reason = totals.lastError().isValid() ? totals.lastError().text() : m_database.lastError().text();
         m_database.rollback();
         m_lastError = QStringLiteral("更新设备通信汇总失败：%1").arg(reason);
