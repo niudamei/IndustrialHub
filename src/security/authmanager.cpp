@@ -74,6 +74,7 @@ bool AuthManager::initialize(QString *error)
         {QStringLiteral("monitor.view"), QStringLiteral("查看实时监控")},
         {QStringLiteral("trend.view"), QStringLiteral("查看实时趋势")},
         {QStringLiteral("alarm.view"), QStringLiteral("查看报警")},
+        {QStringLiteral("alarm.manage"), QStringLiteral("管理报警规则")},
         {QStringLiteral("alarm.acknowledge"), QStringLiteral("确认报警")},
         {QStringLiteral("history.view"), QStringLiteral("查看历史数据")},
         {QStringLiteral("history.maintenance"), QStringLiteral("维护/清理历史数据")},
@@ -95,7 +96,7 @@ bool AuthManager::initialize(QString *error)
         QStringLiteral("dashboard.view"), QStringLiteral("device.view"),
         QStringLiteral("device.manage"), QStringLiteral("monitor.view"),
         QStringLiteral("trend.view"), QStringLiteral("alarm.view"),
-        QStringLiteral("alarm.acknowledge"), QStringLiteral("history.view"),
+        QStringLiteral("alarm.manage"), QStringLiteral("alarm.acknowledge"), QStringLiteral("history.view"),
         QStringLiteral("history.maintenance"), QStringLiteral("communication.view"),
         QStringLiteral("communication.manage"), QStringLiteral("remote.manage"),
         QStringLiteral("system.manage"), QStringLiteral("users.manage")
