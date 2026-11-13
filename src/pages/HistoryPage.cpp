@@ -191,6 +191,7 @@ HistoryPage::HistoryPage(DataManager *dataManager, QWidget *parent)
         queryHistory();
         queryBusinessHistory();
     }
+}
 
 HistoryPage::~HistoryPage()
 {
