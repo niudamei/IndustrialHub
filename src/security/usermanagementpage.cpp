@@ -4,6 +4,8 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
+#include <QLineEdit>
+#include <QAbstractItemView>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
