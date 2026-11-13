@@ -229,6 +229,23 @@ int main(int argc, char *argv[])
     }
     std::cout << "PASS: communication driver creation, open and send run off the UI thread." << std::endl;
 
+    ThreadProbeCommunication *probe2 = nullptr;
+    manager.registerFactory(QStringLiteral("THREAD-PROBE-2"),
+            [&probe2](QObject *parent) {
+        probe2 = new ThreadProbeCommunication(parent);
+        return probe2;
+    });
+    DeviceInfo probeDevice2;
+    probeDevice2.devId = QStringLiteral("THREAD-002");
+    probeDevice2.commType = QStringLiteral("THREAD-PROBE-2");
+    if (!manager.connectDevice(probeDevice2, &error)
+        || !waitUntil([&]() { return manager.isConnected(probeDevice2.devId); }, 1000)
+        || !probe2 || probe2->ownerThread() == probe->ownerThread()) {
+        std::cerr << "FAIL: different devices must have independent I/O threads." << std::endl;
+        return 24;
+    }
+    std::cout << "PASS: each device owns an independent I/O thread." << std::endl;
+
     // 首次 TCP 连接失败后，设备仍应进入自动重连流程。
     QTcpServer lateServer;
     if (!lateServer.listen(QHostAddress::LocalHost, 0)) {
@@ -293,6 +310,7 @@ int main(int argc, char *argv[])
     manager.releaseDevice(simulated.devId);
     manager.releaseDevice(tcp.devId);
     manager.releaseDevice(probeDevice.devId);
+    manager.releaseDevice(probeDevice2.devId);
     manager.releaseDevice(lateTcp.devId);
     if (!manager.managedDeviceIds().isEmpty()) {
         std::cerr << "FAIL: released devices remain managed." << std::endl;
