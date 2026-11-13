@@ -87,7 +87,11 @@ void BusinessDataManager::updateDataPoints(
     QVector<BusinessDataPoint> accepted;
     accepted.reserve(points.size());
 
-    auto &deviceValues = m_latestValues[deviceKey];
+    auto deviceIt = m_latestValues.find(deviceKey);
+    const bool hadDevice = deviceIt != m_latestValues.end();
+    QHash<QString, BusinessDataPoint> pendingValues =
+        hadDevice ? deviceIt.value() : QHash<QString, BusinessDataPoint>();
+
     for (const BusinessDataPoint &point : points) {
         if (point.deviceId.trimmed().isEmpty()
             || key(point.deviceId) != deviceKey
@@ -100,18 +104,20 @@ void BusinessDataManager::updateDataPoints(
         if (variableKey.isEmpty())
             continue;
 
-        const auto oldIt = deviceValues.constFind(variableKey);
-        if (oldIt != deviceValues.cend()
+        const auto oldIt = pendingValues.constFind(variableKey);
+        if (oldIt != pendingValues.cend()
             && oldIt.value().timestamp > point.timestamp) {
             continue; // 防止较旧数据覆盖更新的数据
         }
 
-        deviceValues.insert(variableKey, point);
+        pendingValues.insert(variableKey, point);
         accepted.append(point);
     }
 
-    if (!accepted.isEmpty())
+    if (!accepted.isEmpty()) {
+        m_latestValues.insert(deviceKey, pendingValues);
         emit valuesUpdated(deviceId.trimmed(), accepted);
+    }
 }
 
 void BusinessDataManager::clearDevice(const QString &deviceId)
