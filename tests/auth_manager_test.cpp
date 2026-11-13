@@ -31,7 +31,8 @@ int main(int argc, char *argv[])
     auth.logout();
     if (!auth.authenticate(QStringLiteral("admin"), QStringLiteral("AdminPassword!2026"),
                            &admin, &error) || admin.mustChangePassword
-        || !auth.hasPermission(QStringLiteral("users.manage"))) {
+        || !auth.hasPermission(QStringLiteral("users.manage"))
+        || !auth.hasPermission(QStringLiteral("plugins.manage"))) {
         qCritical() << "Admin role permissions failed:" << error;
         return 5;
     }
@@ -52,7 +53,8 @@ int main(int argc, char *argv[])
                            &viewer, &error) || !auth.hasPermission(QStringLiteral("dashboard.view"))
         || auth.hasPermission(QStringLiteral("device.manage"))
         || auth.hasPermission(QStringLiteral("users.manage"))
-        || auth.hasPermission(QStringLiteral("alarm.manage"))) {
+        || auth.hasPermission(QStringLiteral("alarm.manage"))
+        || auth.hasPermission(QStringLiteral("plugins.manage"))) {
         qCritical() << "Viewer permission boundary failed:" << error;
         return 7;
     }
