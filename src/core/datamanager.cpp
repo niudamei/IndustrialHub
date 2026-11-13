@@ -162,6 +162,17 @@ bool DataManager::initializeDatabase()
                             .arg(query.lastError().text()));
     }
 
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_communication_history_filter_page "
+            "ON communication_history(device_id, direction, timestamp_ms DESC, id DESC)"))) {
+        return setError(QStringLiteral("创建通信历史筛选索引失败：%1").arg(query.lastError().text()));
+    }
+    if (!query.exec(QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_business_history_filter_page "
+            "ON business_data_history(device_id, variable_id, timestamp_ms DESC, id DESC)"))) {
+        return setError(QStringLiteral("创建业务历史筛选索引失败：%1").arg(query.lastError().text()));
+    }
+
     m_lastError.clear();
     m_ready = true;
     return true;
@@ -296,10 +307,11 @@ bool DataManager::queryBusinessDataHistory(
     int limit,
     QList<BusinessDataHistoryRecord> &records,
     int &totalCount,
-    QString *errorMessage)
+    QString *errorMessage,
+    bool refreshTotalCount)
 {
     records.clear();
-    totalCount = 0;
+    if (refreshTotalCount) totalCount = 0;
     if (!isReady())
         return setError(QStringLiteral("历史数据库尚未就绪：%1").arg(m_lastError), errorMessage);
     if (!start.isValid() || !end.isValid() || start > end)
@@ -314,19 +326,22 @@ bool DataManager::queryBusinessDataHistory(
     if (!variableId.trimmed().isEmpty())
         where += QStringLiteral(" AND variable_id = ?");
 
-    QSqlQuery countQuery(m_database);
-    countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM business_data_history") + where);
-    int bindIndex = 0;
-    countQuery.bindValue(bindIndex++, start.toMSecsSinceEpoch());
-    countQuery.bindValue(bindIndex++, end.toMSecsSinceEpoch());
-    if (!deviceId.trimmed().isEmpty())
-        countQuery.bindValue(bindIndex++, deviceId.trimmed());
-    if (!variableId.trimmed().isEmpty())
-        countQuery.bindValue(bindIndex++, variableId.trimmed());
-    if (!countQuery.exec() || !countQuery.next())
-        return setError(QStringLiteral("统计业务变量历史失败：%1")
-                            .arg(countQuery.lastError().text()), errorMessage);
-    totalCount = countQuery.value(0).toInt();
+    if (refreshTotalCount) {
+        QSqlQuery countQuery(m_database);
+        countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM business_data_history") + where);
+        int bindIndex = 0;
+        countQuery.bindValue(bindIndex++, start.toMSecsSinceEpoch());
+        countQuery.bindValue(bindIndex++, end.toMSecsSinceEpoch());
+        if (!deviceId.trimmed().isEmpty())
+            countQuery.bindValue(bindIndex++, deviceId.trimmed());
+        if (!variableId.trimmed().isEmpty())
+            countQuery.bindValue(bindIndex++, variableId.trimmed());
+        if (!countQuery.exec() || !countQuery.next())
+            return setError(QStringLiteral("统计业务变量历史失败：%1")
+                                .arg(countQuery.lastError().text()), errorMessage);
+        totalCount = countQuery.value(0).toInt();
+    }
+
 
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
@@ -432,10 +447,11 @@ bool DataManager::queryCommunicationHistory(
     int limit,
     QList<CommunicationHistoryRecord> &records,
     int &totalCount,
-    QString *errorMessage)
+    QString *errorMessage,
+    bool refreshTotalCount)
 {
     records.clear();
-    totalCount = 0;
+    if (refreshTotalCount) totalCount = 0;
 
     if (!isReady())
         return setError(QStringLiteral("历史数据库尚未就绪：%1").arg(m_lastError),
@@ -452,19 +468,22 @@ bool DataManager::queryCommunicationHistory(
     if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
         where += QStringLiteral(" AND direction = :direction");
 
-    QSqlQuery countQuery(m_database);
-    countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM communication_history") + where);
-    countQuery.bindValue(QStringLiteral(":start"), start.toMSecsSinceEpoch());
-    countQuery.bindValue(QStringLiteral(":end"), end.toMSecsSinceEpoch());
-    if (!normalizedDevice.isEmpty())
-        countQuery.bindValue(QStringLiteral(":device"), normalizedDevice);
-    if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
-        countQuery.bindValue(QStringLiteral(":direction"), direction);
+    if (refreshTotalCount) {
+        QSqlQuery countQuery(m_database);
+        countQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM communication_history") + where);
+        countQuery.bindValue(QStringLiteral(":start"), start.toMSecsSinceEpoch());
+        countQuery.bindValue(QStringLiteral(":end"), end.toMSecsSinceEpoch());
+        if (!normalizedDevice.isEmpty())
+            countQuery.bindValue(QStringLiteral(":device"), normalizedDevice);
+        if (direction == QStringLiteral("TX") || direction == QStringLiteral("RX"))
+            countQuery.bindValue(QStringLiteral(":direction"), direction);
+    
+        if (!countQuery.exec() || !countQuery.next())
+            return setError(QStringLiteral("统计历史数据失败：%1")
+                                .arg(countQuery.lastError().text()), errorMessage);
+        totalCount = countQuery.value(0).toInt();
+    }
 
-    if (!countQuery.exec() || !countQuery.next())
-        return setError(QStringLiteral("统计历史数据失败：%1")
-                            .arg(countQuery.lastError().text()), errorMessage);
-    totalCount = countQuery.value(0).toInt();
 
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
