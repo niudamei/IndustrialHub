@@ -47,6 +47,9 @@ int main(int argc, char *argv[])
 
     const HistoryCleanupResult invalid = HistoryMaintenance::cleanupOlderThan(path, cutoff, 0);
     if (invalid.ok) return 9;
+    const QDateTime future = QDateTime::currentDateTime().addDays(1);
+    if (HistoryMaintenance::inspect(path, future).ok) return 10;
+    if (HistoryMaintenance::cleanupOlderThan(path, future, 10).ok) return 11;
     QFile::remove(path);
     return 0;
 }
