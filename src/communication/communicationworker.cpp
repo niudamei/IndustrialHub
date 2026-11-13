@@ -121,10 +121,6 @@ bool CommunicationWorker::sendData(const QByteArray &data, QString *errorMessage
             QMetaObject::invokeMethod(this, [this, data]() {
                 emit dataSent(data);
             }, Qt::QueuedConnection);
-        } else if (!error.isEmpty()) {
-            QMetaObject::invokeMethod(this, [this, error]() {
-                emit errorOccurred(error);
-            }, Qt::QueuedConnection);
         }
     }, Qt::QueuedConnection);
 
