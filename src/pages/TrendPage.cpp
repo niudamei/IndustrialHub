@@ -7,15 +7,11 @@
 #include <QChart>
 #include <QChartView>
 #include <QGroupBox>
-#include <QGridLayout>
-#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <limits>
 #include <QTabWidget>
-#include <QLabel>
 #include <QComboBox>
 #include <QDateTime>
-#include <QLabel>
 #include <QLegend>
 #include <QLineSeries>
 #include <QPainter>
@@ -243,7 +239,7 @@ void TrendPage::setupBusinessTrend()
         m_businessTabs->addTab(view, names.at(i));
         m_businessCharts.append(chart);
         m_businessAxisY.append(axisY);
-        m_businessSeries.append({});
+        m_businessSeries.append(QHash<QString, QLineSeries *>());
         auto *stats = new QLabel(QStringLiteral("当前值：--    最大值：--    最小值：--    平均值：--"), group);
         stats->setWordWrap(true);
         m_businessStats.append(stats);
@@ -302,7 +298,6 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
         qreal sum = 0.0;
         int count = 0;
         qreal currentValue = 0.0;
-        bool hasCurrent = false;
 
         for (auto it = m_businessSeries[i].begin(); it != m_businessSeries[i].end(); ++it) {
             QLineSeries *series = it.value();
@@ -316,7 +311,6 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
                     sum += sample.y();
                     ++count;
                     currentValue = sample.y();
-                    hasCurrent = true;
                 }
             }
             if (kept.size() != oldPoints.size())
