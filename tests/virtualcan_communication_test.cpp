@@ -46,5 +46,41 @@ int main(int argc, char **argv)
     }
     std::cout << "PASS: two independent VirtualCAN clients exchanged a classic CAN frame."
               << std::endl;
+
+    VirtualCanCommunication fdSender(true);
+    VirtualCanCommunication fdReceiver(true);
+    DeviceInfo fdTx(QStringLiteral("VIRTUAL-FD-TX"), QStringLiteral("Virtual FD TX"),
+                    QStringLiteral("CAN-FD"), QStringLiteral("VIRTUALCANFD"),
+                    QStringLiteral("can1"), DeviceStatus::Offline);
+    DeviceInfo fdRx(QStringLiteral("VIRTUAL-FD-RX"), QStringLiteral("Virtual FD RX"),
+                    QStringLiteral("CAN-FD"), QStringLiteral("VIRTUALCANFD"),
+                    QStringLiteral("can1"), DeviceStatus::Offline);
+    if (!fdSender.open(fdTx, &error) || !fdReceiver.open(fdRx, &error)) {
+        std::cerr << "FAIL: VirtualCAN FD open: " << error.toStdString() << std::endl;
+        return 5;
+    }
+    QByteArray fdReceived;
+    QEventLoop fdLoop;
+    QObject::connect(&fdReceiver, &ICommunication::dataReceived, &fdLoop,
+                     [&fdReceived, &fdLoop](const QByteArray &data) {
+        fdReceived = data;
+        fdLoop.quit();
+    });
+    const QByteArray fdFrame("B7E09112233445566778899AABBCC\\r");
+    if (!fdSender.sendData(fdFrame, &error)) {
+        std::cerr << "FAIL: VirtualCAN FD send: " << error.toStdString() << std::endl;
+        return 6;
+    }
+    QTimer::singleShot(1500, &fdLoop, &QEventLoop::quit);
+    fdLoop.exec();
+    fdSender.close();
+    fdReceiver.close();
+    if (fdReceived != fdFrame) {
+        std::cerr << "FAIL: expected CAN-FD/BRS frame not received, got: "
+                  << fdReceived.toStdString() << std::endl;
+        return 7;
+    }
+    std::cout << "PASS: two VirtualCAN FD clients exchanged a 12-byte BRS frame."
+              << std::endl;
     return 0;
 }
