@@ -11,7 +11,7 @@ QT_END_NAMESPACE
 class DashboardPage; class DevicePage; class DeviceManager; class CommunicationManager;
 class DeviceHealthMonitor; class DataManager; class ProtocolManager; class BusinessDataManager; class AlarmManager; class AlarmPage; class ConfigPage; class HistoryPage; class MonitorPage;
 class TrendPage; class SettingsPage; class AuthManager; class RemotePage; class UserManagementPage;
-class PluginManager; class PluginPage;
+class PluginManager; class PluginPage; class SimulatorPage;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -41,7 +41,7 @@ private:
     RemotePage *m_remotePage = nullptr;
     UserManagementPage *m_userManagementPage = nullptr;
     PluginManager *m_pluginManager = nullptr;
-    PluginPage *m_pluginPage = nullptr;
+    PluginPage *m_pluginPage = nullptr;\n    SimulatorPage *m_simulatorPage = nullptr;
     DashboardPage *dashboardPage = nullptr;
     DevicePage *devicePage = nullptr;
     AlarmPage *alarmPage = nullptr;
