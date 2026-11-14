@@ -305,3 +305,17 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 增加 remote_config_store_test，覆盖持久化、通配符解析、映射默认值和删除。
 - [ ] 用户 Qt 6.10.3 MinGW 环境完成编译与全量 CTest。
 - [ ] 远程连接配置方案保存/切换；密码和 Token 需通过 Windows Credential Manager / DPAPI 等安全存储后再支持记住密码。
+
+
+### P6：Qt SerialBus VirtualCAN 虚拟总线（2026-11-14）
+
+- [x] 新增可选 VirtualCanCommunication，使用 Qt SerialBus `virtualcan` 插件，不需要实体 CAN 硬件。
+- [x] 新增 `VIRTUALCAN` / `VIRTUALCANFD` 通信类型，保留原 CAN/CANFD SLCAN 驱动。
+- [x] 复用现有 SLCAN 编解码格式，将 TX/RX 转换为 Qt `QCanBusFrame`，接入 CommunicationManager 的既有工作线程和事件链路。
+- [x] 支持 `can0`–`can9` 和 `tcp://host:port/canX` 接口地址；关闭默认本地回显，避免发送端误收自己的 TX。
+- [x] Qt SerialBus 作为可选依赖；缺失时不影响原有通信驱动。
+- [x] 增加两个独立客户端的 VirtualCAN 经典 CAN 帧交换集成测试目标。
+- [x] 更新 Windows MinGW CI 的 Qt 模块安装配置，加入 qtserialbus。
+- [ ] 在用户 Qt 6.10.3 MinGW Kit 安装 Qt Serial Bus，确认 virtualcan 插件存在并完成编译/CTest。
+- [ ] 验证 CAN-FD、BRS、扩展帧、64 字节边界、跨主机连接与异常断线。
+- [ ] 使用实体 CAN 盒子验证物理层；VirtualCAN 不能代替硬件验收。
