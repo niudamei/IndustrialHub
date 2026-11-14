@@ -99,7 +99,7 @@ bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
 
     QJsonArray array;
     for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
-    QSettings settings = createSettings(m_settingsFile);
+    auto settings = createSettings(m_settingsFile);
     settings->setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
     settings->sync();
     if (settings->status() != QSettings::NoError) {
@@ -152,12 +152,26 @@ bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &c
     for (const RemoteTelemetryMapping &candidate : all) {
         if (candidate.protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) != 0)
             continue;
-        QString pattern = candidate.channelPattern;
         if (candidate.protocol.compare(QStringLiteral("MQTT"), Qt::CaseInsensitive) == 0) {
-            pattern.replace(QStringLiteral("+"), QStringLiteral("[^/]+"));
-            pattern.replace(QStringLiteral("#"), QStringLiteral(".*"));
-            pattern.replace(QStringLiteral("*"), QStringLiteral(".*"));
-            const QRegularExpression expression(QStringLiteral("^") + pattern + QStringLiteral("$"));
+            const QStringList segments = candidate.channelPattern.split(QLatin1Char('/'));
+            QStringList regexSegments;
+            for (const QString &segment : segments) {
+                if (segment == QStringLiteral("+"))
+                    regexSegments.append(QStringLiteral("[^/]+"));
+                else if (segment == QStringLiteral("#") || segment == QStringLiteral("*"))
+                    regexSegments.append(QStringLiteral(".*"));
+                else
+                    regexSegments.append(QRegularExpression::escape(segment));
+            }
+            const QRegularExpression mqttExpression(
+                QStringLiteral("^") + regexSegments.join(QLatin1Char('/')) + QStringLiteral("$"));
+            if (mqttExpression.match(channel).hasMatch()) {
+                mapping = candidate;
+                return true;
+            }
+            continue;
+        }
+        const QRegularExpression expression(QStringLiteral("^") + pattern + QStringLiteral("$"));
             if (expression.match(channel).hasMatch()) {
                 mapping = candidate;
                 return true;
