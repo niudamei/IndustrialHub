@@ -17,10 +17,23 @@ PluginManager::PluginManager(QObject *parent)
 PluginManager::~PluginManager()
 {
     unloadAll();
+    // If a caller destroys PluginManager while a driver is still referenced,
+    // keep its library loaded rather than leaving dangling factory callbacks.
+    for (LoadedPlugin &loaded : m_plugins) {
+        if (loaded.loader) {
+            qWarning() << "Keeping plugin library loaded until process exit because it is still in use:"
+                       << loaded.info.pluginId;
+            loaded.loader->setParent(nullptr);
+        }
+    }
 }
 
 void PluginManager::setCommunicationManager(CommunicationManager *manager)
 {
+    if (!m_plugins.isEmpty() && manager != m_communicationManager.data()) {
+        qWarning() << "Cannot replace CommunicationManager while plugins are loaded.";
+        return;
+    }
     m_communicationManager = manager;
 }
 
@@ -158,6 +171,7 @@ bool PluginManager::unloadPlugin(const QString &pluginId, QString *errorMessage)
                     ? QStringLiteral("通信驱动仍被引用，不能卸载插件。") : unregisterError;
                 return false;
             }
+            loaded.info.communicationTypes.clear();
         }
         if (loaded.instance && !loaded.shutdownCalled) {
             loaded.instance->shutdown();
