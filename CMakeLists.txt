@@ -75,7 +75,6 @@ qt_add_executable(hhh
     src/communication/communicationmanager.h src/communication/communicationmanager.cpp
     src/communication/communicationworker.h src/communication/communicationworker.cpp
     src/communication/slcanframecodec.h src/communication/slcanframecodec.cpp
-    src/communication/virtualcancommunication.h src/communication/virtualcancommunication.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
     src/pages/TrendPage.h src/pages/TrendPage.cpp src/pages/TrendPage.ui
@@ -488,6 +487,10 @@ target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network Qt6::Charts Qt6::Concurrent)
 
 if(TARGET Qt6::SerialBus)
+    target_sources(hhh PRIVATE
+        src/communication/virtualcancommunication.h
+        src/communication/virtualcancommunication.cpp
+    )
     target_link_libraries(hhh PRIVATE Qt6::SerialBus)
     target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALBUS)
     message(STATUS "Qt SerialBus found: VirtualCAN/VIRTUALCANFD drivers enabled.")
