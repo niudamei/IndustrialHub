@@ -275,6 +275,17 @@ static bool testRemoteTelemetryParser()
                                      deviceId, points, &error) || error.isEmpty())
         return false;
 
+    // A configured Topic/URL mapping may supply device and single-variable defaults.
+    if (!RemoteTelemetryParser::parse(QStringLiteral("MQTT"), QStringLiteral("factory/line1/temp"),
+            QByteArrayLiteral(R"({"value":22.4})"), deviceId, points, &error,
+            QStringLiteral("PLC-01"), QStringLiteral("temperature"),
+            QStringLiteral("温度"), QStringLiteral("°C"))
+        || deviceId != QStringLiteral("PLC-01") || points.size() != 1
+        || points.first().variableId != QStringLiteral("temperature")
+        || points.first().name != QStringLiteral("温度")
+        || points.first().unit != QStringLiteral("°C"))
+        return false;
+
     QJsonArray tooMany;
     for (int i = 0; i < 501; ++i) {
         QJsonObject point;
