@@ -10,7 +10,7 @@
 - UI：Qt Widgets / Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL）
 - 网络：Qt Network
-- 当前版本：0.11.0
+- 当前版本：0.12.0
 
 ## 已实现模块
 
@@ -351,3 +351,15 @@ ctest --test-dir build --output-on-failure
 - 本地打包：`cmake --build build/Desktop_Qt_6_10_3_MinGW_64_bit_Debug --target package`。
 - 生成 Doxygen 文档：在安装 Doxygen 后，从项目根目录执行 `doxygen docs/Doxyfile`。
 
+
+## 通信驱动插件扩展（0.12.0）
+
+- 在 `IIndustrialPlugin/1.0` 基础上增加可选接口 `ICommunicationDriverPlugin/1.0`；普通功能插件无需实现通信驱动接口。
+- 通信驱动插件声明一个或多个通信类型，并实现 `createCommunication(type, parent)`，返回 `ICommunication` 实例。
+- 插件加载成功后，`PluginManager` 自动将驱动工厂注册到 `CommunicationManager`；设备的通信类型填写插件声明的类型即可使用。
+- 通信类型统一转为大写；内置类型或已注册类型不可被插件覆盖，防止插件替换 TCP/CAN/RS485 等系统驱动。
+- 插件卸载前会检查是否仍有设备工作线程使用其通信类型。只要有设备实例存在（即使设备已断开但尚未释放），就拒绝卸载；先释放设备，再卸载插件。
+- 应用退出时先释放设备工作线程，再卸载插件，避免动态库已卸载而工厂回调仍持有插件对象。
+- 插件创建驱动的回调运行在对应设备 I/O 工作线程；插件应避免跨线程访问 UI，并在 `shutdown()` 中释放自身资源。
+- `plugin_manager_test` 使用独立 Echo 驱动插件验证动态加载、通信类型注册、设备连接、占用期间拒绝卸载和释放后安全卸载。
+- 插件仍运行在主进程内，不提供沙箱隔离；只应加载可信、与当前 Qt/编译器 ABI 匹配的插件。
