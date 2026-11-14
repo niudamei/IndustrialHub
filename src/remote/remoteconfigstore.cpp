@@ -80,6 +80,19 @@ bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
             *errorMessage = QStringLiteral("映射字段为空或超过长度限制。");
         return false;
     }
+    if (protocol == QStringLiteral("MQTT")) {
+        const QStringList segments = pattern.split(QLatin1Char('/'));
+        for (int i = 0; i < segments.size(); ++i) {
+            const QString &segment = segments.at(i);
+            if ((segment.contains(QLatin1Char('+')) && segment != QStringLiteral("+"))
+                || (segment.contains(QLatin1Char('#')) && segment != QStringLiteral("#"))
+                || (segment == QStringLiteral("#") && i != segments.size() - 1)) {
+                if (errorMessage)
+                    *errorMessage = QStringLiteral("MQTT + 必须独占一个 Topic 层级，# 只能位于末尾。");
+                return false;
+            }
+        }
+    }
 
     QList<RemoteTelemetryMapping> all = mappings();
     bool replaced = false;
@@ -178,9 +191,16 @@ bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &c
                 else
                     regexSegments.append(QRegularExpression::escape(segment));
             }
+            QString regex = regexSegments.join(QLatin1Char('/'));
+            if (!segments.isEmpty() && segments.last() == QStringLiteral("#")) {
+                if (segments.size() == 1)
+                    regex = QStringLiteral(".*");
+                else
+                    regex = regexSegments.mid(0, regexSegments.size() - 1).join(QLatin1Char('/'))
+                        + QStringLiteral("(?:/.*)?");
+            }
             const QRegularExpression expression(
-                QStringLiteral("^") + regexSegments.join(QLatin1Char('/'))
-                + QStringLiteral("$"));
+                QStringLiteral("^") + regex + QStringLiteral("$"));
             if (expression.match(channel).hasMatch()) {
                 mapping = candidate;
                 return true;
