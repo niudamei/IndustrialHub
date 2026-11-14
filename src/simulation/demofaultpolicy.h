@@ -2,6 +2,7 @@
 #define DEMOFAULTPOLICY_H
 
 #include <QString>
+#include <QtGlobal>
 
 namespace DemoFaultPolicy {
 
