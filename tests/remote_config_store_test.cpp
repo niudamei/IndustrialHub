@@ -9,8 +9,8 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
-    const QString fileName = QDir::temp().filePath(
-        QStringLiteral("industrialhub_remote_mapping_test.ini"));
+    const QString fileName = QDir::tempPath()
+        + QStringLiteral("/industrialhub_remote_mapping_test.ini");
     QFile::remove(fileName);
 
     RemoteConfigStore store(fileName);
