@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.11.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.12.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -377,6 +377,8 @@ if(BUILD_TESTING)
         tests/plugins/sampleplugin.cpp
         tests/plugins/sampleplugin.json
         src/plugins/iplugin.h
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
     )
     target_include_directories(sample_industrial_plugin PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(sample_industrial_plugin PRIVATE Qt6::Core)
@@ -387,9 +389,26 @@ if(BUILD_TESTING)
         src/plugins/iplugin.h
         src/plugins/pluginmanager.h
         src/plugins/pluginmanager.cpp
+        src/communication/icommunication.h
+        src/communication/icommunication.cpp
+        src/communication/communicationmanager.h
+        src/communication/communicationmanager.cpp
+        src/communication/communicationworker.h
+        src/communication/communicationworker.cpp
+        src/communication/simulatedcommunication.h
+        src/communication/simulatedcommunication.cpp
+        src/communication/simulatedmodbuscommunication.h
+        src/communication/simulatedmodbuscommunication.cpp
+        src/protocol/modbuscodec.h
+        src/protocol/modbuscodec.cpp
+        src/communication/tcpcommunication.h
+        src/communication/tcpcommunication.cpp
+        src/communication/udpcommunication.h
+        src/communication/udpcommunication.cpp
+        src/pages/deviceinfo.h
     )
     target_include_directories(plugin_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(plugin_manager_test PRIVATE Qt6::Core)
+    target_link_libraries(plugin_manager_test PRIVATE Qt6::Core Qt6::Network)
     add_dependencies(plugin_manager_test sample_industrial_plugin)
     add_test(NAME plugin_manager_test
         COMMAND plugin_manager_test "$<TARGET_FILE:sample_industrial_plugin>")
