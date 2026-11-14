@@ -118,7 +118,7 @@ bool VirtualCanCommunication::sendData(const QByteArray &data, QString *errorMes
             return false;
         }
         QCanBusFrame frame(parsed.id, parsed.remote
-            ? QByteArray(parsed.remoteDlc, \\0) : parsed.data);
+            ? QByteArray(parsed.remoteDlc, char(0)) : parsed.data);
         if (parsed.extended) frame.setFrameId(parsed.id);
         frame.setFrameType(parsed.remote ? QCanBusFrame::RemoteRequestFrame
                                          : QCanBusFrame::DataFrame);
