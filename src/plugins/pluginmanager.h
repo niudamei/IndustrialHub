@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QList>
 
+class CommunicationManager;
 class QPluginLoader;
 
 struct LoadedPluginInfo
@@ -14,6 +15,7 @@ struct LoadedPluginInfo
     QString displayName;
     QString version;
     QString filePath;
+    QStringList communicationTypes;
 };
 
 class PluginManager : public QObject
@@ -23,6 +25,7 @@ public:
     explicit PluginManager(QObject *parent = nullptr);
     ~PluginManager() override;
 
+    void setCommunicationManager(CommunicationManager *manager);
     bool loadPlugin(const QString &filePath, QString *errorMessage = nullptr);
     bool unloadPlugin(const QString &pluginId, QString *errorMessage = nullptr);
     void unloadAll();
@@ -39,6 +42,7 @@ private:
         IIndustrialPlugin *instance = nullptr;
         bool shutdownCalled = false;
     };
+    CommunicationManager *m_communicationManager = nullptr;
     QList<LoadedPlugin> m_plugins;
 };
 
