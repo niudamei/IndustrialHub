@@ -391,7 +391,7 @@ ctest --test-dir build --output-on-failure
 
 1. 在设备管理中新增两个设备，通信类型均选 `VIRTUALCAN`，地址均填写 `can0`。
 2. 分别连接两个设备。可在两台电脑上使用相同地址形式，但远程连接时需使用实际 VirtualCAN 服务端的 IP 和端口。
-3. 从一个设备发送项目 SLCAN 格式帧，例如 `T18AABBCC3112233\\r`；另一个设备应收到相同的帧。
+3. 从一个设备发送项目 SLCAN 格式帧，例如 \`T18AABBCC3112233\r\`；另一个设备应收到相同的帧。
 4. CAN-FD 使用 `VIRTUALCANFD`，两端必须连接同一个通道，并发送符合项目 SLCAN CAN-FD 编码规则的帧。
 
 注意：VirtualCAN 只模拟软件总线上的帧分发，不模拟真实 CAN 收发器、电气层、总线仲裁时序、ACK、错误帧或终端电阻。它不能替代 CANable/PCAN/真实 ECU 的硬件验收。
