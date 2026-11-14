@@ -72,6 +72,7 @@
           <item><property name="text"><string>正常</string></property><property name="userData" stdset="0"><string>normal</string></property></item>
           <item><property name="text"><string>丢帧</string></property><property name="userData" stdset="0"><string>drop</string></property></item>
           <item><property name="text"><string>断线</string></property><property name="userData" stdset="0"><string>disconnect</string></property></item>
+           <item><property name="text"><string>延迟 RX</string></property><property name="userData" stdset="0"><string>delay</string></property></item>
          </widget>
         </item>
         <item><widget class="QLabel" name="demoFaultTargetLabel"><property name="text"><string>作用设备：</string></property></widget></item>
@@ -94,6 +95,23 @@
         </item>
         <item><widget class="QLabel" name="demoFaultHintLabel"><property name="text"><string>故障注入：关闭</string></property></widget></item>
 
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="demoDelayLayout">
+        <item><widget class="QLabel" name="demoDelayLabel"><property name="text"><string>RX 延迟时间：</string></property></widget></item>
+        <item>
+         <widget class="QSpinBox" name="demoDelaySpinBox">
+          <property name="minimum"><number>50</number></property>
+          <property name="maximum"><number>5000</number></property>
+          <property name="singleStep"><number>50</number></property>
+          <property name="value"><number>500</number></property>
+          <property name="suffix"><string> ms</string></property>
+          <property name="toolTip"><string>仅延迟目标模拟设备的原始 RX 事件；业务变量仍按模拟周期更新</string></property>
+         </widget>
+        </item>
+        <item><widget class="QLabel" name="demoDelayDescriptionLabel"><property name="text"><string>只影响选中的模拟设备，不阻塞界面；修改故障配置或停止模拟会取消尚未送达的延迟帧。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+        <item><spacer name="demoDelaySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
        </layout>
       </item>
      </layout>
