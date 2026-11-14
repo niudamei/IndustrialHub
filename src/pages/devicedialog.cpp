@@ -39,7 +39,10 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
     enabledRow->addWidget(enabledCheck);
     ui->verticalLayout->insertLayout(7, enabledRow);
     setWindowTitle(QStringLiteral("设备信息"));
-    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "MODBUS-SIM", "VIRTUALCAN", "VIRTUALCANFD"});
+    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "MODBUS-SIM"});
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+    ui->cmbCommType_C->addItems({"VIRTUALCAN", "VIRTUALCANFD"});
+#endif
     // Custom communication types may be contributed by dynamically loaded driver plugins.
     ui->cmbCommType_C->setEditable(true);
     ui->cmbCommType_C->setInsertPolicy(QComboBox::NoInsert);
