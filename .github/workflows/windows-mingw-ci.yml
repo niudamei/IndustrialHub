@@ -24,7 +24,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_mingw
-          modules: qtcharts qtserialport
+          modules: qtcharts qtserialport qtserialbus
           tools: tools_cmake,tools_ninja
           tools_mingw: 13.1.0
 
