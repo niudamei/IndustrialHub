@@ -60,10 +60,52 @@ bool CommunicationManager::registerFactory(const QString &commType,
                                              CommunicationFactory factory)
 {
     const QString key = commType.trimmed().toUpper();
-    if (key.isEmpty() || !factory)
+    if (key.isEmpty() || !factory || m_factories.contains(key))
         return false;
     m_factories.insert(key, std::move(factory));
     return true;
+}
+
+bool CommunicationManager::unregisterFactory(const QString &commType, QString *errorMessage)
+{
+    return unregisterFactories({commType}, errorMessage);
+}
+
+bool CommunicationManager::unregisterFactories(const QStringList &commTypes,
+                                                QString *errorMessage)
+{
+    QSet<QString> keys;
+    for (const QString &rawType : commTypes) {
+        const QString key = rawType.trimmed().toUpper();
+        if (key.isEmpty() || !m_factories.contains(key)) {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("通信类型未注册：%1").arg(rawType);
+            return false;
+        }
+        keys.insert(key);
+    }
+
+    for (auto it = m_commTypes.cbegin(); it != m_commTypes.cend(); ++it) {
+        if (keys.contains(it.value().trimmed().toUpper())) {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("通信类型 %1 仍被设备 %2 使用；请先断开并释放设备。")
+                    .arg(it.value(), m_deviceIds.value(it.key()));
+            return false;
+        }
+    }
+
+    for (const QString &key : keys)
+        m_factories.remove(key);
+    if (errorMessage)
+        errorMessage->clear();
+    return true;
+}
+
+QStringList CommunicationManager::registeredCommunicationTypes() const
+{
+    QStringList types = m_factories.keys();
+    types.sort(Qt::CaseInsensitive);
+    return types;
 }
 
 bool CommunicationManager::connectDevice(const DeviceInfo &device,
