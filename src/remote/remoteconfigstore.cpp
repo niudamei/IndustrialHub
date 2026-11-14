@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QStringList>
 #include <memory>
 
 namespace {
