@@ -20,6 +20,8 @@ bool VirtualCanCommunication::open(const DeviceInfo &device, QString *errorMessa
 {
     if (m_device && m_device->state() == QCanBusDevice::ConnectedState)
         return true;
+    if (m_device)
+        close();
 
     const QString interfaceName = device.devAddr.trimmed().isEmpty()
         ? QStringLiteral("can0") : device.devAddr.trimmed();
@@ -68,6 +70,14 @@ bool VirtualCanCommunication::open(const DeviceInfo &device, QString *errorMessa
             [this, bus](QCanBusDevice::CanBusError) {
         if (m_device == bus)
             emit errorOccurred(bus->errorString());
+    });
+    connect(bus, &QCanBusDevice::stateChanged, this,
+            [this, bus](QCanBusDevice::CanBusDeviceState state) {
+        if (m_device == bus && state == QCanBusDevice::UnconnectedState) {
+            m_device = nullptr;
+            emit connectionStateChanged(false);
+            bus->deleteLater();
+        }
     });
 
     if (!bus->connectDevice()) {
