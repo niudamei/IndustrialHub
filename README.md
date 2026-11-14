@@ -373,3 +373,25 @@ ctest --test-dir build --output-on-failure
 - 映射保存在当前用户 QSettings 中，重启应用后恢复；精确匹配优先于通配符匹配。
 - 映射只补充缺失字段，不覆盖 payload 已明确提供的设备和变量标识。
 - MQTT 密码、HTTP Bearer Token 仍只保留在输入控件/客户端运行时内存中，不写入普通配置文件；后续凭据持久化必须接入 Windows Credential Manager / DPAPI 等系统安全存储，避免明文落盘。
+
+
+## CAN / CAN-FD 虚拟总线（0.14.0）
+
+新增可选 Qt SerialBus VirtualCAN 驱动，用于在没有 CAN 盒子的情况下进行独立进程/设备间报文交换。
+
+- 新增通信类型 `VIRTUALCAN`（经典 CAN）和 `VIRTUALCANFD`（CAN-FD）；原有 CAN/CANFD（CANable SLCAN）驱动保持不变。
+- 驱动使用 Qt `QCanBus` 的 `virtualcan` 插件，内部将项目现有 SLCAN 文本帧转换为 `QCanBusFrame`，接收帧再转换回 SLCAN 格式，因此可复用当前 TX/RX 通信事件链路。
+- 设备地址填写 `can0` 至 `can9`，同一通道上的客户端互相收发；也支持 `tcp://主机:端口/can0` 形式连接另一台运行 VirtualCAN 服务的主机。默认端口 35468。
+- VirtualCAN 默认关闭发送端本地回显，避免 TX 被误计为远端 RX。
+- CMake 将 Qt SerialBus 作为可选模块；未安装时，VIRTUALCAN/VIRTUALCANFD 不会显示在设备类型中，现有驱动不受影响。
+- Qt 在线安装器中为当前 MinGW 64-bit Kit 安装 Qt Serial Bus 模块。运行时还必须能找到 `plugins/canbus` 下的 `virtualcan` 插件；若提示插件不可用，请检查 Qt Kit 与插件架构/版本是否一致。
+- 新增 `virtualcan_communication_test`：启动两个独立驱动客户端，在 can0 上交换经典 CAN 帧。测试需要 Qt SerialBus 和 VirtualCAN 插件可用。
+
+### 快速使用
+
+1. 在设备管理中新增两个设备，通信类型均选 `VIRTUALCAN`，地址均填写 `can0`。
+2. 分别连接两个设备。可在两台电脑上使用相同地址形式，但远程连接时需使用实际 VirtualCAN 服务端的 IP 和端口。
+3. 从一个设备发送项目 SLCAN 格式帧，例如 `T18AABBCC3112233\\r`；另一个设备应收到相同的帧。
+4. CAN-FD 使用 `VIRTUALCANFD`，两端必须连接同一个通道，并发送符合项目 SLCAN CAN-FD 编码规则的帧。
+
+注意：VirtualCAN 只模拟软件总线上的帧分发，不模拟真实 CAN 收发器、电气层、总线仲裁时序、ACK、错误帧或终端电阻。它不能替代 CANable/PCAN/真实 ECU 的硬件验收。
