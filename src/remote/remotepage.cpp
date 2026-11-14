@@ -255,6 +255,8 @@ RemotePage::~RemotePage()
     if (m_mqtt) m_mqtt->disconnectFromBroker();
     if (m_webSocket) m_webSocket->disconnectFromServer();
     if (m_http) m_http->cancel();
+    delete m_configStore;
+    m_configStore = nullptr;
 }
 
 void RemotePage::appendLog(QPlainTextEdit *view, const QString &message)
