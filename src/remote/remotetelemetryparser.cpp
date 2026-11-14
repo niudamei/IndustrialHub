@@ -9,7 +9,11 @@
 bool RemoteTelemetryParser::parse(const QString &protocol, const QString &channel,
                                   const QByteArray &payload, QString &deviceId,
                                   QVector<BusinessDataPoint> &points,
-                                  QString *errorMessage)
+                                  QString *errorMessage,
+                                  const QString &fallbackDeviceId,
+                                  const QString &fallbackVariableId,
+                                  const QString &fallbackName,
+                                  const QString &fallbackUnit)
 {
     deviceId.clear();
     points.clear();
@@ -28,7 +32,9 @@ bool RemoteTelemetryParser::parse(const QString &protocol, const QString &channe
     const QJsonObject root = document.object();
     deviceId = root.value(QStringLiteral("deviceId")).toString().trimmed();
     if (deviceId.isEmpty())
-        return fail(QStringLiteral("JSON 缺少 deviceId。"));
+        deviceId = fallbackDeviceId.trimmed();
+    if (deviceId.isEmpty())
+        return fail(QStringLiteral("JSON 缺少 deviceId，且当前 Topic/URL 没有设备映射。"));
 
     QJsonArray array = root.value(QStringLiteral("points")).toArray();
     if (array.isEmpty())
@@ -44,8 +50,10 @@ bool RemoteTelemetryParser::parse(const QString &protocol, const QString &channe
         if (!value.isObject())
             continue;
         const QJsonObject object = value.toObject();
-        const QString variableId = object.value(QStringLiteral("variableId")).toString(
+        QString variableId = object.value(QStringLiteral("variableId")).toString(
             object.value(QStringLiteral("id")).toString()).trimmed();
+        if (variableId.isEmpty() && array.size() == 1)
+            variableId = fallbackVariableId.trimmed();
         const QJsonValue numericValue = object.value(QStringLiteral("value"));
         if (variableId.isEmpty() || !numericValue.isDouble())
             continue;
@@ -56,9 +64,13 @@ bool RemoteTelemetryParser::parse(const QString &protocol, const QString &channe
         BusinessDataPoint point;
         point.deviceId = deviceId;
         point.variableId = variableId;
-        point.name = object.value(QStringLiteral("name")).toString(variableId);
+        point.name = object.value(QStringLiteral("name")).toString();
+        if (point.name.isEmpty())
+            point.name = fallbackName.trimmed().isEmpty() ? variableId : fallbackName.trimmed();
         point.value = number;
         point.unit = object.value(QStringLiteral("unit")).toString();
+        if (point.unit.isEmpty())
+            point.unit = fallbackUnit;
         point.timestamp = QDateTime::fromString(
             object.value(QStringLiteral("timestamp")).toString(), Qt::ISODateWithMs);
         if (!point.timestamp.isValid())
