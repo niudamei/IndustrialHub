@@ -39,7 +39,7 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
     enabledRow->addWidget(enabledCheck);
     ui->verticalLayout->insertLayout(7, enabledRow);
     setWindowTitle(QStringLiteral("设备信息"));
-    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "MODBUS-SIM"});
+    ui->cmbCommType_C->addItems({"TCP", "UDP", "CAN", "CANFD", "RS485", "SIMULATED", "MODBUS-SIM", "VIRTUALCAN", "VIRTUALCANFD"});
     // Custom communication types may be contributed by dynamically loaded driver plugins.
     ui->cmbCommType_C->setEditable(true);
     ui->cmbCommType_C->setInsertPolicy(QComboBox::NoInsert);
@@ -56,6 +56,10 @@ DeviceDialog::DeviceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::Device
             hint = QStringLiteral("COM4,1000000（CANable SLCAN）");
         } else if (type == QStringLiteral("CANFD")) {
             hint = QStringLiteral("COM4,1000000,2000000（仲裁段/数据段）");
+        } else if (type == QStringLiteral("VIRTUALCAN")) {
+            hint = QStringLiteral("can0（本机虚拟总线）；也可填 tcp://主机:35468/can0");
+        } else if (type == QStringLiteral("VIRTUALCANFD")) {
+            hint = QStringLiteral("can0（CAN-FD 虚拟总线）；也可填 tcp://主机:35468/can0");
         } else if (type == QStringLiteral("SIMULATED")) {
             hint = QStringLiteral("模拟通信无需填写");
         } else if (type == QStringLiteral("MODBUS-SIM")) {
