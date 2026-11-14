@@ -299,7 +299,9 @@ void RemotePage::refreshMappingTable()
     m_mappingTable->setRowCount(mappings.size());
     for (int row = 0; row < mappings.size(); ++row) {
         const RemoteTelemetryMapping &mapping = mappings.at(row);
-        const QStringList values{mapping.protocol, mapping.channelPattern, mapping.deviceId,
+        const QString protocol = mapping.protocol == QStringLiteral("WEBSOCKET")
+            ? QStringLiteral("WebSocket") : mapping.protocol;
+        const QStringList values{protocol, mapping.channelPattern, mapping.deviceId,
             mapping.variableId, mapping.name, mapping.unit};
         for (int column = 0; column < values.size(); ++column)
             m_mappingTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
