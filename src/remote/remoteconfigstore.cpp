@@ -9,6 +9,7 @@
 
 namespace {
 const QString kMappingsKey = QStringLiteral("remote/mappings");
+
 std::unique_ptr<QSettings> createSettings(const QString &fileName)
 {
     if (!fileName.isEmpty())
@@ -17,6 +18,7 @@ std::unique_ptr<QSettings> createSettings(const QString &fileName)
                                        QStringLiteral("IndustrialHub"),
                                        QStringLiteral("IndustrialHub"));
 }
+
 QJsonObject toJson(const RemoteTelemetryMapping &item)
 {
     QJsonObject object;
@@ -37,12 +39,13 @@ RemoteConfigStore::RemoteConfigStore(const QString &settingsFile)
 
 QList<RemoteTelemetryMapping> RemoteConfigStore::mappings() const
 {
-    auto settings = createSettings(m_settingsFile);
+    const auto settings = createSettings(m_settingsFile);
     const QJsonDocument document = QJsonDocument::fromJson(
         settings->value(kMappingsKey).toByteArray());
     QList<RemoteTelemetryMapping> result;
     for (const QJsonValue &value : document.array()) {
-        if (!value.isObject()) continue;
+        if (!value.isObject())
+            continue;
         const QJsonObject object = value.toObject();
         RemoteTelemetryMapping item;
         item.protocol = object.value(QStringLiteral("protocol")).toString();
@@ -66,13 +69,15 @@ bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
     const QString deviceId = mapping.deviceId.trimmed();
     if (protocol != QStringLiteral("MQTT") && protocol != QStringLiteral("WEBSOCKET")
         && protocol != QStringLiteral("HTTP")) {
-        if (errorMessage) *errorMessage = QStringLiteral("协议必须是 MQTT、WebSocket 或 HTTP。");
+        if (errorMessage)
+            *errorMessage = QStringLiteral("协议必须是 MQTT、WebSocket 或 HTTP。");
         return false;
     }
     if (pattern.isEmpty() || pattern.size() > 512 || deviceId.isEmpty()
         || deviceId.size() > 128 || mapping.variableId.trimmed().size() > 128
         || mapping.name.size() > 128 || mapping.unit.size() > 32) {
-        if (errorMessage) *errorMessage = QStringLiteral("映射字段为空或超过长度限制。");
+        if (errorMessage)
+            *errorMessage = QStringLiteral("映射字段为空或超过长度限制。");
         return false;
     }
 
@@ -98,15 +103,18 @@ bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
     }
 
     QJsonArray array;
-    for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
+    for (const RemoteTelemetryMapping &item : all)
+        array.append(toJson(item));
     auto settings = createSettings(m_settingsFile);
     settings->setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
     settings->sync();
     if (settings->status() != QSettings::NoError) {
-        if (errorMessage) *errorMessage = QStringLiteral("保存远程映射配置失败。");
+        if (errorMessage)
+            *errorMessage = QStringLiteral("保存远程映射配置失败。");
         return false;
     }
-    if (errorMessage) errorMessage->clear();
+    if (errorMessage)
+        errorMessage->clear();
     return true;
 }
 
@@ -122,19 +130,24 @@ bool RemoteConfigStore::removeMapping(const QString &protocol,
             all.removeAt(i);
     }
     if (all.size() == before) {
-        if (errorMessage) *errorMessage = QStringLiteral("未找到指定远程映射。");
+        if (errorMessage)
+            *errorMessage = QStringLiteral("未找到指定远程映射。");
         return false;
     }
+
     QJsonArray array;
-    for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
-    QSettings settings = createSettings(m_settingsFile);
-    settings.setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
-    settings.sync();
-    if (settings.status() != QSettings::NoError) {
-        if (errorMessage) *errorMessage = QStringLiteral("删除远程映射配置失败。");
+    for (const RemoteTelemetryMapping &item : all)
+        array.append(toJson(item));
+    auto settings = createSettings(m_settingsFile);
+    settings->setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
+    settings->sync();
+    if (settings->status() != QSettings::NoError) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("删除远程映射配置失败。");
         return false;
     }
-    if (errorMessage) errorMessage->clear();
+    if (errorMessage)
+        errorMessage->clear();
     return true;
 }
 
@@ -149,9 +162,11 @@ bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &c
             return true;
         }
     }
+
     for (const RemoteTelemetryMapping &candidate : all) {
         if (candidate.protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) != 0)
             continue;
+
         if (candidate.protocol.compare(QStringLiteral("MQTT"), Qt::CaseInsensitive) == 0) {
             const QStringList segments = candidate.channelPattern.split(QLatin1Char('/'));
             QStringList regexSegments;
@@ -163,23 +178,18 @@ bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &c
                 else
                     regexSegments.append(QRegularExpression::escape(segment));
             }
-            const QRegularExpression mqttExpression(
-                QStringLiteral("^") + regexSegments.join(QLatin1Char('/')) + QStringLiteral("$"));
-            if (mqttExpression.match(channel).hasMatch()) {
-                mapping = candidate;
-                return true;
-            }
-            continue;
-        }
-        const QRegularExpression expression(QStringLiteral("^") + pattern + QStringLiteral("$"));
+            const QRegularExpression expression(
+                QStringLiteral("^") + regexSegments.join(QLatin1Char('/'))
+                + QStringLiteral("$"));
             if (expression.match(channel).hasMatch()) {
                 mapping = candidate;
                 return true;
             }
             continue;
         }
+
         const QRegularExpression expression(
-            QRegularExpression::wildcardToRegularExpression(pattern));
+            QRegularExpression::wildcardToRegularExpression(candidate.channelPattern));
         if (expression.match(channel).hasMatch()) {
             mapping = candidate;
             return true;
