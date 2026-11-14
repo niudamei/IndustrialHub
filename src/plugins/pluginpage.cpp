@@ -18,7 +18,7 @@ PluginPage::PluginPage(PluginManager *manager, QWidget *parent)
 {
     auto *root = new QVBoxLayout(this);
     auto *description = new QLabel(
-        QStringLiteral("动态插件使用 Qt Plugin / QPluginLoader。只加载来自可信来源的插件；插件代码在当前进程内运行，拥有与主程序相同的权限。"),
+        QStringLiteral("支持功能插件和通信驱动插件。驱动插件加载后会注册自定义通信类型，设备管理中的通信类型可直接输入该类型。若设备仍引用插件驱动，系统会拒绝卸载；请先释放对应设备。插件在主进程内运行，只加载可信来源的动态库。"),
         this);
     description->setWordWrap(true);
     root->addWidget(description);
