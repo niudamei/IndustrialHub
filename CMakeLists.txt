@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.14.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.15.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -487,6 +487,10 @@ if(TARGET Qt6::SerialBus)
     target_sources(hhh PRIVATE
         src/communication/virtualcancommunication.h
         src/communication/virtualcancommunication.cpp
+        src/simulation/modbustcpsimulator.h
+        src/simulation/modbustcpsimulator.cpp
+        src/pages/SimulatorPage.h
+        src/pages/SimulatorPage.cpp
     )
     target_link_libraries(hhh PRIVATE Qt6::SerialBus)
     target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALBUS)
@@ -505,6 +509,15 @@ if(TARGET Qt6::SerialBus)
         target_include_directories(virtualcan_communication_test PRIVATE ${CMAKE_SOURCE_DIR})
         target_link_libraries(virtualcan_communication_test PRIVATE Qt6::Core Qt6::SerialBus)
         add_test(NAME virtualcan_communication_test COMMAND virtualcan_communication_test)
+
+        add_executable(modbus_tcp_simulator_test
+            tests/modbus_tcp_simulator_test.cpp
+            src/simulation/modbustcpsimulator.h
+            src/simulation/modbustcpsimulator.cpp
+        )
+        target_include_directories(modbus_tcp_simulator_test PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(modbus_tcp_simulator_test PRIVATE Qt6::Core Qt6::Network Qt6::SerialBus)
+        add_test(NAME modbus_tcp_simulator_test COMMAND modbus_tcp_simulator_test)
     endif()
 else()
     message(STATUS "Qt SerialBus not found: VirtualCAN drivers will be disabled; other communication drivers remain available.")
