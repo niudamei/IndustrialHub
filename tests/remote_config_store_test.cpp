@@ -27,6 +27,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    RemoteTelemetryMapping invalid = mapping;
+    invalid.channelPattern = QStringLiteral("factory/#/temperature");
+    if (store.upsertMapping(invalid, &error)) {
+        qCritical() << "FAIL: invalid MQTT multi-level wildcard placement was accepted.";
+        return 5;
+    }
+
     RemoteConfigStore reopened(fileName);
     RemoteTelemetryMapping resolved;
     if (!reopened.resolveMapping(QStringLiteral("mqtt"),
