@@ -62,6 +62,7 @@ qt_add_executable(hhh
     src/remote/websocketclient.h src/remote/websocketclient.cpp
     src/remote/httpclient.h src/remote/httpclient.cpp
     src/remote/remotetelemetryparser.h src/remote/remotetelemetryparser.cpp
+    src/remote/remoteconfigstore.h src/remote/remoteconfigstore.cpp
     src/remote/remotepage.h src/remote/remotepage.cpp
     src/plugins/iplugin.h
     src/plugins/pluginmanager.h src/plugins/pluginmanager.cpp
@@ -373,6 +374,18 @@ if(BUILD_TESTING)
     target_include_directories(remote_client_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(remote_client_test PRIVATE Qt6::Core Qt6::Network)
     add_test(NAME remote_client_test COMMAND remote_client_test)
+
+    add_executable(remote_config_store_test
+        tests/remote_config_store_test.cpp
+        src/remote/remoteconfigstore.h
+        src/remote/remoteconfigstore.cpp
+        src/remote/remotetelemetryparser.h
+        src/remote/remotetelemetryparser.cpp
+    )
+    target_include_directories(remote_config_store_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(remote_config_store_test PRIVATE Qt6::Core)
+    add_test(NAME remote_config_store_test COMMAND remote_config_store_test)
+
     add_library(sample_industrial_plugin MODULE
         tests/plugins/sampleplugin.cpp
         tests/plugins/sampleplugin.json
