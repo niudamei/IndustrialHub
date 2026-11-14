@@ -26,8 +26,9 @@
 
 RemotePage::RemotePage(QWidget *parent)
     : QWidget(parent), m_mqtt(new MqttClient(this)), m_webSocket(new WebSocketClient(this)),
-      m_http(new HttpClient(this)), m_configStore(new RemoteConfigStore)
+      m_http(new HttpClient(this))
 {
+    m_configStore = new RemoteConfigStore;
     auto *root = new QVBoxLayout(this);
     auto *tabs = new QTabWidget(this);
     root->addWidget(tabs);
