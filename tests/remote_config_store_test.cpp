@@ -39,7 +39,9 @@ int main(int argc, char *argv[])
     if (!reopened.resolveMapping(QStringLiteral("mqtt"),
                                  QStringLiteral("factory/line1/telemetry/temperature"), resolved)
         || resolved.deviceId != QStringLiteral("PLC-001")
-        || resolved.variableId != QStringLiteral("temperature")) {
+        || resolved.variableId != QStringLiteral("temperature")
+        || !reopened.resolveMapping(QStringLiteral("MQTT"),
+                                    QStringLiteral("factory/line1/telemetry"), resolved)) {
         qCritical() << "FAIL: wildcard mapping persistence/resolution.";
         return 2;
     }
