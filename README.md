@@ -10,7 +10,7 @@
 - UI：Qt Widgets / Qt Designer（`.ui`）
 - 数据库：SQLite（Qt SQL）
 - 网络：Qt Network
-- 当前版本：0.12.0
+- 当前版本：0.13.0
 
 ## 已实现模块
 
@@ -363,3 +363,13 @@ ctest --test-dir build --output-on-failure
 - 插件创建驱动的回调运行在对应设备 I/O 工作线程；插件应避免跨线程访问 UI，并在 `shutdown()` 中释放自身资源。
 - `plugin_manager_test` 使用独立 Echo 驱动插件验证动态加载、通信类型注册、设备连接、占用期间拒绝卸载和释放后安全卸载。
 - 插件仍运行在主进程内，不提供沙箱隔离；只应加载可信、与当前 Qt/编译器 ABI 匹配的插件。
+
+
+## 远程遥测映射配置（0.13.0）
+
+- 远程通信页增加统一映射表，可将 MQTT Topic、WebSocket URL 或 HTTP URL 模式映射到设备 ID。
+- 支持为单变量 JSON 消息配置默认变量 ID、名称和单位；消息自身提供的 deviceId、variableId、name、unit 优先于映射默认值。
+- MQTT 映射支持标准单层 `+`、多层 `#` 通配符，同时兼容 `*`；WebSocket/HTTP 使用 `*` 通配符。
+- 映射保存在当前用户 QSettings 中，重启应用后恢复；精确匹配优先于通配符匹配。
+- 映射只补充缺失字段，不覆盖 payload 已明确提供的设备和变量标识。
+- MQTT 密码、HTTP Bearer Token 仍只保留在输入控件/客户端运行时内存中，不写入普通配置文件；后续凭据持久化必须接入 Windows Credential Manager / DPAPI 等系统安全存储，避免明文落盘。
