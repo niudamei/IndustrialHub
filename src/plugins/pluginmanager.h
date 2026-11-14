@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QList>
+#include <QPointer>
 
 class CommunicationManager;
 class QPluginLoader;
@@ -42,7 +43,7 @@ private:
         IIndustrialPlugin *instance = nullptr;
         bool shutdownCalled = false;
     };
-    CommunicationManager *m_communicationManager = nullptr;
+    QPointer<CommunicationManager> m_communicationManager;
     QList<LoadedPlugin> m_plugins;
 };
 
