@@ -4,6 +4,7 @@
 #include "websocketclient.h"
 #include "httpclient.h"
 #include "remotetelemetryparser.h"
+#include "remoteconfigstore.h"
 
 #include <QComboBox>
 #include <QUrl>
@@ -16,15 +17,70 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTabWidget>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QAbstractItemView>
+#include <QMessageBox>
 #include <QVBoxLayout>
 #include <QDateTime>
 
 RemotePage::RemotePage(QWidget *parent)
-    : QWidget(parent), m_mqtt(new MqttClient(this)), m_webSocket(new WebSocketClient(this)), m_http(new HttpClient(this))
+    : QWidget(parent), m_mqtt(new MqttClient(this)), m_webSocket(new WebSocketClient(this)),
+      m_http(new HttpClient(this)), m_configStore(new RemoteConfigStore)
 {
     auto *root = new QVBoxLayout(this);
     auto *tabs = new QTabWidget(this);
     root->addWidget(tabs);
+
+    auto *mappingGroup = new QGroupBox(QStringLiteral("远程 Topic / URL → 设备变量映射（支持 * 通配符）"), this);
+    auto *mappingLayout = new QVBoxLayout(mappingGroup);
+    m_mappingTable = new QTableWidget(mappingGroup);
+    m_mappingTable->setColumnCount(6);
+    m_mappingTable->setHorizontalHeaderLabels({QStringLiteral("协议"), QStringLiteral("Topic / URL"),
+        QStringLiteral("设备 ID"), QStringLiteral("默认变量 ID"), QStringLiteral("变量名称"),
+        QStringLiteral("单位")});
+    m_mappingTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_mappingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_mappingTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_mappingTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    mappingLayout->addWidget(m_mappingTable);
+    auto *mappingForm = new QFormLayout;
+    m_mappingProtocol = new QComboBox(mappingGroup);
+    m_mappingProtocol->addItems({QStringLiteral("MQTT"), QStringLiteral("WebSocket"), QStringLiteral("HTTP")});
+    m_mappingChannel = new QLineEdit(mappingGroup);
+    m_mappingChannel->setPlaceholderText(QStringLiteral("例如 factory/line1/* 或 ws://host/device/*"));
+    m_mappingDevice = new QLineEdit(mappingGroup);
+    m_mappingVariable = new QLineEdit(mappingGroup);
+    m_mappingName = new QLineEdit(mappingGroup);
+    m_mappingUnit = new QLineEdit(mappingGroup);
+    mappingForm->addRow(QStringLiteral("协议："), m_mappingProtocol);
+    mappingForm->addRow(QStringLiteral("Topic / URL 模式："), m_mappingChannel);
+    mappingForm->addRow(QStringLiteral("设备 ID："), m_mappingDevice);
+    mappingForm->addRow(QStringLiteral("默认变量 ID（单变量消息可省略）："), m_mappingVariable);
+    mappingForm->addRow(QStringLiteral("默认名称："), m_mappingName);
+    mappingForm->addRow(QStringLiteral("默认单位："), m_mappingUnit);
+    mappingLayout->addLayout(mappingForm);
+    auto *mappingButtons = new QHBoxLayout;
+    auto *saveMapping = new QPushButton(QStringLiteral("保存 / 更新映射"), mappingGroup);
+    auto *deleteMapping = new QPushButton(QStringLiteral("删除选中映射"), mappingGroup);
+    mappingButtons->addWidget(saveMapping);
+    mappingButtons->addWidget(deleteMapping);
+    mappingButtons->addStretch();
+    mappingLayout->addLayout(mappingButtons);
+    root->addWidget(mappingGroup);
+    refreshMappingTable();
+    connect(saveMapping, &QPushButton::clicked, this, &RemotePage::saveCurrentMapping);
+    connect(deleteMapping, &QPushButton::clicked, this, &RemotePage::removeSelectedMapping);
+    connect(m_mappingTable, &QTableWidget::itemSelectionChanged, this, [this]() {
+        const int row = m_mappingTable->currentRow();
+        if (row < 0) return;
+        m_mappingProtocol->setCurrentText(m_mappingTable->item(row, 0)->text());
+        m_mappingChannel->setText(m_mappingTable->item(row, 1)->text());
+        m_mappingDevice->setText(m_mappingTable->item(row, 2)->text());
+        m_mappingVariable->setText(m_mappingTable->item(row, 3)->text());
+        m_mappingName->setText(m_mappingTable->item(row, 4)->text());
+        m_mappingUnit->setText(m_mappingTable->item(row, 5)->text());
+    });
 
     auto *mqttTab = new QWidget(tabs);
     auto *mqttLayout = new QVBoxLayout(mqttTab);
@@ -214,7 +270,14 @@ void RemotePage::handleRemotePayload(const QString &protocol, const QString &cha
     QString deviceId;
     QVector<BusinessDataPoint> points;
     QString error;
-    if (!RemoteTelemetryParser::parse(protocol, channel, payload, deviceId, points, &error)) {
+    RemoteTelemetryMapping mapping;
+    const bool hasMapping = m_configStore
+        && m_configStore->resolveMapping(protocol, channel, mapping);
+    if (!RemoteTelemetryParser::parse(protocol, channel, payload, deviceId, points, &error,
+            hasMapping ? mapping.deviceId : QString(),
+            hasMapping ? mapping.variableId : QString(),
+            hasMapping ? mapping.name : QString(),
+            hasMapping ? mapping.unit : QString())) {
         QPlainTextEdit *log = protocol == QStringLiteral("MQTT") ? m_mqttLog
             : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog;
         appendLog(log, QStringLiteral("远程数据解析失败：") + error);
@@ -225,4 +288,53 @@ void RemotePage::handleRemotePayload(const QString &protocol, const QString &cha
         : protocol == QStringLiteral("WebSocket") ? m_wsLog : m_httpLog;
     appendLog(log, QStringLiteral("已解析 %1 个业务变量，设备：%2，已送入数据中心。")
         .arg(points.size()).arg(deviceId));
+}
+
+void RemotePage::refreshMappingTable()
+{
+    if (!m_mappingTable || !m_configStore) return;
+    const QList<RemoteTelemetryMapping> mappings = m_configStore->mappings();
+    m_mappingTable->setRowCount(mappings.size());
+    for (int row = 0; row < mappings.size(); ++row) {
+        const RemoteTelemetryMapping &mapping = mappings.at(row);
+        const QStringList values{mapping.protocol, mapping.channelPattern, mapping.deviceId,
+            mapping.variableId, mapping.name, mapping.unit};
+        for (int column = 0; column < values.size(); ++column)
+            m_mappingTable->setItem(row, column, new QTableWidgetItem(values.at(column)));
+    }
+}
+
+void RemotePage::saveCurrentMapping()
+{
+    RemoteTelemetryMapping mapping;
+    mapping.protocol = m_mappingProtocol->currentText();
+    mapping.channelPattern = m_mappingChannel->text();
+    mapping.deviceId = m_mappingDevice->text();
+    mapping.variableId = m_mappingVariable->text();
+    mapping.name = m_mappingName->text();
+    mapping.unit = m_mappingUnit->text();
+    QString error;
+    if (!m_configStore->upsertMapping(mapping, &error)) {
+        QMessageBox::warning(this, QStringLiteral("映射保存失败"), error);
+        return;
+    }
+    refreshMappingTable();
+    appendLog(m_mqttLog, QStringLiteral("远程映射已保存：%1 → %2")
+        .arg(mapping.channelPattern, mapping.deviceId));
+}
+
+void RemotePage::removeSelectedMapping()
+{
+    const int row = m_mappingTable ? m_mappingTable->currentRow() : -1;
+    if (row < 0) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条映射。"));
+        return;
+    }
+    QString error;
+    if (!m_configStore->removeMapping(m_mappingTable->item(row, 0)->text(),
+                                      m_mappingTable->item(row, 1)->text(), &error)) {
+        QMessageBox::warning(this, QStringLiteral("删除失败"), error);
+        return;
+    }
+    refreshMappingTable();
 }
