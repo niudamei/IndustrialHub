@@ -2,6 +2,7 @@
 #include <QEventLoop>
 #include <QModbusTcpClient>
 #include <QModbusDataUnit>
+#include <QModbusReply>
 #include <QTimer>
 #include <QDebug>
 
