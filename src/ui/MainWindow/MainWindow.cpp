@@ -21,7 +21,10 @@
 #include "src/security/usermanagementpage.h"
 #include "src/remote/remotepage.h"
 #include "src/plugins/pluginmanager.h"
-#include "src/plugins/pluginpage.h"\n#ifdef INDUSTRIALHUB_HAS_SERIALBUS\n#include "src/pages/SimulatorPage.h"\n#endif
+#include "src/plugins/pluginpage.h"
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+#include "src/pages/SimulatorPage.h"
+#endif
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QDebug>
