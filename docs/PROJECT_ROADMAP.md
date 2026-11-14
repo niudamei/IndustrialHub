@@ -295,3 +295,13 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 增加 Echo 通信驱动样例插件及自动化测试目标，覆盖注册、设备连接、占用保护和卸载。
 - [ ] 在用户 Qt 6.10.3 MinGW 环境完成编译和 CTest；验证真实第三方驱动插件 ABI。
 - [ ] 后续将现有 TCP/UDP/RS485/CAN 驱动逐步迁移为可选插件；当前内置驱动仍保留为内建工厂。
+
+
+### P5：远程遥测映射持久化（2026-11-14）
+- [x] 新增 RemoteConfigStore，使用 QSettings 持久化 MQTT / WebSocket / HTTP 通道映射。
+- [x] 远程通信页增加映射管理表，支持新增、更新、删除和重启后恢复。
+- [x] 支持 MQTT `+` / `#` 通配符、WebSocket/HTTP `*` 通配符，精确通道匹配优先。
+- [x] RemoteTelemetryParser 支持由映射补充缺失的 deviceId、单变量 variableId、名称和单位；payload 显式字段优先。
+- [x] 增加 remote_config_store_test，覆盖持久化、通配符解析、映射默认值和删除。
+- [ ] 用户 Qt 6.10.3 MinGW 环境完成编译与全量 CTest。
+- [ ] 远程连接配置方案保存/切换；密码和 Token 需通过 Windows Credential Manager / DPAPI 等安全存储后再支持记住密码。
