@@ -1,0 +1,161 @@
+#include "remoteconfigstore.h"
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
+#include <QSettings>
+
+namespace {
+const QString kMappingsKey = QStringLiteral("remote/mappings");
+QSettings createSettings(const QString &fileName)
+{
+    if (!fileName.isEmpty())
+        return QSettings(fileName, QSettings::IniFormat);
+    return QSettings(QSettings::IniFormat, QSettings::UserScope,
+                     QStringLiteral("IndustrialHub"), QStringLiteral("IndustrialHub"));
+}
+QJsonObject toJson(const RemoteTelemetryMapping &item)
+{
+    QJsonObject object;
+    object.insert(QStringLiteral("protocol"), item.protocol);
+    object.insert(QStringLiteral("channelPattern"), item.channelPattern);
+    object.insert(QStringLiteral("deviceId"), item.deviceId);
+    object.insert(QStringLiteral("variableId"), item.variableId);
+    object.insert(QStringLiteral("name"), item.name);
+    object.insert(QStringLiteral("unit"), item.unit);
+    return object;
+}
+}
+
+RemoteConfigStore::RemoteConfigStore(const QString &settingsFile)
+    : m_settingsFile(settingsFile)
+{
+}
+
+QList<RemoteTelemetryMapping> RemoteConfigStore::mappings() const
+{
+    QSettings settings = createSettings(m_settingsFile);
+    const QJsonDocument document = QJsonDocument::fromJson(
+        settings.value(kMappingsKey).toByteArray());
+    QList<RemoteTelemetryMapping> result;
+    for (const QJsonValue &value : document.array()) {
+        if (!value.isObject()) continue;
+        const QJsonObject object = value.toObject();
+        RemoteTelemetryMapping item;
+        item.protocol = object.value(QStringLiteral("protocol")).toString();
+        item.channelPattern = object.value(QStringLiteral("channelPattern")).toString();
+        item.deviceId = object.value(QStringLiteral("deviceId")).toString();
+        item.variableId = object.value(QStringLiteral("variableId")).toString();
+        item.name = object.value(QStringLiteral("name")).toString();
+        item.unit = object.value(QStringLiteral("unit")).toString();
+        if (!item.protocol.isEmpty() && !item.channelPattern.isEmpty()
+            && !item.deviceId.isEmpty())
+            result.append(item);
+    }
+    return result;
+}
+
+bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
+                                      QString *errorMessage)
+{
+    const QString protocol = mapping.protocol.trimmed().toUpper();
+    const QString pattern = mapping.channelPattern.trimmed();
+    const QString deviceId = mapping.deviceId.trimmed();
+    if (protocol != QStringLiteral("MQTT") && protocol != QStringLiteral("WEBSOCKET")
+        && protocol != QStringLiteral("HTTP")) {
+        if (errorMessage) *errorMessage = QStringLiteral("协议必须是 MQTT、WebSocket 或 HTTP。");
+        return false;
+    }
+    if (pattern.isEmpty() || pattern.size() > 512 || deviceId.isEmpty()
+        || deviceId.size() > 128 || mapping.variableId.trimmed().size() > 128
+        || mapping.name.size() > 128 || mapping.unit.size() > 32) {
+        if (errorMessage) *errorMessage = QStringLiteral("映射字段为空或超过长度限制。");
+        return false;
+    }
+
+    QList<RemoteTelemetryMapping> all = mappings();
+    bool replaced = false;
+    for (RemoteTelemetryMapping &existing : all) {
+        if (existing.protocol.compare(protocol, Qt::CaseInsensitive) == 0
+            && existing.channelPattern == pattern) {
+            existing = mapping;
+            existing.protocol = protocol;
+            existing.channelPattern = pattern;
+            existing.deviceId = deviceId;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) {
+        RemoteTelemetryMapping normalized = mapping;
+        normalized.protocol = protocol;
+        normalized.channelPattern = pattern;
+        normalized.deviceId = deviceId;
+        all.append(normalized);
+    }
+
+    QJsonArray array;
+    for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
+    QSettings settings = createSettings(m_settingsFile);
+    settings.setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
+    settings.sync();
+    if (settings.status() != QSettings::NoError) {
+        if (errorMessage) *errorMessage = QStringLiteral("保存远程映射配置失败。");
+        return false;
+    }
+    if (errorMessage) errorMessage->clear();
+    return true;
+}
+
+bool RemoteConfigStore::removeMapping(const QString &protocol,
+                                      const QString &channelPattern,
+                                      QString *errorMessage)
+{
+    QList<RemoteTelemetryMapping> all = mappings();
+    const int before = all.size();
+    for (int i = all.size() - 1; i >= 0; --i) {
+        if (all.at(i).protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) == 0
+            && all.at(i).channelPattern == channelPattern.trimmed())
+            all.removeAt(i);
+    }
+    if (all.size() == before) {
+        if (errorMessage) *errorMessage = QStringLiteral("未找到指定远程映射。");
+        return false;
+    }
+    QJsonArray array;
+    for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
+    QSettings settings = createSettings(m_settingsFile);
+    settings.setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
+    settings.sync();
+    if (settings.status() != QSettings::NoError) {
+        if (errorMessage) *errorMessage = QStringLiteral("删除远程映射配置失败。");
+        return false;
+    }
+    if (errorMessage) errorMessage->clear();
+    return true;
+}
+
+bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &channel,
+                                       RemoteTelemetryMapping &mapping) const
+{
+    const QList<RemoteTelemetryMapping> all = mappings();
+    for (const RemoteTelemetryMapping &candidate : all) {
+        if (candidate.protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) == 0
+            && candidate.channelPattern == channel) {
+            mapping = candidate;
+            return true;
+        }
+    }
+    for (const RemoteTelemetryMapping &candidate : all) {
+        if (candidate.protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) != 0)
+            continue;
+        const QRegularExpression expression(
+            QRegularExpression::wildcardToRegularExpression(candidate.channelPattern));
+        if (expression.match(channel).hasMatch()) {
+            mapping = candidate;
+            return true;
+        }
+    }
+    return false;
+}
