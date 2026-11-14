@@ -385,7 +385,7 @@ ctest --test-dir build --output-on-failure
 - VirtualCAN 默认关闭发送端本地回显，避免 TX 被误计为远端 RX。
 - CMake 将 Qt SerialBus 作为可选模块；未安装时，VIRTUALCAN/VIRTUALCANFD 不会显示在设备类型中，现有驱动不受影响。
 - Qt 在线安装器中为当前 MinGW 64-bit Kit 安装 Qt Serial Bus 模块。运行时还必须能找到 `plugins/canbus` 下的 `virtualcan` 插件；若提示插件不可用，请检查 Qt Kit 与插件架构/版本是否一致。
-- 新增 `virtualcan_communication_test`：启动两个独立驱动客户端，在 can0 上交换经典 CAN 帧。测试需要 Qt SerialBus 和 VirtualCAN 插件可用。
+- 新增 `virtualcan_communication_test`：启动两个独立驱动客户端，在 can0 上交换经典 CAN 帧。测试需要 Qt SerialBus 和 VirtualCAN 插件可用，并覆盖经典 CAN 与 12 字节 CAN-FD/BRS 帧。
 
 ### 快速使用
 
