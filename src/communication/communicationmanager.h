@@ -23,6 +23,9 @@ public:
     ~CommunicationManager() override;
 
     bool registerFactory(const QString &commType, CommunicationFactory factory);
+    bool unregisterFactory(const QString &commType, QString *errorMessage = nullptr);
+    bool unregisterFactories(const QStringList &commTypes, QString *errorMessage = nullptr);
+    QStringList registeredCommunicationTypes() const;
     // true 表示驱动已接受连接请求；TCP 远端握手结果通过状态信号异步返回。
     bool connectDevice(const DeviceInfo &device, QString *errorMessage = nullptr);
     void disconnectDevice(const QString &deviceId);
