@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QModbusDataUnit>
-#include <QModbusDataUnitMap>
+#include <QModbusDataUnit>
 
 class QModbusTcpServer;
 
