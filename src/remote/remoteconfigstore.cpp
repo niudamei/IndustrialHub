@@ -5,15 +5,17 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSettings>
+#include <memory>
 
 namespace {
 const QString kMappingsKey = QStringLiteral("remote/mappings");
-QSettings createSettings(const QString &fileName)
+std::unique_ptr<QSettings> createSettings(const QString &fileName)
 {
     if (!fileName.isEmpty())
-        return QSettings(fileName, QSettings::IniFormat);
-    return QSettings(QSettings::IniFormat, QSettings::UserScope,
-                     QStringLiteral("IndustrialHub"), QStringLiteral("IndustrialHub"));
+        return std::make_unique<QSettings>(fileName, QSettings::IniFormat);
+    return std::make_unique<QSettings>(QSettings::IniFormat, QSettings::UserScope,
+                                       QStringLiteral("IndustrialHub"),
+                                       QStringLiteral("IndustrialHub"));
 }
 QJsonObject toJson(const RemoteTelemetryMapping &item)
 {
@@ -35,9 +37,9 @@ RemoteConfigStore::RemoteConfigStore(const QString &settingsFile)
 
 QList<RemoteTelemetryMapping> RemoteConfigStore::mappings() const
 {
-    QSettings settings = createSettings(m_settingsFile);
+    auto settings = createSettings(m_settingsFile);
     const QJsonDocument document = QJsonDocument::fromJson(
-        settings.value(kMappingsKey).toByteArray());
+        settings->value(kMappingsKey).toByteArray());
     QList<RemoteTelemetryMapping> result;
     for (const QJsonValue &value : document.array()) {
         if (!value.isObject()) continue;
@@ -98,9 +100,9 @@ bool RemoteConfigStore::upsertMapping(const RemoteTelemetryMapping &mapping,
     QJsonArray array;
     for (const RemoteTelemetryMapping &item : all) array.append(toJson(item));
     QSettings settings = createSettings(m_settingsFile);
-    settings.setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
-    settings.sync();
-    if (settings.status() != QSettings::NoError) {
+    settings->setValue(kMappingsKey, QJsonDocument(array).toJson(QJsonDocument::Compact));
+    settings->sync();
+    if (settings->status() != QSettings::NoError) {
         if (errorMessage) *errorMessage = QStringLiteral("保存远程映射配置失败。");
         return false;
     }
