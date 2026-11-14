@@ -4,6 +4,7 @@
 #include "src/communication/communicationmanager.h"
 #include "src/core/devicehealthmonitor.h"
 #include "src/pages/devicemanager.h"
+#include "src/simulation/demofaultpolicy.h"
 #include "src/protocol/businessdatapoint.h"
 
 #include <QComboBox>
@@ -130,7 +131,10 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
             this, [this](int value) {
                 m_demoDropEvery = value;
                 m_demoFrameCounters.clear();
+                applyDemoFaultSettings();
             });
+    connect(ui->demoDelaySpinBox, &QSpinBox::valueChanged,
+            this, &MonitorPage::applyDemoFaultSettings);
     ui->timeoutSpinBox->setValue(m_receiveTimeoutMs / 1000);
     connect(ui->timeoutSpinBox, &QSpinBox::valueChanged,
             this, &MonitorPage::onReceiveTimeoutChanged);
@@ -290,6 +294,13 @@ void MonitorPage::onDataSent(const QString &deviceId, const QByteArray &data)
 
 void MonitorPage::onDataReceived(const QString &deviceId, const QByteArray &data)
 {
+    processDataReceived(deviceId, data);
+}
+
+void MonitorPage::processDataReceived(const QString &deviceId,
+                                      const QByteArray &data,
+                                      int simulatedDelayMs)
+{
     DeviceMetrics &metrics = m_deviceMetrics[metricKey(deviceId)];
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (metrics.lastReceiveMs > 0) {
@@ -313,7 +324,13 @@ void MonitorPage::onDataReceived(const QString &deviceId, const QByteArray &data
     metrics.lastReceiveMs = nowMs;
     metrics.lastReceiveTime = QDateTime::currentDateTime();
     ++metrics.rxCount;
-    appendEvent(deviceId, QStringLiteral("RX"), formatData(deviceId, data));
+
+    QString eventData = formatData(deviceId, data);
+    if (simulatedDelayMs > 0) {
+        eventData = QStringLiteral("[演示 RX 延迟 %1 ms] %2")
+            .arg(simulatedDelayMs).arg(eventData);
+    }
+    appendEvent(deviceId, QStringLiteral("RX"), eventData);
     updateLiveStatistics();
 }
 
@@ -384,6 +401,7 @@ void MonitorPage::toggleDemoMode()
         applyDemoFaultSettings();
         generateDemoTraffic();
     } else {
+        ++m_demoFaultGeneration; // 使尚未送达的延迟 RX 回调失效。
         m_demoTimer->stop();
         m_demoDisconnectedDevices.clear();
         m_demoFrameCounters.clear();
@@ -416,10 +434,8 @@ void MonitorPage::onDemoIntervalChanged(int milliseconds)
 
 void MonitorPage::applyDemoFaultSettings()
 {
-    if (!m_demoMode)
-        return;
-
-    const QString mode = ui->demoFaultModeCombo->currentData().toString();
+    const DemoFaultPolicy::Mode mode =
+        DemoFaultPolicy::modeFromId(ui->demoFaultModeCombo->currentData().toString());
     const QString target = ui->demoFaultTargetCombo->currentData().toString();
     const QStringList ids = {
         QStringLiteral("DEMO-CAN-001"),
@@ -427,38 +443,59 @@ void MonitorPage::applyDemoFaultSettings()
         QStringLiteral("DEMO-TCP-003")
     };
 
-    for (const QString &id : ids) {
-        const bool selected = target.isEmpty() || target == id;
-        const bool shouldDisconnect = selected && mode == QStringLiteral("disconnect");
-        const bool wasDisconnected = m_demoDisconnectedDevices.contains(id);
-        if (shouldDisconnect && !wasDisconnected) {
-            m_demoDisconnectedDevices.insert(id);
-            DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
-            metrics.connected = false;
-            metrics.connectedSinceMs = 0;
-            metrics.lastReceiveMs = 0;
-            metrics.receiveTimedOut = false;
-            appendEvent(id, QStringLiteral("状态"),
-                        QStringLiteral("故障注入：模拟设备已断线"));
-        } else if (!shouldDisconnect && wasDisconnected) {
-            m_demoDisconnectedDevices.remove(id);
-            DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
-            metrics.connected = true;
-            metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
-            metrics.lastReceiveMs = 0;
-            metrics.receiveTimedOut = false;
-            appendEvent(id, QStringLiteral("状态"),
-                        QStringLiteral("故障注入已解除：模拟设备恢复连接，等待数据"));
+    if (m_demoMode) {
+        // 更改模式、目标或延迟参数时，丢弃旧配置下尚未送达的延迟帧。
+        ++m_demoFaultGeneration;
+        for (const QString &id : ids) {
+            const bool shouldDisconnect =
+                DemoFaultPolicy::shouldDisconnect(mode, target, id);
+            const bool wasDisconnected = m_demoDisconnectedDevices.contains(id);
+            if (shouldDisconnect && !wasDisconnected) {
+                m_demoDisconnectedDevices.insert(id);
+                DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+                metrics.connected = false;
+                metrics.connectedSinceMs = 0;
+                metrics.lastReceiveMs = 0;
+                metrics.receiveTimedOut = false;
+                appendEvent(id, QStringLiteral("状态"),
+                            QStringLiteral("故障注入：模拟设备已断线"));
+            } else if (!shouldDisconnect && wasDisconnected) {
+                m_demoDisconnectedDevices.remove(id);
+                DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+                metrics.connected = true;
+                metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                metrics.lastReceiveMs = 0;
+                metrics.receiveTimedOut = false;
+                appendEvent(id, QStringLiteral("状态"),
+                            QStringLiteral("故障注入已解除：模拟设备恢复连接，等待数据"));
+            }
         }
+        updateLiveStatistics();
     }
 
-    ui->demoFaultHintLabel->setText(
-        mode == QStringLiteral("normal")
-            ? QStringLiteral("故障注入：关闭")
-            : (mode == QStringLiteral("drop")
-                ? QStringLiteral("故障注入：按设定间隔丢弃 RX 帧")
-                : QStringLiteral("故障注入：目标模拟设备断线")));
-    updateLiveStatistics();
+    const QString targetText = target.isEmpty()
+        ? QStringLiteral("全部模拟设备") : target;
+    const QString prefix = m_demoMode
+        ? QStringLiteral("当前故障注入：")
+        : QStringLiteral("启动模拟后将启用：");
+    QString hint;
+    switch (mode) {
+    case DemoFaultPolicy::Mode::Normal:
+        hint = QStringLiteral("故障注入：关闭");
+        break;
+    case DemoFaultPolicy::Mode::Drop:
+        hint = QStringLiteral("%1%2，每 %3 帧丢弃 1 帧 RX")
+            .arg(prefix, targetText).arg(m_demoDropEvery);
+        break;
+    case DemoFaultPolicy::Mode::Disconnect:
+        hint = QStringLiteral("%1%2断线").arg(prefix, targetText);
+        break;
+    case DemoFaultPolicy::Mode::Delay:
+        hint = QStringLiteral("%1%2的 RX 延迟 %3 ms（业务变量不延迟）")
+            .arg(prefix, targetText).arg(ui->demoDelaySpinBox->value());
+        break;
+    }
+    ui->demoFaultHintLabel->setText(hint);
 }
 
 void MonitorPage::generateDemoTraffic()
@@ -496,21 +533,36 @@ void MonitorPage::generateDemoTraffic()
 
         onDataSent(id, txData);
 
-        const QString faultMode = ui->demoFaultModeCombo->currentData().toString();
+        const DemoFaultPolicy::Mode faultMode =
+            DemoFaultPolicy::modeFromId(ui->demoFaultModeCombo->currentData().toString());
         const QString faultTarget = ui->demoFaultTargetCombo->currentData().toString();
-        const bool dropEnabled = faultMode == QStringLiteral("drop")
-            && (faultTarget.isEmpty() || faultTarget == id);
-        if (dropEnabled) {
+        if (faultMode == DemoFaultPolicy::Mode::Drop
+            && DemoFaultPolicy::appliesToDevice(faultTarget, id)) {
             quint64 &frameCount = m_demoFrameCounters[id];
             ++frameCount;
-            if (frameCount % static_cast<quint64>(qMax(1, m_demoDropEvery)) == 0) {
+            if (DemoFaultPolicy::shouldDropRx(
+                    faultMode, faultTarget, id, frameCount, m_demoDropEvery)) {
                 appendEvent(id, QStringLiteral("状态"),
                             QStringLiteral("故障注入：本周期 RX 帧已丢弃"));
                 continue;
             }
         }
 
-        onDataReceived(id, rxData);
+        const int delayMs = DemoFaultPolicy::rxDelayMs(
+            faultMode, faultTarget, id, ui->demoDelaySpinBox->value());
+        if (delayMs > 0) {
+            const quint64 faultGeneration = m_demoFaultGeneration;
+            QTimer::singleShot(delayMs, this,
+                               [this, id, rxData, faultGeneration, delayMs]() {
+                if (!m_demoMode || faultGeneration != m_demoFaultGeneration
+                    || m_demoDisconnectedDevices.contains(id)) {
+                    return;
+                }
+                processDataReceived(id, rxData, delayMs);
+            });
+        } else {
+            onDataReceived(id, rxData);
+        }
     }
 
     // 独立生成标准业务数据点，直接进入 BusinessDataManager / AlarmManager 链路。
