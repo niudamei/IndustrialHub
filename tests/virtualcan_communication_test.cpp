@@ -66,7 +66,7 @@ int main(int argc, char **argv)
         fdReceived = data;
         fdLoop.quit();
     });
-    const QByteArray fdFrame("B7E09112233445566778899AABBCC\\r");
+    const QByteArray fdFrame("b7E09112233445566778899AABBCC\r");
     if (!fdSender.sendData(fdFrame, &error)) {
         std::cerr << "FAIL: VirtualCAN FD send: " << error.toStdString() << std::endl;
         return 6;
