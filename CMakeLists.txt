@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
-project(IndustrialHub VERSION 0.13.0 LANGUAGES CXX)
+project(IndustrialHub VERSION 0.14.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Network Charts Concurrent OPTIONAL_COMPONENTS SerialPort)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Network Charts Concurrent OPTIONAL_COMPONENTS SerialPort SerialBus)
 qt_standard_project_setup()
 include(CTest)
 
@@ -75,6 +75,7 @@ qt_add_executable(hhh
     src/communication/communicationmanager.h src/communication/communicationmanager.cpp
     src/communication/communicationworker.h src/communication/communicationworker.cpp
     src/communication/slcanframecodec.h src/communication/slcanframecodec.cpp
+    src/communication/virtualcancommunication.h src/communication/virtualcancommunication.cpp
     src/pages/HistoryPage.h src/pages/HistoryPage.cpp src/pages/HistoryPage.ui
     src/pages/MonitorPage.h src/pages/MonitorPage.cpp src/pages/MonitorPage.ui
     src/pages/TrendPage.h src/pages/TrendPage.cpp src/pages/TrendPage.ui
@@ -485,6 +486,14 @@ endif()
 
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network Qt6::Charts Qt6::Concurrent)
+
+if(TARGET Qt6::SerialBus)
+    target_link_libraries(hhh PRIVATE Qt6::SerialBus)
+    target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALBUS)
+    message(STATUS "Qt SerialBus found: VirtualCAN/VIRTUALCANFD drivers enabled.")
+else()
+    message(STATUS "Qt SerialBus not found: VirtualCAN drivers will be disabled; other communication drivers remain available.")
+endif()
 
 install(TARGETS hhh
     BUNDLE DESTINATION .
