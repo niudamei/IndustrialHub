@@ -34,6 +34,8 @@ private slots:
     void onConnectionStateChanged(const QString &deviceId, bool connected);
     void onDataSent(const QString &deviceId, const QByteArray &data);
     void onDataReceived(const QString &deviceId, const QByteArray &data);
+    void processDataReceived(const QString &deviceId, const QByteArray &data,
+                             int simulatedDelayMs = 0);
     void onCommunicationError(const QString &deviceId, const QString &message);
     void onPauseClicked();
     void exportEventsToCsv();
@@ -89,6 +91,7 @@ private:
     bool m_paused = false;
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;
+    quint64 m_demoFaultGeneration = 0;
     QHash<QString, quint64> m_demoFrameCounters;
     QSet<QString> m_demoDisconnectedDevices;
     int m_demoDropEvery = 3;
