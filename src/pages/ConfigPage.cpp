@@ -431,8 +431,11 @@ void ConfigPage::onDisconnectClicked()
     if (id.isEmpty())
         return;
 
-    m_communicationManager->disconnectDevice(id);
-    appendLog(QStringLiteral("[断开请求] %1").arg(id));
+    // Release the worker as well as closing the link so plugin-backed driver
+    // libraries can be safely unloaded after the user disconnects the device.
+    destroyModbusSession(id);
+    m_communicationManager->releaseDevice(id);
+    appendLog(QStringLiteral("[断开并释放] %1").arg(id));
     updateConnectionDisplay();
 }
 
