@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     RemoteConfigStore store(fileName);
     RemoteTelemetryMapping mapping;
     mapping.protocol = QStringLiteral("MQTT");
-    mapping.channelPattern = QStringLiteral("factory/line1/*");
+    mapping.channelPattern = QStringLiteral("factory/+/telemetry/#");
     mapping.deviceId = QStringLiteral("PLC-001");
     mapping.variableId = QStringLiteral("temperature");
     mapping.name = QStringLiteral("温度");
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
     RemoteConfigStore reopened(fileName);
     RemoteTelemetryMapping resolved;
     if (!reopened.resolveMapping(QStringLiteral("mqtt"),
-                                 QStringLiteral("factory/line1/telemetry"), resolved)
+                                 QStringLiteral("factory/line1/telemetry/temperature"), resolved)
         || resolved.deviceId != QStringLiteral("PLC-001")
         || resolved.variableId != QStringLiteral("temperature")) {
         qCritical() << "FAIL: wildcard mapping persistence/resolution.";
