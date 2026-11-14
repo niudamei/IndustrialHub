@@ -1,10 +1,13 @@
 #include "pluginmanager.h"
 
+#include "src/communication/communicationmanager.h"
+
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QLibrary>
 #include <QPluginLoader>
 #include <QDebug>
+#include <QSet>
 
 PluginManager::PluginManager(QObject *parent)
     : QObject(parent)
@@ -14,6 +17,11 @@ PluginManager::PluginManager(QObject *parent)
 PluginManager::~PluginManager()
 {
     unloadAll();
+}
+
+void PluginManager::setCommunicationManager(CommunicationManager *manager)
+{
+    m_communicationManager = manager;
 }
 
 bool PluginManager::loadPlugin(const QString &filePath, QString *errorMessage)
@@ -32,7 +40,7 @@ bool PluginManager::loadPlugin(const QString &filePath, QString *errorMessage)
     }
 
     auto *loader = new QPluginLoader(absolutePath, this);
-    loader->setLoadHints(QLibrary::LoadHints()); // 允许显式卸载动态插件
+    loader->setLoadHints(QLibrary::LoadHints());
     const QJsonObject metadata = loader->metaData();
     if (metadata.isEmpty()) {
         const QString reason = loader->errorString();
@@ -64,6 +72,33 @@ bool PluginManager::loadPlugin(const QString &filePath, QString *errorMessage)
             return fail(QStringLiteral("插件 ID 已被占用：%1").arg(id));
         }
     }
+
+    auto *driverPlugin = qobject_cast<ICommunicationDriverPlugin *>(object);
+    QStringList driverTypes;
+    if (driverPlugin) {
+        if (!m_communicationManager) {
+            loader->unload();
+            delete loader;
+            return fail(QStringLiteral("该插件提供通信驱动，但尚未绑定 CommunicationManager。"));
+        }
+        QSet<QString> uniqueTypes;
+        for (const QString &rawType : driverPlugin->communicationTypes()) {
+            const QString type = rawType.trimmed().toUpper();
+            if (type.isEmpty() || uniqueTypes.contains(type)) {
+                loader->unload();
+                delete loader;
+                return fail(QStringLiteral("插件声明了空或重复的通信类型。"));
+            }
+            uniqueTypes.insert(type);
+            driverTypes.append(type);
+        }
+        if (driverTypes.isEmpty()) {
+            loader->unload();
+            delete loader;
+            return fail(QStringLiteral("通信驱动插件至少需要声明一种通信类型。"));
+        }
+    }
+
     QString initializeError;
     if (!plugin->initialize(&initializeError)) {
         loader->unload();
@@ -72,11 +107,34 @@ bool PluginManager::loadPlugin(const QString &filePath, QString *errorMessage)
             ? QStringLiteral("插件初始化失败：%1").arg(id) : initializeError);
     }
 
+    QStringList registeredTypes;
+    if (driverPlugin) {
+        for (const QString &type : driverTypes) {
+            const bool registered = m_communicationManager->registerFactory(
+                type, [driverPlugin, type](QObject *parent) {
+                    return driverPlugin->createCommunication(type, parent);
+                });
+            if (!registered) {
+                QString rollbackError;
+                if (!registeredTypes.isEmpty())
+                    m_communicationManager->unregisterFactories(registeredTypes, &rollbackError);
+                plugin->shutdown();
+                loader->unload();
+                delete loader;
+                return fail(QStringLiteral("注册通信类型 %1 失败：%2")
+                    .arg(type, rollbackError.isEmpty()
+                        ? QStringLiteral("类型已存在或工厂无效") : rollbackError));
+            }
+            registeredTypes.append(type);
+        }
+    }
+
     LoadedPlugin loaded;
     loaded.info.pluginId = id;
     loaded.info.displayName = plugin->displayName();
     loaded.info.version = plugin->version();
     loaded.info.filePath = absolutePath;
+    loaded.info.communicationTypes = registeredTypes;
     loaded.loader = loader;
     loaded.instance = plugin;
     m_plugins.append(loaded);
@@ -91,13 +149,24 @@ bool PluginManager::unloadPlugin(const QString &pluginId, QString *errorMessage)
         if (m_plugins.at(i).info.pluginId.compare(pluginId, Qt::CaseInsensitive) != 0)
             continue;
         LoadedPlugin &loaded = m_plugins[i];
+        if (!loaded.info.communicationTypes.isEmpty()) {
+            QString unregisterError;
+            if (!m_communicationManager
+                || !m_communicationManager->unregisterFactories(
+                    loaded.info.communicationTypes, &unregisterError)) {
+                if (errorMessage) *errorMessage = unregisterError.isEmpty()
+                    ? QStringLiteral("通信驱动仍被引用，不能卸载插件。") : unregisterError;
+                return false;
+            }
+        }
         if (loaded.instance && !loaded.shutdownCalled) {
             loaded.instance->shutdown();
             loaded.shutdownCalled = true;
         }
         if (!loaded.loader || !loaded.loader->unload()) {
             if (errorMessage) *errorMessage = QStringLiteral("插件卸载失败：%1")
-                .arg(loaded.loader ? loaded.loader->errorString() : QStringLiteral("无效的插件加载器"));
+                .arg(loaded.loader ? loaded.loader->errorString()
+                                   : QStringLiteral("无效的插件加载器"));
             return false;
         }
         QPluginLoader *loader = loaded.loader;
