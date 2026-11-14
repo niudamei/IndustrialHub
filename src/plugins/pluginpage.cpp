@@ -38,9 +38,10 @@ PluginPage::PluginPage(PluginManager *manager, QWidget *parent)
     root->addLayout(loadRow);
 
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(4);
+    m_table->setColumnCount(5);
     m_table->setHorizontalHeaderLabels({QStringLiteral("插件 ID"),
-        QStringLiteral("名称"), QStringLiteral("版本"), QStringLiteral("动态库路径")});
+        QStringLiteral("名称"), QStringLiteral("版本"), QStringLiteral("通信类型"),
+        QStringLiteral("动态库路径")});
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -96,7 +97,9 @@ void PluginPage::refresh()
         m_table->setItem(row, 0, new QTableWidgetItem(plugin.pluginId));
         m_table->setItem(row, 1, new QTableWidgetItem(plugin.displayName));
         m_table->setItem(row, 2, new QTableWidgetItem(plugin.version));
-        m_table->setItem(row, 3, new QTableWidgetItem(plugin.filePath));
+        m_table->setItem(row, 3, new QTableWidgetItem(
+            plugin.communicationTypes.join(QStringLiteral(", "))));
+        m_table->setItem(row, 4, new QTableWidgetItem(plugin.filePath));
     }
     m_table->resizeColumnsToContents();
 }
