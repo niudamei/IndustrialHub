@@ -48,7 +48,8 @@ bool VirtualCanCommunication::open(const DeviceInfo &device, QString *errorMessa
         if (!m_device) return;
         while (m_device->framesAvailable() > 0) {
             const QCanBusFrame frame = m_device->readFrame();
-            if (!frame.isValid() || frame.frameType() == QCanBusFrame::ErrorFrame)
+            if (!frame.isValid() || frame.frameType() == QCanBusFrame::ErrorFrame
+                || frame.hasLocalEcho())
                 continue;
             SlcanFrame slcan;
             slcan.id = frame.frameId();
@@ -116,7 +117,8 @@ bool VirtualCanCommunication::sendData(const QByteArray &data, QString *errorMes
             emit errorOccurred(error);
             return false;
         }
-        QCanBusFrame frame(parsed.id, parsed.data);
+        QCanBusFrame frame(parsed.id, parsed.remote
+            ? QByteArray(parsed.remoteDlc, \\0) : parsed.data);
         if (parsed.extended) frame.setFrameId(parsed.id);
         frame.setFrameType(parsed.remote ? QCanBusFrame::RemoteRequestFrame
                                          : QCanBusFrame::DataFrame);
