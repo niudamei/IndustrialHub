@@ -410,7 +410,7 @@ void MainWindow::init_class()
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.11.0 | SQLite + TCP/UDP/RS485/CAN-FD/Modbus/MQTT/WebSocket/HTTP/Plugins"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.12.0 | SQLite + TCP/UDP/RS485/CAN-FD/Modbus/MQTT/WebSocket/HTTP/Plugins"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
@@ -418,5 +418,16 @@ void MainWindow::init_class()
 
 MainWindow::~MainWindow()
 {
+    // Plugin factories capture plugin instances; release all workers before unloading DLLs.
+    if (m_communicationManager) {
+        const QStringList deviceIds = m_communicationManager->managedDeviceIds();
+        for (const QString &deviceId : deviceIds)
+            m_communicationManager->releaseDevice(deviceId);
+    }
+    if (m_pluginManager) {
+        m_pluginManager->unloadAll();
+        delete m_pluginManager;
+        m_pluginManager = nullptr;
+    }
     delete ui;
 }
