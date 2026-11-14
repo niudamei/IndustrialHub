@@ -48,6 +48,7 @@ qt_add_executable(hhh
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
     src/protocol/businessdatapoint.h
+    src/simulation/demofaultpolicy.h
     src/protocol/iprotocolparser.h
     src/protocol/jsonprotocolparser.h src/protocol/jsonprotocolparser.cpp
     src/protocol/protocolmanager.h src/protocol/protocolmanager.cpp
@@ -85,6 +86,14 @@ qt_add_executable(hhh
 )
 
 if(BUILD_TESTING)
+
+    add_executable(demo_fault_policy_test
+        tests/demo_fault_policy_test.cpp
+        src/simulation/demofaultpolicy.h
+    )
+    target_include_directories(demo_fault_policy_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(demo_fault_policy_test PRIVATE Qt6::Core)
+    add_test(NAME demo_fault_policy_test COMMAND demo_fault_policy_test)
 
     add_executable(slcan_frame_codec_test
         tests/slcan_frame_codec_test.cpp
