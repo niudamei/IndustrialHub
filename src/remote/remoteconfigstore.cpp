@@ -152,8 +152,20 @@ bool RemoteConfigStore::resolveMapping(const QString &protocol, const QString &c
     for (const RemoteTelemetryMapping &candidate : all) {
         if (candidate.protocol.compare(protocol.trimmed(), Qt::CaseInsensitive) != 0)
             continue;
+        QString pattern = candidate.channelPattern;
+        if (candidate.protocol.compare(QStringLiteral("MQTT"), Qt::CaseInsensitive) == 0) {
+            pattern.replace(QStringLiteral("+"), QStringLiteral("[^/]+"));
+            pattern.replace(QStringLiteral("#"), QStringLiteral(".*"));
+            pattern.replace(QStringLiteral("*"), QStringLiteral(".*"));
+            const QRegularExpression expression(QStringLiteral("^") + pattern + QStringLiteral("$"));
+            if (expression.match(channel).hasMatch()) {
+                mapping = candidate;
+                return true;
+            }
+            continue;
+        }
         const QRegularExpression expression(
-            QRegularExpression::wildcardToRegularExpression(candidate.channelPattern));
+            QRegularExpression::wildcardToRegularExpression(pattern));
         if (expression.match(channel).hasMatch()) {
             mapping = candidate;
             return true;
