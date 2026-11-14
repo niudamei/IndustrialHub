@@ -41,7 +41,8 @@ private:
     RemotePage *m_remotePage = nullptr;
     UserManagementPage *m_userManagementPage = nullptr;
     PluginManager *m_pluginManager = nullptr;
-    PluginPage *m_pluginPage = nullptr;\n    SimulatorPage *m_simulatorPage = nullptr;
+    PluginPage *m_pluginPage = nullptr;
+    SimulatorPage *m_simulatorPage = nullptr;
     DashboardPage *dashboardPage = nullptr;
     DevicePage *devicePage = nullptr;
     AlarmPage *alarmPage = nullptr;
