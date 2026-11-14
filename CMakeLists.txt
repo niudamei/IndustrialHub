@@ -513,17 +513,6 @@ endif()
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network Qt6::Charts Qt6::Concurrent)
 
-if(TARGET Qt6::SerialBus)
-    target_sources(hhh PRIVATE
-        src/communication/virtualcancommunication.h
-        src/communication/virtualcancommunication.cpp
-    )
-    target_link_libraries(hhh PRIVATE Qt6::SerialBus)
-    target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALBUS)
-    message(STATUS "Qt SerialBus found: VirtualCAN/VIRTUALCANFD drivers enabled.")
-else()
-    message(STATUS "Qt SerialBus not found: VirtualCAN drivers will be disabled; other communication drivers remain available.")
-endif()
 
 install(TARGETS hhh
     BUNDLE DESTINATION .
