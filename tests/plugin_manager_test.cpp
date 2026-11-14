@@ -3,6 +3,22 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QElapsedTimer>
+#include <QEventLoop>
+#include <QThread>
+#include <functional>
+
+static bool waitUntil(const std::function<bool()> &condition, int timeoutMs)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (!condition() && timer.elapsed() < timeoutMs) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        QThread::msleep(1);
+    }
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    return condition();
+}
 
 int main(int argc, char *argv[])
 {
@@ -37,6 +53,12 @@ int main(int argc, char *argv[])
         return 5;
     }
 
+    if (communicationManager.registerFactory(QStringLiteral("PLUGIN-ECHO"),
+            [](QObject *) -> ICommunication * { return nullptr; })) {
+        qCritical() << "FAIL: a plugin must not replace an already registered driver.";
+        return 6;
+    }
+
     DeviceInfo device(QStringLiteral("PLUGIN-TEST-01"), QStringLiteral("插件回环设备"),
                       QStringLiteral("Test"), QStringLiteral("PLUGIN-ECHO"),
                       QStringLiteral("loopback"), DeviceStatus::Offline);
@@ -44,25 +66,38 @@ int main(int argc, char *argv[])
         qCritical() << "FAIL: plugin communication driver open:" << error;
         return 6;
     }
+    QByteArray pluginRx;
+    QObject::connect(&communicationManager, &CommunicationManager::deviceDataReceived,
+                     [&](const QString &deviceId, const QByteArray &data) {
+        if (deviceId == device.devId)
+            pluginRx.append(data);
+    });
+    const QByteArray payload = QByteArray::fromHex("DEADBEEF");
+    if (!communicationManager.sendData(device.devId, payload, &error)
+        || !waitUntil([&]() { return pluginRx == payload; }, 1000)) {
+        qCritical() << "FAIL: plugin driver TX/RX loopback:" << error;
+        return 7;
+    }
+
     if (manager.unloadPlugin(QStringLiteral("test.sample"), &error)) {
         qCritical() << "FAIL: plugin unloaded while its driver was still in use.";
-        return 7;
+        return 8;
     }
     if (error.isEmpty()) {
         qCritical() << "FAIL: busy plugin unload did not explain the reason.";
-        return 8;
+        return 9;
     }
 
     communicationManager.releaseDevice(device.devId);
     if (!manager.unloadPlugin(QStringLiteral("test.sample"), &error)) {
         qCritical() << "FAIL: plugin unload after device release:" << error;
-        return 9;
+        return 10;
     }
     if (!manager.plugins().isEmpty()
         || communicationManager.registeredCommunicationTypes().contains(
             QStringLiteral("PLUGIN-ECHO"))) {
         qCritical() << "FAIL: plugin or driver factory remains after unload.";
-        return 10;
+        return 11;
     }
     qInfo() << "PASS: plugin load, driver registration, active-use unload guard and clean unload.";
     return 0;
