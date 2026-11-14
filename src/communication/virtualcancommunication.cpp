@@ -60,7 +60,7 @@ bool VirtualCanCommunication::open(const DeviceInfo &device, QString *errorMessa
             slcan.brs = frame.hasBitrateSwitch();
             slcan.remote = frame.frameType() == QCanBusFrame::RemoteRequestFrame;
             slcan.remoteDlc = static_cast<quint8>(frame.payload().size());
-            slcan.data = frame.payload();
+            slcan.data = slcan.remote ? QByteArray() : frame.payload();
             QByteArray encoded;
             if (SlcanFrameCodec::encodeFrame(slcan, encoded))
                 emit dataReceived(encoded + '\r');
