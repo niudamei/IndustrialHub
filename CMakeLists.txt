@@ -483,6 +483,33 @@ else()
     message(STATUS "Qt SerialPort not found: RS485 driver will be disabled.")
 endif()
 
+if(TARGET Qt6::SerialBus)
+    target_sources(hhh PRIVATE
+        src/communication/virtualcancommunication.h
+        src/communication/virtualcancommunication.cpp
+    )
+    target_link_libraries(hhh PRIVATE Qt6::SerialBus)
+    target_compile_definitions(hhh PRIVATE INDUSTRIALHUB_HAS_SERIALBUS)
+
+    if(BUILD_TESTING)
+        add_executable(virtualcan_communication_test
+            tests/virtualcan_communication_test.cpp
+            src/communication/icommunication.h
+            src/communication/icommunication.cpp
+            src/communication/virtualcancommunication.h
+            src/communication/virtualcancommunication.cpp
+            src/communication/slcanframecodec.h
+            src/communication/slcanframecodec.cpp
+            src/pages/deviceinfo.h
+        )
+        target_include_directories(virtualcan_communication_test PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(virtualcan_communication_test PRIVATE Qt6::Core Qt6::SerialBus)
+        add_test(NAME virtualcan_communication_test COMMAND virtualcan_communication_test)
+    endif()
+else()
+    message(STATUS "Qt SerialBus not found: VirtualCAN drivers will be disabled; other communication drivers remain available.")
+endif()
+
 target_include_directories(hhh PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(hhh PRIVATE Qt6::Core Qt6::Widgets Qt6::Sql Qt6::Network Qt6::Charts Qt6::Concurrent)
 
