@@ -79,8 +79,9 @@ int main(int argc, char *argv[])
         return 7;
     }
 
+    communicationManager.disconnectDevice(device.devId);
     if (manager.unloadPlugin(QStringLiteral("test.sample"), &error)) {
-        qCritical() << "FAIL: plugin unloaded while its driver was still in use.";
+        qCritical() << "FAIL: plugin unloaded while its device worker still referenced the driver.";
         return 8;
     }
     if (error.isEmpty()) {
