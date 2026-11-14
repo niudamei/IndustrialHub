@@ -384,6 +384,7 @@ void MainWindow::init_class()
             m_alarmManager, &AlarmManager::evaluateDataPoints);
     m_userManagementPage = new UserManagementPage(m_authManager, this);
     m_pluginManager = new PluginManager(this);
+    m_pluginManager->setCommunicationManager(m_communicationManager);
     m_pluginPage = new PluginPage(m_pluginManager, this);
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
