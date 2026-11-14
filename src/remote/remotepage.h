@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "src/protocol/businessdatapoint.h"
+#include "remoteconfigstore.h"
 
 class QLineEdit;
 class QPlainTextEdit;
@@ -12,6 +13,7 @@ class MqttClient;
 class WebSocketClient;
 class HttpClient;
 class QComboBox;
+class QTableWidget;
 
 class RemotePage : public QWidget
 {
@@ -26,6 +28,9 @@ signals:
 private:
     void handleRemotePayload(const QString &protocol, const QString &channel, const QByteArray &payload);
     void appendLog(QPlainTextEdit *view, const QString &message);
+    void refreshMappingTable();
+    void saveCurrentMapping();
+    void removeSelectedMapping();
     MqttClient *m_mqtt = nullptr;
     WebSocketClient *m_webSocket = nullptr;
     HttpClient *m_http = nullptr;
@@ -45,6 +50,14 @@ private:
     QPlainTextEdit *m_mqttLog = nullptr;
     QLineEdit *m_wsUrl = nullptr;
     QLineEdit *m_wsPayload = nullptr;
+    RemoteConfigStore *m_configStore = nullptr;
+    QTableWidget *m_mappingTable = nullptr;
+    QComboBox *m_mappingProtocol = nullptr;
+    QLineEdit *m_mappingChannel = nullptr;
+    QLineEdit *m_mappingDevice = nullptr;
+    QLineEdit *m_mappingVariable = nullptr;
+    QLineEdit *m_mappingName = nullptr;
+    QLineEdit *m_mappingUnit = nullptr;
     QPlainTextEdit *m_wsLog = nullptr;
 };
 
