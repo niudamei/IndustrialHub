@@ -314,7 +314,7 @@ TCP 设备在连接意外中断或连接错误后自动重试，等待时间按 
 - [x] 复用现有 SLCAN 编解码格式，将 TX/RX 转换为 Qt `QCanBusFrame`，接入 CommunicationManager 的既有工作线程和事件链路。
 - [x] 支持 `can0`–`can9` 和 `tcp://host:port/canX` 接口地址；关闭默认本地回显，避免发送端误收自己的 TX。
 - [x] Qt SerialBus 作为可选依赖；缺失时不影响原有通信驱动。
-- [x] 增加两个独立客户端的 VirtualCAN 经典 CAN 帧交换集成测试目标。
+- [x] 增加两个独立客户端的 VirtualCAN 集成测试，覆盖经典 CAN 和 12 字节 CAN-FD/BRS 帧交换。
 - [x] 更新 Windows MinGW CI 的 Qt 模块安装配置，加入 qtserialbus。
 - [ ] 在用户 Qt 6.10.3 MinGW Kit 安装 Qt Serial Bus，确认 virtualcan 插件存在并完成编译/CTest。
 - [ ] 验证 CAN-FD、BRS、扩展帧、64 字节边界、跨主机连接与异常断线。
