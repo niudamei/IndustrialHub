@@ -21,7 +21,7 @@
 #include "src/security/usermanagementpage.h"
 #include "src/remote/remotepage.h"
 #include "src/plugins/pluginmanager.h"
-#include "src/plugins/pluginpage.h"
+#include "src/plugins/pluginpage.h"\n#ifdef INDUSTRIALHUB_HAS_SERIALBUS\n#include "src/pages/SimulatorPage.h"\n#endif
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QDebug>
@@ -209,6 +209,9 @@ void MainWindow::onNavigationClicked(int index)
         QStringLiteral("communication.view"), QStringLiteral("system.manage"),
         QStringLiteral("remote.manage"), QStringLiteral("users.manage"),
         QStringLiteral("plugins.manage")
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+        , QStringLiteral("system.manage")
+#endif
     };
     if (index < 0 || index >= ui->stackedWidget->count()
         || index >= required.size() || !m_authManager
@@ -246,6 +249,9 @@ void MainWindow::applyPermissions()
         QStringLiteral("communication.view"), QStringLiteral("system.manage"),
         QStringLiteral("remote.manage"), QStringLiteral("users.manage"),
         QStringLiteral("plugins.manage")
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+        , QStringLiteral("system.manage")
+#endif
     };
     for (int i = 0; i < ui->listWidget->count() && i < required.size(); ++i) {
         const bool allowed = m_authManager->hasPermission(required.at(i));
@@ -386,6 +392,9 @@ void MainWindow::init_class()
     m_pluginManager = new PluginManager(this);
     m_pluginManager->setCommunicationManager(m_communicationManager);
     m_pluginPage = new PluginPage(m_pluginManager, this);
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+    m_simulatorPage = new SimulatorPage(this);
+#endif
 
     // 页面添加顺序必须与左侧导航菜单顺序一致。
     ui->stackedWidget->addWidget(dashboardPage); // 0 运行总览
@@ -399,18 +408,25 @@ void MainWindow::init_class()
     ui->stackedWidget->addWidget(m_remotePage);  // 8 MQTT / WebSocket
     ui->stackedWidget->addWidget(m_userManagementPage); // 9 用户与角色
     ui->stackedWidget->addWidget(m_pluginPage); // 10 插件管理
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+    ui->stackedWidget->addWidget(m_simulatorPage); // 11 模拟设备
+#endif
 
     ui->listWidget->setObjectName("navigationList");
     ui->listWidget->setFixedWidth(210);
     ui->listWidget->addItems({QStringLiteral("运行总览"), QStringLiteral("设备管理"),
         QStringLiteral("实时监控"), QStringLiteral("实时趋势"), QStringLiteral("报警中心"),
         QStringLiteral("历史数据"), QStringLiteral("通信配置"), QStringLiteral("系统设置"),
-        QStringLiteral("远程通信"), QStringLiteral("用户与权限"), QStringLiteral("插件管理")});
+        QStringLiteral("远程通信"), QStringLiteral("用户与权限"), QStringLiteral("插件管理")
+#ifdef INDUSTRIALHUB_HAS_SERIALBUS
+        , QStringLiteral("模拟设备")
+#endif
+    });
     for (int i = 0; i < ui->listWidget->count(); ++i)
         ui->listWidget->item(i)->setTextAlignment(Qt::AlignCenter);
 
     m_statusLabel = new CustomLabel(this);
-    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.14.0 | SQLite + TCP/UDP/RS485/CAN/CAN-FD/VirtualCAN/Modbus/MQTT/WebSocket/HTTP/Plugins"));
+    m_statusLabel->setText(QStringLiteral("系统就绪 | V0.15.0 | SQLite + TCP/UDP/RS485/CAN/CAN-FD/VirtualCAN/Modbus/MQTT/WebSocket/HTTP/Plugins/Simulator"));
     m_statusLabel->setMinimumSize(220, 24);
     statusBar()->addPermanentWidget(m_statusLabel);
     ui->listWidget->setCurrentRow(0);
