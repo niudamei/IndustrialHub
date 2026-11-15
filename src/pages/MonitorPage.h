@@ -3,6 +3,7 @@
 
 #include <QDateTime>
 #include "src/protocol/businessdatapoint.h"
+#include "src/monitoring/monitorstatistics.h"
 #include <QHash>
 #include <QQueue>
 #include <QSet>
@@ -64,8 +65,8 @@ private:
         quint64 timeoutCount = 0;
         quint64 recoveryCount = 0;
         qint64 lastIntervalMs = -1;
-        qint64 intervalSumMs = 0;
-        qint64 intervalCount = 0;
+        MonitorStatistics::IntervalJitter intervalJitter;
+        MonitorStatistics::OnlineAvailability availability;
         qint64 minIntervalMs = -1;
         qint64 maxIntervalMs = 0;
         quint64 txCount = 0;
