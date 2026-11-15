@@ -44,6 +44,7 @@ qt_add_executable(hhh
     src/core/datamanager.h src/core/datamanager.cpp
     src/core/historymaintenance.h src/core/historymaintenance.cpp
     src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
+    src/monitoring/monitorstatistics.h
     src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
@@ -94,6 +95,13 @@ if(BUILD_TESTING)
     target_include_directories(demo_fault_policy_test PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(demo_fault_policy_test PRIVATE Qt6::Core)
     add_test(NAME demo_fault_policy_test COMMAND demo_fault_policy_test)
+
+    add_executable(monitor_statistics_test
+        tests/monitor_statistics_test.cpp
+        src/monitoring/monitorstatistics.h
+    )
+    target_include_directories(monitor_statistics_test PRIVATE ${CMAKE_SOURCE_DIR})
+    add_test(NAME monitor_statistics_test COMMAND monitor_statistics_test)
 
     add_executable(slcan_frame_codec_test
         tests/slcan_frame_codec_test.cpp
