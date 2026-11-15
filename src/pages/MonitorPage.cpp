@@ -82,16 +82,21 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     ui->eventTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->eventTable->setAlternatingRowColors(true);
 
-    ui->metricsTable->setColumnCount(16);
+    ui->metricsTable->setColumnCount(18);
     ui->metricsTable->setHorizontalHeaderLabels({
         QStringLiteral("设备名称 / 编号"), QStringLiteral("通信类型"),
         QStringLiteral("连接状态"), QStringLiteral("接收状态"),
         QStringLiteral("最后接收时间"), QStringLiteral("距上次接收"),
         QStringLiteral("最近帧间隔"), QStringLiteral("平均间隔"), QStringLiteral("最小间隔"),
-        QStringLiteral("最大间隔"), QStringLiteral("TX帧数"),
+        QStringLiteral("最大间隔"), QStringLiteral("帧间隔抖动 σ"),
+        QStringLiteral("本次连接在线率"), QStringLiteral("TX帧数"),
         QStringLiteral("RX帧数"), QStringLiteral("接收帧率 FPS"),
         QStringLiteral("超时次数"), QStringLiteral("恢复次数"), QStringLiteral("错误数")
     });
+    ui->metricsTable->horizontalHeaderItem(10)->setToolTip(
+        QStringLiteral("连续接收帧间隔的样本标准差，单位 ms；样本不足两个间隔时显示 --。"));
+    ui->metricsTable->horizontalHeaderItem(11)->setToolTip(
+        QStringLiteral("本次连接期间，接收活动未超过超时阈值的时间占比；首次连接尚未收到数据时为 0%。"));
     ui->metricsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->metricsTable->horizontalHeader()->setStretchLastSection(true);
     ui->metricsTable->verticalHeader()->setVisible(false);
@@ -188,9 +193,12 @@ void MonitorPage::refreshDeviceFilter()
                 const bool isConnected = m_communicationManager->isConnected(device.devId);
                 if (isConnected && (!metrics.connected || metrics.connectedSinceMs <= 0)) {
                     metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                    metrics.availability.begin(metrics.connectedSinceMs);
                     metrics.lastReceiveMs = 0;
                     metrics.receiveTimedOut = false;
                 } else if (!isConnected) {
+                    if (metrics.connected)
+                        metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
                     metrics.connectedSinceMs = 0;
                 }
                 metrics.connected = isConnected;
@@ -272,9 +280,11 @@ void MonitorPage::onConnectionStateChanged(const QString &deviceId, bool connect
     metrics.connected = connected;
     if (connected) {
         metrics.connectedSinceMs = nowMs;
+        metrics.availability.begin(nowMs);
         metrics.lastReceiveMs = 0;
         metrics.receiveTimedOut = false;
     } else {
+        metrics.availability.finish(nowMs);
         metrics.connectedSinceMs = 0;
         metrics.lastReceiveMs = 0;
         metrics.receiveTimedOut = false;
@@ -306,8 +316,7 @@ void MonitorPage::processDataReceived(const QString &deviceId,
     if (metrics.lastReceiveMs > 0) {
         const qint64 interval = qMax<qint64>(0, nowMs - metrics.lastReceiveMs);
         metrics.lastIntervalMs = interval;
-        metrics.intervalSumMs += interval;
-        ++metrics.intervalCount;
+        metrics.intervalJitter.add(interval);
         metrics.minIntervalMs = metrics.minIntervalMs < 0
             ? interval : qMin(metrics.minIntervalMs, interval);
         metrics.maxIntervalMs = qMax(metrics.maxIntervalMs, interval);
@@ -323,6 +332,8 @@ void MonitorPage::processDataReceived(const QString &deviceId,
         metrics.receiveTimestamps.dequeue();
     metrics.lastReceiveMs = nowMs;
     metrics.lastReceiveTime = QDateTime::currentDateTime();
+    if (metrics.connected)
+        metrics.availability.setOnline(true, nowMs);
     ++metrics.rxCount;
 
     QString eventData = formatData(deviceId, data);
@@ -387,6 +398,7 @@ void MonitorPage::toggleDemoMode()
             metrics.commType = types.at(i);
             metrics.connected = true;
             metrics.connectedSinceMs = nowMs;
+            metrics.availability.begin(nowMs);
             metrics.lastReceiveMs = 0;
             metrics.receiveTimedOut = false;
             ui->deviceFilterCombo->addItem(
@@ -412,6 +424,7 @@ void MonitorPage::toggleDemoMode()
         };
         for (const QString &id : ids) {
             DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+            metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
             metrics.connected = false;
             metrics.connectedSinceMs = 0;
             metrics.receiveTimedOut = false;
@@ -453,6 +466,7 @@ void MonitorPage::applyDemoFaultSettings()
             if (shouldDisconnect && !wasDisconnected) {
                 m_demoDisconnectedDevices.insert(id);
                 DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
+                metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
                 metrics.connected = false;
                 metrics.connectedSinceMs = 0;
                 metrics.lastReceiveMs = 0;
@@ -464,6 +478,7 @@ void MonitorPage::applyDemoFaultSettings()
                 DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
                 metrics.connected = true;
                 metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                metrics.availability.begin(metrics.connectedSinceMs);
                 metrics.lastReceiveMs = 0;
                 metrics.receiveTimedOut = false;
                 appendEvent(id, QStringLiteral("状态"),
@@ -679,6 +694,14 @@ void MonitorPage::updateLiveStatistics()
                 : QStringLiteral("连接后 %1 ms 内未收到首帧数据").arg(m_receiveTimeoutMs);
             appendEvent(it.key(), QStringLiteral("错误"), detail);
         }
+
+        const bool receivingWithinTimeout = metrics.connected
+            && metrics.lastReceiveMs > 0
+            && nowMs >= metrics.lastReceiveMs
+            && nowMs - metrics.lastReceiveMs <= m_receiveTimeoutMs;
+        metrics.availability.setOnline(receivingWithinTimeout, nowMs);
+        if (!metrics.connected)
+            metrics.availability.finish(nowMs);
     }
     refreshMetricsTable();
 
@@ -720,9 +743,15 @@ void MonitorPage::refreshMetricsTable()
         const QString receiveAge = metrics.lastReceiveMs > 0
             ? intervalText(nowMs - metrics.lastReceiveMs) : QStringLiteral("--");
         const QString latestInterval = intervalText(metrics.lastIntervalMs);
-        const QString averageInterval = metrics.intervalCount > 0
+        const QString averageInterval = metrics.intervalJitter.sampleCount() > 0
+            ? QStringLiteral("%1 ms").arg(metrics.intervalJitter.meanMs(), 0, 'f', 1)
+            : QStringLiteral("--");
+        const QString jitter = metrics.intervalJitter.hasStandardDeviation()
             ? QStringLiteral("%1 ms").arg(
-                  static_cast<double>(metrics.intervalSumMs) / metrics.intervalCount, 0, 'f', 1)
+                  metrics.intervalJitter.standardDeviationMs(), 0, 'f', 1)
+            : QStringLiteral("--");
+        const QString onlineRate = metrics.availability.hasObservation()
+            ? QStringLiteral("%1%").arg(metrics.availability.ratePercent(nowMs), 0, 'f', 1)
             : QStringLiteral("--");
 
         const QStringList values = {
@@ -735,7 +764,10 @@ void MonitorPage::refreshMetricsTable()
             latestInterval,
             averageInterval,
             intervalText(metrics.minIntervalMs),
-            metrics.intervalCount > 0 ? intervalText(metrics.maxIntervalMs) : QStringLiteral("--"),
+            metrics.intervalJitter.sampleCount() > 0
+                ? intervalText(metrics.maxIntervalMs) : QStringLiteral("--"),
+            jitter,
+            onlineRate,
             QString::number(metrics.txCount),
             QString::number(metrics.rxCount),
             QStringLiteral("%1").arg(receiveRate(metrics, nowMs), 0, 'f', 1),
