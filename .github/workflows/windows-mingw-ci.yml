@@ -25,12 +25,26 @@ jobs:
           target: desktop
           arch: win64_mingw
           modules: qtcharts qtserialport qtserialbus
-          tools: tools_cmake,tools_ninja
-          tools_mingw: 13.1.0
+          tools: tools_mingw1310,qt.tools.win64_mingw1310
 
       - name: Configure
         shell: pwsh
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: |
+          $toolsRoot = $env:IQTA_TOOLS
+          if ([string]::IsNullOrWhiteSpace($toolsRoot)) {
+            $toolsRoot = Join-Path $env:GITHUB_WORKSPACE "Qt\Tools"
+          }
+          $mingwBin = Join-Path $toolsRoot "mingw1310_64\bin"
+          if (-not (Test-Path (Join-Path $mingwBin "g++.exe"))) {
+            throw "Qt 6.10.3 MinGW 13.1.0 compiler not found: $mingwBin"
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $mingwBin
+          $env:PATH = "$mingwBin;$env:PATH"
+          gcc --version
+          g++ --version
+          cmake --version
+          ninja --version
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 
       - name: Build
         run: cmake --build build --parallel

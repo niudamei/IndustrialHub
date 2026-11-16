@@ -18,7 +18,16 @@ int main()
           "delay mode is recognized");
     CHECK(DemoFaultPolicy::modeFromId(QStringLiteral("unknown")) == Mode::Normal,
           "unknown mode safely falls back to normal");
-
+    CHECK(DemoFaultPolicy::isDemoDeviceId(QStringLiteral("demo-can-001")),
+          "reserved CAN demo ID is recognized case-insensitively");
+    CHECK(DemoFaultPolicy::isDemoDeviceId(QStringLiteral("DEMO-CANFD-002")),
+          "reserved CAN-FD demo ID is recognized");
+    CHECK(DemoFaultPolicy::isDemoDeviceId(QStringLiteral("DEMO-TCP-003")),
+          "reserved TCP demo ID is recognized");
+    CHECK(!DemoFaultPolicy::isDemoDeviceId(QStringLiteral("DEV001")),
+          "real device IDs are never classified as demo");
+    CHECK(!DemoFaultPolicy::isDemoDeviceId(QStringLiteral("DEMO-CAN-999")),
+          "unknown demo-like IDs are not accepted");
     CHECK(DemoFaultPolicy::appliesToDevice(QString(), QStringLiteral("DEMO-CAN-001")),
           "empty target selects all demo devices");
     CHECK(DemoFaultPolicy::appliesToDevice(QStringLiteral("demo-can-001"),

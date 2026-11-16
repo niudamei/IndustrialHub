@@ -3,6 +3,7 @@
 #include "src/communication/communicationmanager.h"
 #include "src/core/businessdatamanager.h"
 #include "src/protocol/businessdatapoint.h"
+#include "src/simulation/demofaultpolicy.h"
 
 #include <QChart>
 #include <QChartView>
@@ -15,6 +16,7 @@
 #include <QLegend>
 #include <QLineSeries>
 #include <QPainter>
+#include <QPen>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <QTableWidget>
@@ -44,7 +46,7 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     setupCommunicationHistoryTrend();
 
     auto *chart = new QChart();
-    chart->setTitle(QStringLiteral("发送 / 接收帧率（最近 15 秒）"));
+    chart->setTitle(QStringLiteral("真实 / 演示 TX/RX 帧率（最近 15 秒）"));
     chart->legend()->setVisible(true);
 
     m_txSeries = new QLineSeries(chart);
@@ -52,8 +54,22 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     chart->addSeries(m_txSeries);
 
     m_rxSeries = new QLineSeries(chart);
-    m_rxSeries->setName(QStringLiteral("RX 接收帧率"));
+    m_rxSeries->setName(QStringLiteral("真实 RX"));
     chart->addSeries(m_rxSeries);
+
+    m_txSeries->setName(QStringLiteral("真实 TX"));
+    m_demoTxSeries = new QLineSeries(chart);
+    m_demoTxSeries->setName(QStringLiteral("演示 TX"));
+    chart->addSeries(m_demoTxSeries);
+    m_demoRxSeries = new QLineSeries(chart);
+    m_demoRxSeries->setName(QStringLiteral("演示 RX"));
+    chart->addSeries(m_demoRxSeries);
+    QPen demoTxPen = m_demoTxSeries->pen();
+    demoTxPen.setStyle(Qt::DashLine);
+    m_demoTxSeries->setPen(demoTxPen);
+    QPen demoRxPen = m_demoRxSeries->pen();
+    demoRxPen.setStyle(Qt::DashLine);
+    m_demoRxSeries->setPen(demoRxPen);
 
     m_axisX = new QValueAxis(chart);
     m_axisX->setTitleText(QStringLiteral("时间（秒）"));
@@ -62,6 +78,8 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     chart->addAxis(m_axisX, Qt::AlignBottom);
     m_txSeries->attachAxis(m_axisX);
     m_rxSeries->attachAxis(m_axisX);
+    m_demoTxSeries->attachAxis(m_axisX);
+    m_demoRxSeries->attachAxis(m_axisX);
 
     m_axisY = new QValueAxis(chart);
     m_axisY->setTitleText(QStringLiteral("帧 / 秒（FPS）"));
@@ -69,6 +87,8 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     chart->addAxis(m_axisY, Qt::AlignLeft);
     m_txSeries->attachAxis(m_axisY);
     m_rxSeries->attachAxis(m_axisY);
+    m_demoTxSeries->attachAxis(m_axisY);
+    m_demoRxSeries->attachAxis(m_axisY);
 
     m_chartView = new QChartView(chart, ui->chartHost);
     m_chartView->setRenderHint(QPainter::Antialiasing);
@@ -76,9 +96,9 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     chartLayout->setContentsMargins(0, 0, 0, 0);
     chartLayout->addWidget(m_chartView);
 
-    ui->analysisTable->setColumnCount(9);
+    ui->analysisTable->setColumnCount(10);
     ui->analysisTable->setHorizontalHeaderLabels({
-        QStringLiteral("设备编号"), QStringLiteral("连接状态"),
+        QStringLiteral("设备编号"), QStringLiteral("数据来源"), QStringLiteral("连接状态"),
         QStringLiteral("TX 帧数"), QStringLiteral("RX 帧数"),
         QStringLiteral("TX 字节"), QStringLiteral("RX 字节"),
         QStringLiteral("错误数"), QStringLiteral("最近 RX 时间"),
@@ -95,6 +115,8 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
     connect(ui->deviceCombo, &QComboBox::currentIndexChanged, this, [this](int) {
         m_txSeries->clear();
         m_rxSeries->clear();
+        m_demoTxSeries->clear();
+        m_demoRxSeries->clear();
         m_sampleIndex = 0;
         m_lastBusinessTimestamp.clear();
         for (int i = 0; i < m_businessSeries.size(); ++i) {
@@ -141,6 +163,41 @@ void TrendPage::onDataReceived(const QString &deviceId, const QByteArray &data)
 {
     recordTraffic(deviceId, false);
     m_traffic[deviceId.trimmed()].rxBytes += static_cast<quint64>(data.size());
+}
+
+void TrendPage::onDemoTrafficGenerated(const QString &deviceId,
+                                       bool isTx,
+                                       qint64 byteCount)
+{
+    const QString id = deviceId.trimmed();
+    if (!DemoFaultPolicy::isDemoDeviceId(id) || byteCount < 0)
+        return;
+
+    const bool isNewDevice = !m_traffic.contains(id);
+    m_traffic[id].demoData = true;
+    if (isNewDevice)
+        refreshDeviceList();
+
+    recordTraffic(id, isTx);
+    DeviceTraffic &traffic = m_traffic[id];
+    if (isTx)
+        traffic.txBytes += static_cast<quint64>(byteCount);
+    else
+        traffic.rxBytes += static_cast<quint64>(byteCount);
+}
+
+void TrendPage::onDemoDeviceConnectionChanged(const QString &deviceId, bool connected)
+{
+    const QString id = deviceId.trimmed();
+    if (!DemoFaultPolicy::isDemoDeviceId(id))
+        return;
+
+    const bool isNewDevice = !m_traffic.contains(id);
+    DeviceTraffic &traffic = m_traffic[id];
+    traffic.demoData = true;
+    traffic.connected = connected;
+    if (isNewDevice)
+        refreshDeviceList();
 }
 
 void TrendPage::onConnectionStateChanged(const QString &deviceId, bool connected)
@@ -200,8 +257,13 @@ void TrendPage::refreshDeviceList()
         }
     }
     ids.sort(Qt::CaseInsensitive);
-    for (const QString &id : ids)
-        ui->deviceCombo->addItem(id, id);
+    for (const QString &id : ids) {
+        const bool isDemo = m_traffic.value(id).demoData;
+        const QString label = isDemo
+            ? QStringLiteral("演示 | %1").arg(id)
+            : QStringLiteral("真实 | %1").arg(id);
+        ui->deviceCombo->addItem(label, id);
+    }
 
     const int index = ui->deviceCombo->findData(selectedId);
     if (index >= 0)
@@ -356,8 +418,10 @@ void TrendPage::updateTrend()
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     updateBusinessTrend(nowMs);
     const QString selectedId = ui->deviceCombo->currentData().toString();
-    int txRate = 0;
-    int rxRate = 0;
+    int realTxRate = 0;
+    int realRxRate = 0;
+    int demoTxRate = 0;
+    int demoRxRate = 0;
 
     for (auto it = m_traffic.begin(); it != m_traffic.end(); ++it) {
         auto prune = [nowMs](QQueue<qint64> &queue) {
@@ -366,29 +430,51 @@ void TrendPage::updateTrend()
         };
         prune(it->txTimes);
         prune(it->rxTimes);
-        if (selectedId.isEmpty() || it.key().compare(selectedId, Qt::CaseInsensitive) == 0) {
-            txRate += countRecent(it->txTimes, nowMs);
-            rxRate += countRecent(it->rxTimes, nowMs);
+        if (!selectedId.isEmpty()
+            && it.key().compare(selectedId, Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+
+        const int deviceTxRate = countRecent(it->txTimes, nowMs);
+        const int deviceRxRate = countRecent(it->rxTimes, nowMs);
+        if (it->demoData) {
+            demoTxRate += deviceTxRate;
+            demoRxRate += deviceRxRate;
+        } else {
+            realTxRate += deviceTxRate;
+            realRxRate += deviceRxRate;
         }
     }
 
     const qreal x = static_cast<qreal>(m_sampleIndex++) * 0.25;
-    m_txSeries->append(x, txRate);
-    m_rxSeries->append(x, rxRate);
-    while (m_txSeries->count() > 61)
-        m_txSeries->remove(0);
-    while (m_rxSeries->count() > 61)
-        m_rxSeries->remove(0);
+    m_txSeries->append(x, realTxRate);
+    m_rxSeries->append(x, realRxRate);
+    m_demoTxSeries->append(x, demoTxRate);
+    m_demoRxSeries->append(x, demoRxRate);
+    for (QLineSeries *series : {m_txSeries, m_rxSeries, m_demoTxSeries, m_demoRxSeries}) {
+        while (series->count() > 61)
+            series->remove(0);
+    }
 
     m_axisX->setRange(qMax<qreal>(0.0, x - 15.0), qMax<qreal>(15.0, x));
-    const qreal maxRate = qMax<qreal>(10.0, qMax<qreal>(txRate, rxRate));
+    const qreal maxRate = qMax<qreal>(
+        10.0, qMax<qreal>(qMax<qreal>(realTxRate, realRxRate),
+                          qMax<qreal>(demoTxRate, demoRxRate)));
     m_axisY->setRange(0.0, qMax<qreal>(10.0, qCeil(maxRate / 5.0) * 5.0));
 
-    ui->txRateLabel->setText(QStringLiteral("当前 TX：%1 帧/秒").arg(txRate));
-    ui->rxRateLabel->setText(QStringLiteral("当前 RX：%1 帧/秒").arg(rxRate));
-    ui->trendHintLabel->setText(selectedId.isEmpty()
-        ? QStringLiteral("当前统计范围：全部设备")
-        : QStringLiteral("当前统计设备：%1").arg(selectedId));
+    ui->txRateLabel->setText(
+        QStringLiteral("TX：真实 %1 / 演示 %2 帧/秒").arg(realTxRate).arg(demoTxRate));
+    ui->rxRateLabel->setText(
+        QStringLiteral("RX：真实 %1 / 演示 %2 帧/秒").arg(realRxRate).arg(demoRxRate));
+    if (selectedId.isEmpty()) {
+        ui->trendHintLabel->setText(
+            QStringLiteral("全部设备：实线=真实通信，虚线=演示数据"));
+    } else {
+        const QString source = m_traffic.value(selectedId).demoData
+            ? QStringLiteral("演示数据") : QStringLiteral("真实通信");
+        ui->trendHintLabel->setText(
+            QStringLiteral("当前设备：%1（%2）").arg(selectedId, source));
+    }
 
     QStringList deviceIds = m_traffic.keys();
     deviceIds.sort(Qt::CaseInsensitive);
@@ -400,19 +486,33 @@ void TrendPage::updateTrend()
     }
 
     ui->analysisTable->setRowCount(visibleIds.size());
-    quint64 totalTxFrames = 0;
-    quint64 totalRxFrames = 0;
-    quint64 totalErrors = 0;
-    quint64 totalTxBytes = 0;
-    quint64 totalRxBytes = 0;
+    quint64 realTxFrames = 0;
+    quint64 realRxFrames = 0;
+    quint64 realTxBytes = 0;
+    quint64 realRxBytes = 0;
+    quint64 realErrors = 0;
+    quint64 demoTxFrames = 0;
+    quint64 demoRxFrames = 0;
+    quint64 demoTxBytes = 0;
+    quint64 demoRxBytes = 0;
+    quint64 demoErrors = 0;
     int row = 0;
     for (const QString &id : visibleIds) {
         const DeviceTraffic &traffic = m_traffic[id];
-        totalTxFrames += traffic.txFrames;
-        totalRxFrames += traffic.rxFrames;
-        totalErrors += traffic.errors;
-        totalTxBytes += traffic.txBytes;
-        totalRxBytes += traffic.rxBytes;
+        if (traffic.demoData) {
+            demoTxFrames += traffic.txFrames;
+            demoRxFrames += traffic.rxFrames;
+            demoTxBytes += traffic.txBytes;
+            demoRxBytes += traffic.rxBytes;
+            demoErrors += traffic.errors;
+        } else {
+            realTxFrames += traffic.txFrames;
+            realRxFrames += traffic.rxFrames;
+            realTxBytes += traffic.txBytes;
+            realRxBytes += traffic.rxBytes;
+            realErrors += traffic.errors;
+        }
+
         const QString lastRx = traffic.lastRxMs > 0
             ? QDateTime::fromMSecsSinceEpoch(traffic.lastRxMs)
                   .toString(QStringLiteral("HH:mm:ss.zzz"))
@@ -422,6 +522,7 @@ void TrendPage::updateTrend()
             : QStringLiteral("--");
         const QStringList values = {
             id,
+            traffic.demoData ? QStringLiteral("演示数据") : QStringLiteral("真实通信"),
             traffic.connected ? QStringLiteral("已连接") : QStringLiteral("未连接/未知"),
             QString::number(traffic.txFrames),
             QString::number(traffic.rxFrames),
@@ -437,9 +538,11 @@ void TrendPage::updateTrend()
     }
 
     ui->analysisSummaryLabel->setText(
-        QStringLiteral("累计 TX %1 帧 / %2 B    RX %3 帧 / %4 B    错误 %5")
-            .arg(totalTxFrames).arg(totalTxBytes)
-            .arg(totalRxFrames).arg(totalRxBytes).arg(totalErrors));
+        QStringLiteral("真实通信：TX %1 帧 / %2 B，RX %3 帧 / %4 B，错误 %5"
+                       "    |    演示数据：TX %6 帧 / %7 B，RX %8 帧 / %9 B，错误 %10")
+            .arg(realTxFrames).arg(realTxBytes).arg(realRxFrames).arg(realRxBytes)
+            .arg(realErrors).arg(demoTxFrames).arg(demoTxBytes)
+            .arg(demoRxFrames).arg(demoRxBytes).arg(demoErrors));
 }
 
 void TrendPage::setupCommunicationHistoryTrend()

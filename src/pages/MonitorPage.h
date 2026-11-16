@@ -48,6 +48,8 @@ private slots:
     void updateLiveStatistics();
 
 signals:
+    void demoTrafficGenerated(const QString &deviceId, bool isTx, qint64 byteCount);
+    void demoDeviceConnectionChanged(const QString &deviceId, bool connected);
     void businessDataGenerated(const QString &deviceId,
                                const QVector<BusinessDataPoint> &points);
 

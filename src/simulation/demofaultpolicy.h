@@ -26,6 +26,13 @@ inline Mode modeFromId(const QString &id)
     return Mode::Normal;
 }
 
+inline bool isDemoDeviceId(const QString &deviceId)
+{
+    return deviceId.compare(QStringLiteral("DEMO-CAN-001"), Qt::CaseInsensitive) == 0
+        || deviceId.compare(QStringLiteral("DEMO-CANFD-002"), Qt::CaseInsensitive) == 0
+        || deviceId.compare(QStringLiteral("DEMO-TCP-003"), Qt::CaseInsensitive) == 0;
+}
+
 inline bool appliesToDevice(const QString &targetDeviceId, const QString &deviceId)
 {
     return targetDeviceId.trimmed().isEmpty()

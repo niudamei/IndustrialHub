@@ -38,6 +38,10 @@ public:
                        QWidget *parent = nullptr);
     ~TrendPage() override;
 
+public slots:
+    void onDemoTrafficGenerated(const QString &deviceId, bool isTx, qint64 byteCount);
+    void onDemoDeviceConnectionChanged(const QString &deviceId, bool connected);
+
 private slots:
     void onDataSent(const QString &deviceId, const QByteArray &data);
     void onDataReceived(const QString &deviceId, const QByteArray &data);
@@ -56,6 +60,7 @@ private:
         quint64 rxBytes = 0;
         quint64 errors = 0;
         bool connected = false;
+        bool demoData = false;
         qint64 lastRxMs = 0;
     };
 
@@ -76,6 +81,8 @@ private:
     QChartView *m_chartView = nullptr;
     QLineSeries *m_txSeries = nullptr;
     QLineSeries *m_rxSeries = nullptr;
+    QLineSeries *m_demoTxSeries = nullptr;
+    QLineSeries *m_demoRxSeries = nullptr;
     QValueAxis *m_axisX = nullptr;
     QValueAxis *m_axisY = nullptr;
     QHash<QString, DeviceTraffic> m_traffic;

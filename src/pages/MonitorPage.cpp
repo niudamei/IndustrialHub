@@ -403,6 +403,7 @@ void MonitorPage::toggleDemoMode()
             metrics.receiveTimedOut = false;
             ui->deviceFilterCombo->addItem(
                 QStringLiteral("%1 | %2").arg(ids.at(i), names.at(i)), ids.at(i));
+            emit demoDeviceConnectionChanged(ids.at(i), true);
             appendEvent(ids.at(i), QStringLiteral("状态"),
                         QStringLiteral("模拟设备已连接（演示数据，非真实硬件）"));
         }
@@ -428,6 +429,7 @@ void MonitorPage::toggleDemoMode()
             metrics.connected = false;
             metrics.connectedSinceMs = 0;
             metrics.receiveTimedOut = false;
+            emit demoDeviceConnectionChanged(id, false);
             appendEvent(id, QStringLiteral("状态"),
                         QStringLiteral("模拟数据已停止"));
         }
@@ -471,6 +473,7 @@ void MonitorPage::applyDemoFaultSettings()
                 metrics.connectedSinceMs = 0;
                 metrics.lastReceiveMs = 0;
                 metrics.receiveTimedOut = false;
+                emit demoDeviceConnectionChanged(id, false);
                 appendEvent(id, QStringLiteral("状态"),
                             QStringLiteral("故障注入：模拟设备已断线"));
             } else if (!shouldDisconnect && wasDisconnected) {
@@ -481,6 +484,7 @@ void MonitorPage::applyDemoFaultSettings()
                 metrics.availability.begin(metrics.connectedSinceMs);
                 metrics.lastReceiveMs = 0;
                 metrics.receiveTimedOut = false;
+                emit demoDeviceConnectionChanged(id, true);
                 appendEvent(id, QStringLiteral("状态"),
                             QStringLiteral("故障注入已解除：模拟设备恢复连接，等待数据"));
             }
@@ -547,6 +551,7 @@ void MonitorPage::generateDemoTraffic()
             continue;
 
         onDataSent(id, txData);
+        emit demoTrafficGenerated(id, true, txData.size());
 
         const DemoFaultPolicy::Mode faultMode =
             DemoFaultPolicy::modeFromId(ui->demoFaultModeCombo->currentData().toString());
@@ -573,9 +578,11 @@ void MonitorPage::generateDemoTraffic()
                     || m_demoDisconnectedDevices.contains(id)) {
                     return;
                 }
+                emit demoTrafficGenerated(id, false, rxData.size());
                 processDataReceived(id, rxData, delayMs);
             });
         } else {
+            emit demoTrafficGenerated(id, false, rxData.size());
             onDataReceived(id, rxData);
         }
     }
