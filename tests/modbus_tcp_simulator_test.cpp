@@ -4,6 +4,7 @@
 #include <QModbusDataUnit>
 #include <QModbusReply>
 #include <QTimer>
+#include <QVariant>
 #include <QDebug>
 
 #include "src/simulation/modbustcpsimulator.h"
@@ -32,8 +33,9 @@ int main(int argc, char *argv[])
 
     QModbusTcpClient client;
     client.setConnectionParameter(QModbusDevice::NetworkAddressParameter,
-                                  QStringLiteral("127.0.0.1"));
-    client.setConnectionParameter(QModbusDevice::NetworkPortParameter, 15020);
+                                  QVariant(QStringLiteral("127.0.0.1")));
+    client.setConnectionParameter(QModbusDevice::NetworkPortParameter,
+                                  QVariant(15020));
     client.setTimeout(1000);
     client.setNumberOfRetries(0);
     if (!client.connectDevice()) {
