@@ -25,6 +25,13 @@ struct BusinessDataPoint
     QDateTime timestamp;
     DataQuality quality = DataQuality::Good;
     QString sourceProtocol;
+
+    // Demo-only points must never enter real-device caches or persistent alarms.
+    bool isDemoData() const
+    {
+        return sourceProtocol.compare(QStringLiteral("SIMULATED-BUSINESS"),
+                                      Qt::CaseInsensitive) == 0;
+    }
 };
 
 Q_DECLARE_METATYPE(BusinessDataPoint)
