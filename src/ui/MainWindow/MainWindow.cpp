@@ -375,11 +375,9 @@ void MainWindow::init_class()
     devicePage = new DevicePage(m_deviceManager, this);
     monitorPage = new MonitorPage(m_deviceManager, m_communicationManager,
                                     m_deviceHealthMonitor, this);
-    connect(monitorPage, &MonitorPage::businessDataGenerated,
-            m_businessDataManager, &BusinessDataManager::updateDataPoints);
-    connect(monitorPage, &MonitorPage::businessDataGenerated,
-            m_alarmManager, &AlarmManager::evaluateDataPoints);
     trendPage = new TrendPage(m_communicationManager, m_businessDataManager, this);
+    connect(monitorPage, &MonitorPage::demoBusinessDataGenerated,
+            trendPage, &TrendPage::onDemoBusinessDataGenerated);
     connect(monitorPage, &MonitorPage::demoTrafficGenerated,
             trendPage, &TrendPage::onDemoTrafficGenerated);
     connect(monitorPage, &MonitorPage::demoDeviceConnectionChanged,
