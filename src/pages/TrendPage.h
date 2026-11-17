@@ -41,6 +41,8 @@ public:
 public slots:
     void onDemoTrafficGenerated(const QString &deviceId, bool isTx, qint64 byteCount);
     void onDemoDeviceConnectionChanged(const QString &deviceId, bool connected);
+    void onDemoBusinessDataGenerated(const QString &deviceId,
+                                     const QVector<BusinessDataPoint> &points);
 
 private slots:
     void onDataSent(const QString &deviceId, const QByteArray &data);
@@ -103,7 +105,10 @@ private:
     QVector<QValueAxis *> m_businessAxisY;
     QVector<QLabel *> m_businessStats;
     QVector<QHash<QString, QLineSeries *>> m_businessSeries;
+    QVector<QLabel *> m_demoBusinessStats;
+    QVector<QHash<QString, QLineSeries *>> m_demoBusinessSeries;
     QHash<QString, qint64> m_lastBusinessTimestamp;
+    QHash<QString, qint64> m_lastDemoBusinessTimestamp;
 };
 
 #endif // TRENDPAGE_H
