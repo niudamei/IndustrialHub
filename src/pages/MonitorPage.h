@@ -50,8 +50,8 @@ private slots:
 signals:
     void demoTrafficGenerated(const QString &deviceId, bool isTx, qint64 byteCount);
     void demoDeviceConnectionChanged(const QString &deviceId, bool connected);
-    void businessDataGenerated(const QString &deviceId,
-                               const QVector<BusinessDataPoint> &points);
+    void demoBusinessDataGenerated(const QString &deviceId,
+                                   const QVector<BusinessDataPoint> &points);
 
 private:
     struct DeviceMetrics
