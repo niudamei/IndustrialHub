@@ -324,7 +324,7 @@ int TrendPage::countRecent(const QQueue<qint64> &times, qint64 nowMs) const
  
 void TrendPage::setupBusinessTrend()
 {
-    auto *group = new QGroupBox(QStringLiteral("业务变量实时趋势（最近 60 秒）"), this);
+    auto *group = new QGroupBox(QStringLiteral("真实 / 演示业务变量趋势（最近 60 秒）"), this);
     auto *layout = new QVBoxLayout(group);
     m_businessTabs = new QTabWidget(group);
 
