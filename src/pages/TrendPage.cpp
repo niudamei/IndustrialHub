@@ -118,13 +118,6 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
         m_demoTxSeries->clear();
         m_demoRxSeries->clear();
         m_sampleIndex = 0;
-        m_lastBusinessTimestamp.clear();
-        for (int i = 0; i < m_businessSeries.size(); ++i) {
-            for (auto it = m_businessSeries[i].begin();
-                 it != m_businessSeries[i].end(); ++it) {
-                it.value()->clear();
-            }
-        }
         updateTrend();
         refreshCommunicationHistoryTrend();
     });
@@ -198,6 +191,54 @@ void TrendPage::onDemoDeviceConnectionChanged(const QString &deviceId, bool conn
     traffic.connected = connected;
     if (isNewDevice)
         refreshDeviceList();
+}
+
+void TrendPage::onDemoBusinessDataGenerated(
+    const QString &deviceId,
+    const QVector<BusinessDataPoint> &points)
+{
+    const QString id = deviceId.trimmed();
+    if (!DemoFaultPolicy::isDemoDeviceId(id))
+        return;
+
+    static const QStringList variableIds = {
+        QStringLiteral("temperature"), QStringLiteral("rpm"), QStringLiteral("current")
+    };
+
+    for (const BusinessDataPoint &point : points) {
+        if (!point.isDemoData()
+            || point.deviceId.compare(id, Qt::CaseInsensitive) != 0
+            || point.quality != DataQuality::Good
+            || !point.timestamp.isValid()
+            || !qIsFinite(point.value)) {
+            continue;
+        }
+
+        const int index = variableIds.indexOf(point.variableId.toCaseFolded());
+        if (index < 0 || index >= m_businessCharts.size())
+            continue;
+
+        const QString seriesKey = id + QLatin1Char('|') + point.variableId.toCaseFolded();
+        const qint64 timestamp = point.timestamp.toMSecsSinceEpoch();
+        if (m_lastDemoBusinessTimestamp.value(seriesKey, -1) == timestamp)
+            continue;
+
+        QLineSeries *series = m_demoBusinessSeries[index].value(id);
+        if (!series) {
+            series = new QLineSeries(m_businessCharts[index]);
+            series->setName(QStringLiteral("演示 | %1").arg(id));
+            QPen pen = series->pen();
+            pen.setStyle(Qt::DashLine);
+            series->setPen(pen);
+            m_businessCharts[index]->addSeries(series);
+            series->attachAxis(m_businessCharts[index]->axes(Qt::Horizontal).first());
+            series->attachAxis(m_businessAxisY[index]);
+            m_demoBusinessSeries[index].insert(id, series);
+        }
+
+        series->append(static_cast<qreal>(timestamp), point.value);
+        m_lastDemoBusinessTimestamp.insert(seriesKey, timestamp);
+    }
 }
 
 void TrendPage::onConnectionStateChanged(const QString &deviceId, bool connected)
@@ -317,14 +358,20 @@ void TrendPage::setupBusinessTrend()
         m_businessCharts.append(chart);
         m_businessAxisY.append(axisY);
         m_businessSeries.append(QHash<QString, QLineSeries *>());
-        auto *stats = new QLabel(QStringLiteral("当前值：--    最大值：--    最小值：--    平均值：--"), group);
+        m_demoBusinessSeries.append(QHash<QString, QLineSeries *>());
+        auto *stats = new QLabel(QStringLiteral("真实数据：暂无有效数据"), group);
         stats->setWordWrap(true);
         m_businessStats.append(stats);
+        auto *demoStats = new QLabel(QStringLiteral("演示数据：暂无有效数据"), group);
+        demoStats->setWordWrap(true);
+        m_demoBusinessStats.append(demoStats);
     }
 
     layout->addWidget(m_businessTabs);
-    for (QLabel *stats : m_businessStats)
-        layout->addWidget(stats);
+    for (int i = 0; i < m_businessStats.size(); ++i) {
+        layout->addWidget(m_businessStats.at(i));
+        layout->addWidget(m_demoBusinessStats.at(i));
+    }
 
     if (auto *mainLayout = qobject_cast<QVBoxLayout *>(this->layout()))
         mainLayout->insertWidget(4, group);
@@ -332,26 +379,27 @@ void TrendPage::setupBusinessTrend()
 
 void TrendPage::updateBusinessTrend(qint64 nowMs)
 {
-    if (!m_businessDataManager)
-        return;
-
     const QString selectedId = ui->deviceCombo->currentData().toString();
-    const QList<BusinessDataPoint> points =
-        m_businessDataManager->latestValues(selectedId);
+    const QList<BusinessDataPoint> points = m_businessDataManager
+        ? m_businessDataManager->latestValues(selectedId)
+        : QList<BusinessDataPoint>();
     const QStringList variableIds = {
         QStringLiteral("temperature"), QStringLiteral("rpm"), QStringLiteral("current")
     };
-    const qreal nowValue = static_cast<qreal>(nowMs);
-    const qreal leftValue = nowValue - 60000.0;
+    const qreal leftValue = static_cast<qreal>(nowMs - 60000);
 
+    // Real business values come only from the real-data manager.
     for (const BusinessDataPoint &point : points) {
-        if (point.quality != DataQuality::Good || !point.timestamp.isValid())
+        if (point.isDemoData() || point.quality != DataQuality::Good
+            || !point.timestamp.isValid() || !qIsFinite(point.value)) {
             continue;
+        }
         const int index = variableIds.indexOf(point.variableId.toCaseFolded());
-        if (index < 0)
+        if (index < 0 || index >= m_businessCharts.size())
             continue;
 
-        const QString seriesKey = point.deviceId + QLatin1Char('|') + point.variableId;
+        const QString seriesKey = point.deviceId + QLatin1Char('|')
+            + point.variableId.toCaseFolded();
         const qint64 timestamp = point.timestamp.toMSecsSinceEpoch();
         if (m_lastBusinessTimestamp.value(seriesKey, -1) == timestamp)
             continue;
@@ -359,7 +407,7 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
         QLineSeries *series = m_businessSeries[index].value(point.deviceId);
         if (!series) {
             series = new QLineSeries(m_businessCharts[index]);
-            series->setName(point.deviceId);
+            series->setName(QStringLiteral("真实 | %1").arg(point.deviceId));
             m_businessCharts[index]->addSeries(series);
             series->attachAxis(m_businessCharts[index]->axes(Qt::Horizontal).first());
             series->attachAxis(m_businessAxisY[index]);
@@ -370,45 +418,79 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
     }
 
     for (int i = 0; i < m_businessCharts.size(); ++i) {
-        qreal minValue = std::numeric_limits<qreal>::max();
-        qreal maxValue = std::numeric_limits<qreal>::lowest();
-        qreal sum = 0.0;
-        int count = 0;
-        qreal currentValue = 0.0;
+        qreal combinedMin = std::numeric_limits<qreal>::max();
+        qreal combinedMax = std::numeric_limits<qreal>::lowest();
+        bool hasVisibleSamples = false;
 
-        for (auto it = m_businessSeries[i].begin(); it != m_businessSeries[i].end(); ++it) {
-            QLineSeries *series = it.value();
-            QVector<QPointF> kept;
-            const auto oldPoints = series->points();
-            for (const QPointF &sample : oldPoints) {
-                if (sample.x() >= leftValue) {
+        auto updateSource = [&](QHash<QString, QLineSeries *> &sourceSeries,
+                                QLabel *statsLabel,
+                                const QString &sourceName) {
+            qreal minValue = std::numeric_limits<qreal>::max();
+            qreal maxValue = std::numeric_limits<qreal>::lowest();
+            qreal sum = 0.0;
+            qreal currentValue = 0.0;
+            qreal currentTimestamp = std::numeric_limits<qreal>::lowest();
+            int count = 0;
+
+            for (auto it = sourceSeries.begin(); it != sourceSeries.end(); ++it) {
+                QLineSeries *series = it.value();
+                const bool visible = selectedId.isEmpty()
+                    || it.key().compare(selectedId, Qt::CaseInsensitive) == 0;
+                series->setVisible(visible);
+
+                const QVector<QPointF> oldPoints = series->pointsVector();
+                QVector<QPointF> kept;
+                kept.reserve(oldPoints.size());
+                for (const QPointF &sample : oldPoints) {
+                    if (sample.x() < leftValue)
+                        continue;
                     kept.append(sample);
+                    if (!visible)
+                        continue;
+
                     minValue = qMin(minValue, sample.y());
                     maxValue = qMax(maxValue, sample.y());
                     sum += sample.y();
                     ++count;
-                    currentValue = sample.y();
+                    if (sample.x() >= currentTimestamp) {
+                        currentTimestamp = sample.x();
+                        currentValue = sample.y();
+                    }
                 }
+                if (kept.size() != oldPoints.size())
+                    series->replace(kept);
             }
-            if (kept.size() != oldPoints.size())
-                series->replace(kept);
-        }
 
-        auto *axisX = qobject_cast<QDateTimeAxis *>(m_businessCharts[i]->axes(Qt::Horizontal).first());
+            if (count > 0) {
+                hasVisibleSamples = true;
+                combinedMin = qMin(combinedMin, minValue);
+                combinedMax = qMax(combinedMax, maxValue);
+                statsLabel->setText(
+                    QStringLiteral("%1：当前值 %2    最大值 %3    最小值 %4    平均值 %5")
+                        .arg(sourceName)
+                        .arg(currentValue, 0, 'f', 2)
+                        .arg(maxValue, 0, 'f', 2)
+                        .arg(minValue, 0, 'f', 2)
+                        .arg(sum / count, 0, 'f', 2));
+            } else {
+                statsLabel->setText(sourceName + QStringLiteral("：暂无有效数据"));
+            }
+        };
+
+        updateSource(m_businessSeries[i], m_businessStats[i], QStringLiteral("真实数据"));
+        updateSource(m_demoBusinessSeries[i], m_demoBusinessStats[i],
+                     QStringLiteral("演示数据"));
+
+        auto *axisX = qobject_cast<QDateTimeAxis *>(
+            m_businessCharts[i]->axes(Qt::Horizontal).first());
         axisX->setRange(QDateTime::fromMSecsSinceEpoch(nowMs - 60000),
                         QDateTime::fromMSecsSinceEpoch(nowMs));
-        if (count > 0) {
-            const qreal margin = qMax<qreal>(1.0, (maxValue - minValue) * 0.15);
-            m_businessAxisY[i]->setRange(minValue - margin, maxValue + margin);
-            m_businessStats[i]->setText(
-                QStringLiteral("当前值：%1    最大值：%2    最小值：%3    平均值：%4")
-                    .arg(currentValue, 0, 'f', 2)
-                    .arg(maxValue, 0, 'f', 2)
-                    .arg(minValue, 0, 'f', 2)
-                    .arg(sum / count, 0, 'f', 2));
+
+        if (hasVisibleSamples) {
+            const qreal margin = qMax<qreal>(1.0, (combinedMax - combinedMin) * 0.15);
+            m_businessAxisY[i]->setRange(combinedMin - margin, combinedMax + margin);
         } else {
             m_businessAxisY[i]->setRange(0.0, 100.0);
-            m_businessStats[i]->setText(QStringLiteral("暂无有效数据（请在实时监控中启动模拟设备）"));
         }
     }
 }
