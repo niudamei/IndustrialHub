@@ -373,7 +373,9 @@ void AlarmManager::evaluateDataPoints(const QString &deviceId,
     if (!isReady())
         return;
     for (const BusinessDataPoint &point : points) {
-        if (point.quality != DataQuality::Good || !qIsFinite(point.value))
+        // Demo values are chart-only; they must never create or recover persisted alarms.
+        if (point.isDemoData()
+            || point.quality != DataQuality::Good || !qIsFinite(point.value))
             continue;
         for (const AlarmRule &rule : m_rules) {
             if (normalized(rule.deviceId) != normalized(deviceId)
