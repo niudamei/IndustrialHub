@@ -42,6 +42,14 @@ int main(int argc, char *argv[])
     };
     manager.updateDataPoints(QStringLiteral("dev-01"), first);
 
+    BusinessDataPoint demoPoint = makePoint(
+        QStringLiteral("DEMO-CAN-001"), QStringLiteral("temperature"), 95.0, t2);
+    demoPoint.sourceProtocol = QStringLiteral("SIMULATED-BUSINESS");
+    manager.updateDataPoints(demoPoint.deviceId, {demoPoint});
+    CHECK(manager.deviceCount() == 1);
+    CHECK(!manager.latestValue(QStringLiteral("DEMO-CAN-001"),
+                               QStringLiteral("temperature"), latest));
+
     CHECK(manager.deviceCount() == 1);
     CHECK(manager.variableCount(QStringLiteral("DEV-01")) == 2);
     CHECK(manager.variableCount() == 2);
