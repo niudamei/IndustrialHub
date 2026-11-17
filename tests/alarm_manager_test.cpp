@@ -48,6 +48,17 @@ int main(int argc, char *argv[])
         QString error;
         CHECK(manager.addRule(rule, &error));
 
+        AlarmRule demoRule = rule;
+        demoRule.ruleId = QStringLiteral("DEMO-TEMP-HIGH");
+        demoRule.deviceId = QStringLiteral("DEMO-CAN-001");
+        CHECK(manager.addRule(demoRule, &error));
+        BusinessDataPoint demoPoint = point(95.0);
+        demoPoint.deviceId = demoRule.deviceId;
+        demoPoint.sourceProtocol = QStringLiteral("SIMULATED-BUSINESS");
+        manager.evaluateDataPoints(demoRule.deviceId, {demoPoint});
+        CHECK(manager.events().isEmpty());
+        CHECK(manager.removeRule(demoRule.ruleId, &error));
+
         // 禁用规则后不应触发报警，重新启用后才恢复阈值判断。
         CHECK(manager.setRuleEnabled(rule.ruleId, false, &error));
         CHECK(!manager.rules().first().enabled);
