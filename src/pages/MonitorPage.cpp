@@ -587,7 +587,7 @@ void MonitorPage::generateDemoTraffic()
         }
     }
 
-    // 独立生成标准业务数据点，直接进入 BusinessDataManager / AlarmManager 链路。
+    // 生成仅供趋势页面展示的演示业务变量；不进入真实业务缓存或报警链路。
     const qint64 timestampMs = QDateTime::currentMSecsSinceEpoch();
     for (int index = 0; index < ids.size(); ++index) {
         const QString &id = ids.at(index);
@@ -622,7 +622,7 @@ void MonitorPage::generateDemoTraffic()
                     rpm, QStringLiteral("rpm"));
         appendPoint(QStringLiteral("current"), QStringLiteral("电流"),
                     current, QStringLiteral("A"));
-        emit businessDataGenerated(id, points);
+        emit demoBusinessDataGenerated(id, points);
     }
 }
 
