@@ -93,7 +93,8 @@ void BusinessDataManager::updateDataPoints(
         hadDevice ? deviceIt.value() : QHash<QString, BusinessDataPoint>();
 
     for (const BusinessDataPoint &point : points) {
-        if (point.deviceId.trimmed().isEmpty()
+        if (point.isDemoData()
+            || point.deviceId.trimmed().isEmpty()
             || key(point.deviceId) != deviceKey
             || point.variableId.trimmed().isEmpty()
             || !point.timestamp.isValid()) {
