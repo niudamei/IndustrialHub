@@ -61,9 +61,9 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
 
     // 业务变量模拟与原始通信帧分开，避免把虚拟测点伪装成真实协议报文。
     m_demoOverTemperatureCheckBox = new QCheckBox(
-        QStringLiteral("温度超限演示（触发报警）"), this);
+        QStringLiteral("温度超限演示（仅曲线显示）"), this);
     m_demoOverTemperatureCheckBox->setToolTip(
-        QStringLiteral("仅影响模拟业务变量，不修改 CAN/TCP 原始帧，也不会影响真实设备。"));
+        QStringLiteral("仅影响演示业务变量趋势，不触发真实报警、不写入报警数据库，也不会影响真实设备。"));
     ui->demoControlLayout->addWidget(m_demoOverTemperatureCheckBox);
 
     ui->eventTable->setColumnCount(4);
