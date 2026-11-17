@@ -438,7 +438,7 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
                     || it.key().compare(selectedId, Qt::CaseInsensitive) == 0;
                 series->setVisible(visible);
 
-                const QVector<QPointF> oldPoints = series->points();
+                const auto oldPoints = series->points();
                 QVector<QPointF> kept;
                 kept.reserve(oldPoints.size());
                 for (const QPointF &sample : oldPoints) {
