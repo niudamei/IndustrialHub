@@ -28,9 +28,20 @@ inline Mode modeFromId(const QString &id)
 
 inline bool isDemoDeviceId(const QString &deviceId)
 {
-    return deviceId.compare(QStringLiteral("DEMO-CAN-001"), Qt::CaseInsensitive) == 0
-        || deviceId.compare(QStringLiteral("DEMO-CANFD-002"), Qt::CaseInsensitive) == 0
-        || deviceId.compare(QStringLiteral("DEMO-TCP-003"), Qt::CaseInsensitive) == 0;
+    const QString normalized = deviceId.trimmed();
+    return normalized.compare(QStringLiteral("DEMO-CAN-001"), Qt::CaseInsensitive) == 0
+        || normalized.compare(QStringLiteral("DEMO-CANFD-002"), Qt::CaseInsensitive) == 0
+        || normalized.compare(QStringLiteral("DEMO-TCP-003"), Qt::CaseInsensitive) == 0;
+}
+
+inline QString dataSourceLabel(const QString &deviceId)
+{
+    const QString normalized = deviceId.trimmed();
+    if (normalized.isEmpty() || normalized == QStringLiteral("--"))
+        return QStringLiteral("系统");
+    return isDemoDeviceId(normalized)
+        ? QStringLiteral("演示数据")
+        : QStringLiteral("驱动通信");
 }
 
 inline bool appliesToDevice(const QString &targetDeviceId, const QString &deviceId)
