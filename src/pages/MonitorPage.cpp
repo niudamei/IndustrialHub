@@ -66,26 +66,28 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
         QStringLiteral("仅影响演示业务变量趋势，不触发真实报警、不写入报警数据库，也不会影响真实设备。"));
     ui->demoControlLayout->addWidget(m_demoOverTemperatureCheckBox);
 
-    ui->eventTable->setColumnCount(4);
+    ui->eventTable->setColumnCount(5);
     ui->eventTable->setHorizontalHeaderLabels({
         QStringLiteral("时间"),
         QStringLiteral("设备编号"),
+        QStringLiteral("数据来源"),
         QStringLiteral("方向/事件"),
         QStringLiteral("数据 / 详情")
     });
     ui->eventTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->eventTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     ui->eventTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    ui->eventTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    ui->eventTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    ui->eventTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
     ui->eventTable->verticalHeader()->setVisible(false);
     ui->eventTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->eventTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->eventTable->setAlternatingRowColors(true);
 
-    ui->metricsTable->setColumnCount(18);
+    ui->metricsTable->setColumnCount(19);
     ui->metricsTable->setHorizontalHeaderLabels({
         QStringLiteral("设备名称 / 编号"), QStringLiteral("通信类型"),
-        QStringLiteral("连接状态"), QStringLiteral("接收状态"),
+        QStringLiteral("数据来源"), QStringLiteral("连接状态"), QStringLiteral("接收状态"),
         QStringLiteral("最后接收时间"), QStringLiteral("距上次接收"),
         QStringLiteral("最近帧间隔"), QStringLiteral("平均间隔"), QStringLiteral("最小间隔"),
         QStringLiteral("最大间隔"), QStringLiteral("帧间隔抖动 σ"),
@@ -93,9 +95,9 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
         QStringLiteral("RX帧数"), QStringLiteral("接收帧率 FPS"),
         QStringLiteral("超时次数"), QStringLiteral("恢复次数"), QStringLiteral("错误数")
     });
-    ui->metricsTable->horizontalHeaderItem(10)->setToolTip(
-        QStringLiteral("连续接收帧间隔的样本标准差，单位 ms；样本不足两个间隔时显示 --。"));
     ui->metricsTable->horizontalHeaderItem(11)->setToolTip(
+        QStringLiteral("连续接收帧间隔的样本标准差，单位 ms；样本不足两个间隔时显示 --。"));
+    ui->metricsTable->horizontalHeaderItem(12)->setToolTip(
         QStringLiteral("本次连接期间，接收活动未超过超时阈值的时间占比；首次连接尚未收到数据时为 0%。"));
     ui->metricsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->metricsTable->horizontalHeader()->setStretchLastSection(true);
@@ -210,7 +212,7 @@ void MonitorPage::refreshDeviceFilter()
                 device.devId);
         }
     }
-    if (m_demoMode) {
+    { // Retain demo rows after stopping so final metrics remain visible.
         const QStringList demoIds = {
             QStringLiteral("DEMO-CAN-001"),
             QStringLiteral("DEMO-CANFD-002"),
@@ -253,8 +255,8 @@ void MonitorPage::applyFilters()
     for (int row = 0; row < ui->eventTable->rowCount(); ++row) {
         const QString rowDevice = ui->eventTable->item(row, 1)
             ? ui->eventTable->item(row, 1)->text() : QString();
-        const QString rowDirection = ui->eventTable->item(row, 2)
-            ? ui->eventTable->item(row, 2)->text() : QString();
+        const QString rowDirection = ui->eventTable->item(row, 3)
+            ? ui->eventTable->item(row, 3)->text() : QString();
 
         const bool deviceMatches = selectedId.isEmpty()
             || rowDevice.compare(selectedId, Qt::CaseInsensitive) == 0;
@@ -640,6 +642,7 @@ void MonitorPage::exportEventsToCsv()
     lines << QStringList{
         csvEscape(QStringLiteral("时间")),
         csvEscape(QStringLiteral("设备编号")),
+        csvEscape(QStringLiteral("数据来源")),
         csvEscape(QStringLiteral("方向/事件")),
         csvEscape(QStringLiteral("数据/详情"))
     }.join(QLatin1Char(','));
@@ -764,6 +767,7 @@ void MonitorPage::refreshMetricsTable()
         const QStringList values = {
             metrics.deviceName.isEmpty() ? key : QStringLiteral("%1 (%2)").arg(metrics.deviceName, key),
             metrics.commType,
+            DemoFaultPolicy::dataSourceLabel(key),
             metrics.connected ? QStringLiteral("已连接") : QStringLiteral("未连接"),
             receiveStateText(metrics, nowMs),
             lastTime,
@@ -785,7 +789,7 @@ void MonitorPage::refreshMetricsTable()
 
         for (int column = 0; column < values.size(); ++column) {
             auto *item = new QTableWidgetItem(values.at(column));
-            if (column == 2 || column == 3)
+            if (column == 3 || column == 4)
                 item->setTextAlignment(Qt::AlignCenter);
             ui->metricsTable->setItem(row, column, item);
         }
@@ -830,13 +834,14 @@ void MonitorPage::appendEvent(const QString &deviceId,
     const QStringList values = {
         QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss.zzz")),
         deviceId,
+        DemoFaultPolicy::dataSourceLabel(deviceId),
         direction,
         content
     };
 
     for (int column = 0; column < values.size(); ++column) {
         auto *item = new QTableWidgetItem(values.at(column));
-        if (column == 3)
+        if (column == 4)
             item->setToolTip(values.at(column));
         ui->eventTable->setItem(0, column, item);
     }
