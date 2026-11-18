@@ -28,6 +28,17 @@ int main()
           "real device IDs are never classified as demo");
     CHECK(!DemoFaultPolicy::isDemoDeviceId(QStringLiteral("DEMO-CAN-999")),
           "unknown demo-like IDs are not accepted");
+    CHECK(DemoFaultPolicy::isDemoDeviceId(QStringLiteral(" DEMO-CAN-001 ")),
+          "demo IDs are recognized after trimming whitespace");
+    CHECK(DemoFaultPolicy::dataSourceLabel(QStringLiteral("DEMO-CANFD-002"))
+              == QStringLiteral("演示数据"),
+          "reserved demo devices are labeled as demo data");
+    CHECK(DemoFaultPolicy::dataSourceLabel(QStringLiteral(" DEV001 "))
+              == QStringLiteral("驱动通信"),
+          "non-demo device traffic is labeled as driver traffic");
+    CHECK(DemoFaultPolicy::dataSourceLabel(QStringLiteral("--"))
+              == QStringLiteral("系统"),
+          "global events are labeled as system events");
     CHECK(DemoFaultPolicy::appliesToDevice(QString(), QStringLiteral("DEMO-CAN-001")),
           "empty target selects all demo devices");
     CHECK(DemoFaultPolicy::appliesToDevice(QStringLiteral("demo-can-001"),
