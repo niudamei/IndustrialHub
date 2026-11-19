@@ -83,6 +83,8 @@ private:
     void refreshMetricsTable();
     QString receiveStateText(const DeviceMetrics &metrics, qint64 nowMs) const;
     double receiveRate(const DeviceMetrics &metrics, qint64 nowMs) const;
+    bool isDemoRuntimeDevice(const QString &deviceId) const;
+    QString dataSourceLabel(const QString &deviceId) const;
 
     Ui::MonitorPage *ui = nullptr;
     DeviceManager *m_deviceManager = nullptr;
@@ -91,6 +93,7 @@ private:
     QTimer *m_statisticsTimer = nullptr;
     QTimer *m_demoTimer = nullptr;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
+    QSet<QString> m_demoDeviceIds;
     bool m_paused = false;
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;

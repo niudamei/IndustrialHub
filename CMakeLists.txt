@@ -220,6 +220,19 @@ if(BUILD_TESTING)
     target_link_libraries(device_database_test PRIVATE Qt6::Core Qt6::Sql)
     add_test(NAME device_database_test COMMAND device_database_test)
 
+    add_executable(device_manager_test
+        tests/device_manager_test.cpp
+        src/pages/devicemanager.h
+        src/pages/devicemanager.cpp
+        src/database/devicedatabase.h
+        src/database/devicedatabase.cpp
+        src/pages/deviceinfo.h
+        src/simulation/demofaultpolicy.h
+    )
+    target_include_directories(device_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(device_manager_test PRIVATE Qt6::Core Qt6::Sql)
+    add_test(NAME device_manager_test COMMAND device_manager_test)
+
     add_executable(communication_diagnostics_test
         tests/communication_diagnostics_test.cpp
         src/core/communicationdiagnostics.h

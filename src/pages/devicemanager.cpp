@@ -1,4 +1,6 @@
 #include "devicemanager.h"
+#include "src/simulation/demofaultpolicy.h"
+
 #include <QDateTime>
 
 DeviceManager::DeviceManager(QObject *parent) : QObject(parent)
@@ -57,6 +59,12 @@ bool DeviceManager::addDevice(const DeviceInfo &device, QString *error)
 
     if (d.devId.isEmpty() || d.devName.isEmpty())
         return setError(QStringLiteral("设备编号和设备名称不能为空。"), error);
+
+    if (DemoFaultPolicy::isDemoDeviceId(d.devId)) {
+        return setError(
+            QStringLiteral("设备编号 %1 为监控演示设备保留，不能注册为真实设备。").arg(d.devId),
+            error);
+    }
 
     if (indexOf(d.devId) >= 0)
         return setError(QStringLiteral("设备编号已存在：%1").arg(d.devId), error);

@@ -30,6 +30,13 @@ int main()
           "unknown demo-like IDs are not accepted");
     CHECK(DemoFaultPolicy::isDemoDeviceId(QStringLiteral(" DEMO-CAN-001 ")),
           "demo IDs are recognized after trimming whitespace");
+    CHECK(DemoFaultPolicy::findReservedDemoIdCollision(
+              QStringList{QStringLiteral("DEV001"), QStringLiteral(" demo-canfd-002 ")})
+              == QStringLiteral("demo-canfd-002"),
+          "legacy reserved IDs are detected after trimming and case folding");
+    CHECK(DemoFaultPolicy::findReservedDemoIdCollision(
+              QStringList{QStringLiteral("DEV001"), QStringLiteral("DEMO-CAN-999")}).isEmpty(),
+          "ordinary and unknown demo-like IDs do not block simulator startup");
     CHECK(DemoFaultPolicy::dataSourceLabel(QStringLiteral("DEMO-CANFD-002"))
               == QStringLiteral("演示数据"),
           "reserved demo devices are labeled as demo data");

@@ -226,7 +226,7 @@ void MonitorPage::refreshDeviceFilter()
         for (int i = 0; i < demoIds.size(); ++i) {
             const QString &id = demoIds.at(i);
             const QString key = metricKey(id);
-            if (!m_deviceMetrics.contains(key))
+            if (!m_deviceMetrics.contains(key) || !isDemoRuntimeDevice(id))
                 continue;
             DeviceMetrics metrics = m_deviceMetrics.value(key);
             refreshedMetrics.insert(key, metrics);
@@ -368,6 +368,32 @@ void MonitorPage::onPauseClicked()
 
 void MonitorPage::toggleDemoMode()
 {
+    if (!m_demoMode) {
+        if (!m_deviceManager || !m_deviceManager->isDatabaseReady()) {
+            ui->demoStatusLabel->setText(QStringLiteral("状态：无法确认设备编号"));
+            QMessageBox::warning(
+                this, QStringLiteral("无法启动模拟设备"),
+                QStringLiteral("设备数据库当前不可用，无法确认保留的模拟设备编号是否与已有设备冲突。为保护现有设备，本次不会启动模拟。"));
+            return;
+        }
+
+        QStringList registeredDeviceIds;
+        const QList<DeviceInfo> registeredDevices = m_deviceManager->getAllDevices();
+        for (const DeviceInfo &device : registeredDevices)
+            registeredDeviceIds.append(device.devId);
+
+        const QString collision =
+            DemoFaultPolicy::findReservedDemoIdCollision(registeredDeviceIds);
+        if (!collision.isEmpty()) {
+            ui->demoStatusLabel->setText(QStringLiteral("状态：设备编号冲突"));
+            QMessageBox::warning(
+                this, QStringLiteral("模拟设备编号冲突"),
+                QStringLiteral("设备管理中已经存在编号 %1。为避免覆盖或混淆已有设备，本次不会启动模拟。现有设备记录不会被自动修改或删除；请先在设备管理中为该设备更换编号。")
+                    .arg(collision));
+            return;
+        }
+    }
+
     if (!m_demoTimer) {
         m_demoTimer = new QTimer(this);
         m_demoTimer->setInterval(ui->demoIntervalSpinBox->value());
@@ -395,6 +421,7 @@ void MonitorPage::toggleDemoMode()
         };
 
         for (int i = 0; i < ids.size(); ++i) {
+            m_demoDeviceIds.insert(metricKey(ids.at(i)));
             DeviceMetrics &metrics = m_deviceMetrics[metricKey(ids.at(i))];
             metrics.deviceName = names.at(i);
             metrics.commType = types.at(i);
@@ -767,7 +794,7 @@ void MonitorPage::refreshMetricsTable()
         const QStringList values = {
             metrics.deviceName.isEmpty() ? key : QStringLiteral("%1 (%2)").arg(metrics.deviceName, key),
             metrics.commType,
-            DemoFaultPolicy::dataSourceLabel(key),
+            dataSourceLabel(key),
             metrics.connected ? QStringLiteral("已连接") : QStringLiteral("未连接"),
             receiveStateText(metrics, nowMs),
             lastTime,
@@ -834,7 +861,7 @@ void MonitorPage::appendEvent(const QString &deviceId,
     const QStringList values = {
         QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss.zzz")),
         deviceId,
-        DemoFaultPolicy::dataSourceLabel(deviceId),
+        dataSourceLabel(deviceId),
         direction,
         content
     };
@@ -852,10 +879,40 @@ void MonitorPage::appendEvent(const QString &deviceId,
     applyFilters();
 }
 
+bool MonitorPage::isDemoRuntimeDevice(const QString &deviceId) const
+{
+    const QString key = metricKey(deviceId);
+    if (!m_demoDeviceIds.contains(key))
+        return false;
+
+    // A pre-existing database row always wins over a demo identity.
+    if (m_deviceManager) {
+        DeviceInfo registeredDevice;
+        if (m_deviceManager->getDeviceById(deviceId, registeredDevice))
+            return false;
+    }
+    return true;
+}
+
+QString MonitorPage::dataSourceLabel(const QString &deviceId) const
+{
+    const QString normalized = deviceId.trimmed();
+    if (normalized.isEmpty() || normalized == QStringLiteral("--"))
+        return QStringLiteral("系统");
+    return isDemoRuntimeDevice(normalized)
+        ? QStringLiteral("演示数据")
+        : QStringLiteral("驱动通信");
+}
+
 QString MonitorPage::formatData(const QString &deviceId, const QByteArray &data) const
 {
-    if (deviceId.startsWith(QStringLiteral("DEMO-CAN"), Qt::CaseInsensitive))
-        return QString::fromLatin1(data);
+    if (isDemoRuntimeDevice(deviceId)) {
+        const QString commType = m_deviceMetrics.value(metricKey(deviceId)).commType;
+        if (commType.compare(QStringLiteral("CAN"), Qt::CaseInsensitive) == 0
+            || commType.compare(QStringLiteral("CANFD"), Qt::CaseInsensitive) == 0) {
+            return QString::fromLatin1(data);
+        }
+    }
     if (m_deviceManager) {
         DeviceInfo device;
         if (m_deviceManager->getDeviceById(deviceId, device)

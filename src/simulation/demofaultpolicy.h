@@ -2,6 +2,7 @@
 #define DEMOFAULTPOLICY_H
 
 #include <QString>
+#include <QStringList>
 #include <QtGlobal>
 
 namespace DemoFaultPolicy {
@@ -32,6 +33,16 @@ inline bool isDemoDeviceId(const QString &deviceId)
     return normalized.compare(QStringLiteral("DEMO-CAN-001"), Qt::CaseInsensitive) == 0
         || normalized.compare(QStringLiteral("DEMO-CANFD-002"), Qt::CaseInsensitive) == 0
         || normalized.compare(QStringLiteral("DEMO-TCP-003"), Qt::CaseInsensitive) == 0;
+}
+
+inline QString findReservedDemoIdCollision(const QStringList &registeredDeviceIds)
+{
+    for (const QString &deviceId : registeredDeviceIds) {
+        const QString normalized = deviceId.trimmed();
+        if (isDemoDeviceId(normalized))
+            return normalized;
+    }
+    return {};
 }
 
 inline QString dataSourceLabel(const QString &deviceId)
