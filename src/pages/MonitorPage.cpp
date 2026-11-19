@@ -388,7 +388,7 @@ void MonitorPage::toggleDemoMode()
             ui->demoStatusLabel->setText(QStringLiteral("状态：设备编号冲突"));
             QMessageBox::warning(
                 this, QStringLiteral("模拟设备编号冲突"),
-                QStringLiteral("设备管理中已经存在编号 %1。为避免覆盖或混淆已有设备，本次不会启动模拟。现有设备记录不会被自动修改或删除；请先在设备管理中为该设备更换编号。")
+                QStringLiteral("设备管理中已经存在编号 %1。为避免覆盖或混淆已有设备，本次不会启动模拟。现有设备记录不会被自动修改或删除；请先在设备管理中处理编号冲突（例如备份后删除旧记录，再使用其他编号重新添加）。")
                     .arg(collision));
             return;
         }
