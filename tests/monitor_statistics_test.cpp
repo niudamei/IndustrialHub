@@ -70,6 +70,19 @@ int main()
     CHECK(near(availability.ratePercent(2200), 50.0),
           "disconnect closes an active online interval");
 
+    MonitorStatistics::TrafficSourceTotals trafficTotals;
+    trafficTotals.add(false, 10, 20, 1);
+    trafficTotals.add(true, 3, 4, 2);
+    trafficTotals.add(false, 2, 1, 0);
+    CHECK(trafficTotals.driver.txFrames == 12
+              && trafficTotals.driver.rxFrames == 21
+              && trafficTotals.driver.errors == 1,
+          "driver traffic totals aggregate independently");
+    CHECK(trafficTotals.demo.txFrames == 3
+              && trafficTotals.demo.rxFrames == 4
+              && trafficTotals.demo.errors == 2,
+          "demo traffic totals never mix with driver counters");
+
     std::cout << "ALL MONITOR STATISTICS TESTS PASSED." << std::endl;
     return 0;
 }
