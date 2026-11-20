@@ -17,10 +17,18 @@
       </widget>
      </item>
      <item><spacer name="summarySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
-     <item><widget class="QLabel" name="deviceCountLabel"><property name="text"><string>设备数量：0</string></property></widget></item>
-     <item><widget class="QLabel" name="connectedCountLabel"><property name="text"><string>已连接：0 / 0</string></property></widget></item>
-     <item><widget class="QLabel" name="trafficSummaryLabel"><property name="text"><string>累计 TX：0 RX：0 错误：0</string></property></widget></item>
+     <item><widget class="QLabel" name="deviceCountLabel"><property name="text"><string>驱动设备：0</string></property></widget></item>
+     <item><widget class="QLabel" name="connectedCountLabel"><property name="text"><string>驱动已连接：0 / 0</string></property></widget></item>
+     <item><widget class="QLabel" name="demoConnectedCountLabel"><property name="text"><string>演示已连接：0 / 0</string></property></widget></item>
+     
      <item><widget class="QLabel" name="monitorStateLabel"><property name="text"><string>实时统计中</string></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="trafficSourceLayout">
+     <item><widget class="QLabel" name="trafficSummaryLabel"><property name="text"><string>驱动通信 TX：0 RX：0 错误：0</string></property></widget></item>
+     <item><widget class="QLabel" name="demoTrafficSummaryLabel"><property name="text"><string>演示数据 TX：0 RX：0 错误：0</string></property></widget></item>
+     <item><spacer name="trafficSourceSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
     </layout>
    </item>
    <item>
