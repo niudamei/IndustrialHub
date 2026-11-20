@@ -240,10 +240,8 @@ void MonitorPage::refreshDeviceFilter()
     if (index >= 0)
         ui->deviceFilterCombo->setCurrentIndex(index);
 
-    ui->deviceCountLabel->setText(
-        QStringLiteral("设备数量：%1").arg(m_deviceMetrics.size()));
-    refreshMetricsTable();
     applyFilters();
+    updateLiveStatistics();
 }
 
 void MonitorPage::applyFilters()
@@ -742,23 +740,43 @@ void MonitorPage::updateLiveStatistics()
     }
     refreshMetricsTable();
 
-    quint64 totalTx = 0;
-    quint64 totalRx = 0;
-    quint64 totalErrors = 0;
-    int connectedCount = 0;
+    MonitorStatistics::TrafficSourceTotals trafficTotals;
+    int driverDeviceCount = 0;
+    int driverConnectedCount = 0;
+    int demoDeviceCount = 0;
+    int demoConnectedCount = 0;
     for (auto it = m_deviceMetrics.cbegin(); it != m_deviceMetrics.cend(); ++it) {
-        totalTx += it->txCount;
-        totalRx += it->rxCount;
-        totalErrors += it->errorCount;
-        if (it->connected)
-            ++connectedCount;
+        const bool isDemo = isDemoRuntimeDevice(it.key());
+        trafficTotals.add(isDemo, it->txCount, it->rxCount, it->errorCount);
+        if (isDemo) {
+            ++demoDeviceCount;
+            if (it->connected)
+                ++demoConnectedCount;
+        } else {
+            ++driverDeviceCount;
+            if (it->connected)
+                ++driverConnectedCount;
+        }
     }
 
+    ui->deviceCountLabel->setText(
+        QStringLiteral("驱动设备：%1").arg(driverDeviceCount));
     ui->connectedCountLabel->setText(
-        QStringLiteral("已连接：%1 / %2").arg(connectedCount).arg(m_deviceMetrics.size()));
+        QStringLiteral("驱动已连接：%1 / %2")
+            .arg(driverConnectedCount).arg(driverDeviceCount));
+    ui->demoConnectedCountLabel->setText(
+        QStringLiteral("演示已连接：%1 / %2")
+            .arg(demoConnectedCount).arg(demoDeviceCount));
     ui->trafficSummaryLabel->setText(
-        QStringLiteral("累计 TX：%1    RX：%2    错误：%3")
-            .arg(totalTx).arg(totalRx).arg(totalErrors));
+        QStringLiteral("驱动通信 TX：%1    RX：%2    错误：%3")
+            .arg(trafficTotals.driver.txFrames)
+            .arg(trafficTotals.driver.rxFrames)
+            .arg(trafficTotals.driver.errors));
+    ui->demoTrafficSummaryLabel->setText(
+        QStringLiteral("演示数据 TX：%1    RX：%2    错误：%3")
+            .arg(trafficTotals.demo.txFrames)
+            .arg(trafficTotals.demo.rxFrames)
+            .arg(trafficTotals.demo.errors));
     ui->monitorStateLabel->setText(m_paused
         ? QStringLiteral("事件记录已暂停（统计继续）")
         : QStringLiteral("实时统计中"));
