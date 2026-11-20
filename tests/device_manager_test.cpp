@@ -19,6 +19,7 @@ DeviceInfo makeDevice(const QString &id, const QString &name)
     device.devType = QStringLiteral("测试设备");
     device.commType = QStringLiteral("TCP");
     device.devAddr = QStringLiteral("127.0.0.1:9000");
+    device.groupName = QStringLiteral("测试分组");
     device.status = DeviceStatus::Offline;
     device.addTime = QDateTime::currentDateTime();
     return device;
