@@ -141,6 +141,35 @@ private:
     std::int64_t m_accumulatedOnlineMs = 0;
 };
 
+
+struct TrafficCounters
+{
+    std::uint64_t txFrames = 0;
+    std::uint64_t rxFrames = 0;
+    std::uint64_t errors = 0;
+
+    void add(std::uint64_t tx, std::uint64_t rx, std::uint64_t errorCount) noexcept
+    {
+        txFrames += tx;
+        rxFrames += rx;
+        errors += errorCount;
+    }
+};
+
+struct TrafficSourceTotals
+{
+    TrafficCounters driver;
+    TrafficCounters demo;
+
+    void add(bool isDemo,
+             std::uint64_t tx,
+             std::uint64_t rx,
+             std::uint64_t errorCount) noexcept
+    {
+        (isDemo ? demo : driver).add(tx, rx, errorCount);
+    }
+};
+
 } // namespace MonitorStatistics
 
 #endif // MONITORSTATISTICS_H
