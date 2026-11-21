@@ -2,6 +2,7 @@
 #define MONITORPAGE_H
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include "src/protocol/businessdatapoint.h"
 #include "src/monitoring/monitorstatistics.h"
 #include <QHash>
@@ -76,6 +77,7 @@ private:
         quint64 errorCount = 0;
     };
 
+    qint64 monotonicNowMs() const;
     void appendEvent(const QString &deviceId,
                      const QString &direction,
                      const QString &content);
@@ -90,6 +92,7 @@ private:
     DeviceManager *m_deviceManager = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
     DeviceHealthMonitor *m_healthMonitor = nullptr;
+    QElapsedTimer m_monotonicClock;
     QTimer *m_statisticsTimer = nullptr;
     QTimer *m_demoTimer = nullptr;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
