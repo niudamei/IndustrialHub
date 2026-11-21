@@ -65,7 +65,8 @@ private:
 class OnlineAvailability
 {
 public:
-    // Starts a new connection-session observation window.
+    // Starts a new connection-session observation window. All nowMs values must
+    // come from one monotonic clock (for example QElapsedTimer), not wall time.
     void begin(std::int64_t nowMs) noexcept
     {
         m_started = true;
