@@ -57,6 +57,8 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
       m_communicationManager(communicationManager),
       m_healthMonitor(healthMonitor)
 {
+    // Use monotonic time for intervals and timeout calculations; wall time is kept for display/export.
+    m_monotonicClock.start();
     ui->setupUi(this);
 
     // 业务变量模拟与原始通信帧分开，避免把虚拟测点伪装成真实协议报文。
@@ -176,6 +178,12 @@ MonitorPage::~MonitorPage()
     delete ui;
 }
 
+qint64 MonitorPage::monotonicNowMs() const
+{
+    // +1 preserves the existing > 0 sentinel used for unset timestamps.
+    return m_monotonicClock.elapsed() + 1;
+}
+
 void MonitorPage::refreshDeviceFilter()
 {
     const QString previousId = ui->deviceFilterCombo->currentData().toString();
@@ -194,13 +202,13 @@ void MonitorPage::refreshDeviceFilter()
             if (m_communicationManager) {
                 const bool isConnected = m_communicationManager->isConnected(device.devId);
                 if (isConnected && (!metrics.connected || metrics.connectedSinceMs <= 0)) {
-                    metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                    metrics.connectedSinceMs = monotonicNowMs();
                     metrics.availability.begin(metrics.connectedSinceMs);
                     metrics.lastReceiveMs = 0;
                     metrics.receiveTimedOut = false;
                 } else if (!isConnected) {
                     if (metrics.connected)
-                        metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
+                        metrics.availability.finish(monotonicNowMs());
                     metrics.connectedSinceMs = 0;
                 }
                 metrics.connected = isConnected;
@@ -276,7 +284,7 @@ void MonitorPage::onConnectionStateChanged(const QString &deviceId, bool connect
     DeviceMetrics &metrics = m_deviceMetrics[key];
     if (metrics.deviceName.isEmpty())
         metrics.deviceName = deviceId;
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 nowMs = monotonicNowMs();
     metrics.connected = connected;
     if (connected) {
         metrics.connectedSinceMs = nowMs;
@@ -312,7 +320,7 @@ void MonitorPage::processDataReceived(const QString &deviceId,
                                       int simulatedDelayMs)
 {
     DeviceMetrics &metrics = m_deviceMetrics[metricKey(deviceId)];
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 nowMs = monotonicNowMs();
     if (metrics.lastReceiveMs > 0) {
         const qint64 interval = qMax<qint64>(0, nowMs - metrics.lastReceiveMs);
         metrics.lastIntervalMs = interval;
@@ -401,7 +409,7 @@ void MonitorPage::toggleDemoMode()
 
     m_demoMode = !m_demoMode;
     if (m_demoMode) {
-        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        const qint64 nowMs = monotonicNowMs();
         const QStringList ids = {
             QStringLiteral("DEMO-CAN-001"),
             QStringLiteral("DEMO-CANFD-002"),
@@ -452,7 +460,7 @@ void MonitorPage::toggleDemoMode()
         };
         for (const QString &id : ids) {
             DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
-            metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
+            metrics.availability.finish(monotonicNowMs());
             metrics.connected = false;
             metrics.connectedSinceMs = 0;
             metrics.receiveTimedOut = false;
@@ -495,7 +503,7 @@ void MonitorPage::applyDemoFaultSettings()
             if (shouldDisconnect && !wasDisconnected) {
                 m_demoDisconnectedDevices.insert(id);
                 DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
-                metrics.availability.finish(QDateTime::currentMSecsSinceEpoch());
+                metrics.availability.finish(monotonicNowMs());
                 metrics.connected = false;
                 metrics.connectedSinceMs = 0;
                 metrics.lastReceiveMs = 0;
@@ -507,7 +515,7 @@ void MonitorPage::applyDemoFaultSettings()
                 m_demoDisconnectedDevices.remove(id);
                 DeviceMetrics &metrics = m_deviceMetrics[metricKey(id)];
                 metrics.connected = true;
-                metrics.connectedSinceMs = QDateTime::currentMSecsSinceEpoch();
+                metrics.connectedSinceMs = monotonicNowMs();
                 metrics.availability.begin(metrics.connectedSinceMs);
                 metrics.lastReceiveMs = 0;
                 metrics.receiveTimedOut = false;
@@ -615,7 +623,7 @@ void MonitorPage::generateDemoTraffic()
     }
 
     // 生成仅供趋势页面展示的演示业务变量；不进入真实业务缓存或报警链路。
-    const qint64 timestampMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 timestampMs = QDateTime::currentMSecsSinceEpoch(); // Business points retain wall-clock timestamps.
     for (int index = 0; index < ids.size(); ++index) {
         const QString &id = ids.at(index);
         if (m_demoDisconnectedDevices.contains(id))
@@ -714,7 +722,7 @@ void MonitorPage::onReceiveTimeoutChanged(int seconds)
 
 void MonitorPage::updateLiveStatistics()
 {
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 nowMs = monotonicNowMs();
     for (auto it = m_deviceMetrics.begin(); it != m_deviceMetrics.end(); ++it) {
         DeviceMetrics &metrics = it.value();
         const qint64 timeoutBaseMs = metrics.lastReceiveMs > 0
@@ -784,7 +792,7 @@ void MonitorPage::updateLiveStatistics()
 
 void MonitorPage::refreshMetricsTable()
 {
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 nowMs = monotonicNowMs();
     ui->metricsTable->setRowCount(m_deviceMetrics.size());
 
     QStringList keys = m_deviceMetrics.keys();
