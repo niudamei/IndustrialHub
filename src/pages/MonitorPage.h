@@ -16,6 +16,7 @@
 class DeviceManager;
 class CommunicationManager;
 class DeviceHealthMonitor;
+class DemoRxDelayQueue;
 class QTimer;
 class QCheckBox;
 
@@ -95,12 +96,12 @@ private:
     QElapsedTimer m_monotonicClock;
     QTimer *m_statisticsTimer = nullptr;
     QTimer *m_demoTimer = nullptr;
+    DemoRxDelayQueue *m_demoRxDelayQueue = nullptr;
     QHash<QString, DeviceMetrics> m_deviceMetrics;
     QSet<QString> m_demoDeviceIds;
     bool m_paused = false;
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;
-    quint64 m_demoFaultGeneration = 0;
     QHash<QString, quint64> m_demoFrameCounters;
     QSet<QString> m_demoDisconnectedDevices;
     int m_demoDropEvery = 3;

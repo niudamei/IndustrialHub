@@ -45,6 +45,7 @@ qt_add_executable(hhh
     src/core/historymaintenance.h src/core/historymaintenance.cpp
     src/core/devicehealthmonitor.h src/core/devicehealthmonitor.cpp
     src/monitoring/monitorstatistics.h
+    src/simulation/demorxdelayqueue.h src/simulation/demorxdelayqueue.cpp
     src/core/communicationdiagnostics.h src/core/communicationdiagnostics.cpp
     src/core/businessdatamanager.h src/core/businessdatamanager.cpp
     src/core/alarmmanager.h src/core/alarmmanager.cpp
@@ -102,6 +103,15 @@ if(BUILD_TESTING)
     )
     target_include_directories(monitor_statistics_test PRIVATE ${CMAKE_SOURCE_DIR})
     add_test(NAME monitor_statistics_test COMMAND monitor_statistics_test)
+
+    add_executable(demo_rx_delay_queue_test
+        tests/demo_rx_delay_queue_test.cpp
+        src/simulation/demorxdelayqueue.h
+        src/simulation/demorxdelayqueue.cpp
+    )
+    target_include_directories(demo_rx_delay_queue_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(demo_rx_delay_queue_test PRIVATE Qt6::Core)
+    add_test(NAME demo_rx_delay_queue_test COMMAND demo_rx_delay_queue_test)
 
     add_executable(slcan_frame_codec_test
         tests/slcan_frame_codec_test.cpp

@@ -5,6 +5,7 @@
 #include "src/core/devicehealthmonitor.h"
 #include "src/pages/devicemanager.h"
 #include "src/simulation/demofaultpolicy.h"
+#include "src/simulation/demorxdelayqueue.h"
 #include "src/protocol/businessdatapoint.h"
 
 #include <QComboBox>
@@ -60,6 +61,25 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
     // Use monotonic time for intervals and timeout calculations; wall time is kept for display/export.
     m_monotonicClock.start();
     ui->setupUi(this);
+
+    // Own delayed demo RX timers so stop/configuration changes cancel them immediately.
+    // 256 slots cover the current 3-device, 100 ms minimum-period, 5000 ms maximum-delay setup.
+    m_demoRxDelayQueue = new DemoRxDelayQueue(256, this);
+    connect(m_demoRxDelayQueue, &DemoRxDelayQueue::frameReady, this,
+            [this](const QString &deviceId, const QByteArray &data, int delayMs) {
+        if (!m_demoMode || !isDemoRuntimeDevice(deviceId)
+            || m_demoDisconnectedDevices.contains(deviceId)) {
+            return;
+        }
+        emit demoTrafficGenerated(deviceId, false, data.size());
+        processDataReceived(deviceId, data, delayMs);
+    });
+    connect(m_demoRxDelayQueue, &DemoRxDelayQueue::queueFull, this,
+            [this](const QString &deviceId) {
+        appendEvent(deviceId, QStringLiteral("状态"),
+                    QStringLiteral("演示 RX 延迟队列已满（容量 %1），本帧已丢弃")
+                        .arg(m_demoRxDelayQueue->capacity()));
+    });
 
     // 业务变量模拟与原始通信帧分开，避免把虚拟测点伪装成真实协议报文。
     m_demoOverTemperatureCheckBox = new QCheckBox(
@@ -175,6 +195,8 @@ MonitorPage::MonitorPage(DeviceManager *deviceManager,
 
 MonitorPage::~MonitorPage()
 {
+    if (m_demoRxDelayQueue)
+        m_demoRxDelayQueue->cancelAll();
     delete ui;
 }
 
@@ -449,7 +471,13 @@ void MonitorPage::toggleDemoMode()
         applyDemoFaultSettings();
         generateDemoTraffic();
     } else {
-        ++m_demoFaultGeneration; // 使尚未送达的延迟 RX 回调失效。
+        const int cancelledRxCount = m_demoRxDelayQueue
+            ? m_demoRxDelayQueue->cancelAll() : 0;
+        if (cancelledRxCount > 0) {
+            appendEvent(QStringLiteral("--"), QStringLiteral("状态"),
+                        QStringLiteral("模拟停止：已取消 %1 条待送达的演示 RX")
+                            .arg(cancelledRxCount));
+        }
         m_demoTimer->stop();
         m_demoDisconnectedDevices.clear();
         m_demoFrameCounters.clear();
@@ -494,8 +522,14 @@ void MonitorPage::applyDemoFaultSettings()
     };
 
     if (m_demoMode) {
-        // 更改模式、目标或延迟参数时，丢弃旧配置下尚未送达的延迟帧。
-        ++m_demoFaultGeneration;
+        // 更改模式、目标或延迟参数时，立即停止并清理旧配置的待送达 RX 定时器。
+        const int cancelledRxCount = m_demoRxDelayQueue
+            ? m_demoRxDelayQueue->cancelAll() : 0;
+        if (cancelledRxCount > 0) {
+            appendEvent(QStringLiteral("--"), QStringLiteral("状态"),
+                        QStringLiteral("故障配置已更新：取消 %1 条旧配置待送达的演示 RX")
+                            .arg(cancelledRxCount));
+        }
         for (const QString &id : ids) {
             const bool shouldDisconnect =
                 DemoFaultPolicy::shouldDisconnect(mode, target, id);
@@ -606,16 +640,8 @@ void MonitorPage::generateDemoTraffic()
         const int delayMs = DemoFaultPolicy::rxDelayMs(
             faultMode, faultTarget, id, ui->demoDelaySpinBox->value());
         if (delayMs > 0) {
-            const quint64 faultGeneration = m_demoFaultGeneration;
-            QTimer::singleShot(delayMs, this,
-                               [this, id, rxData, faultGeneration, delayMs]() {
-                if (!m_demoMode || faultGeneration != m_demoFaultGeneration
-                    || m_demoDisconnectedDevices.contains(id)) {
-                    return;
-                }
-                emit demoTrafficGenerated(id, false, rxData.size());
-                processDataReceived(id, rxData, delayMs);
-            });
+            if (m_demoRxDelayQueue)
+                m_demoRxDelayQueue->schedule(id, rxData, delayMs);
         } else {
             emit demoTrafficGenerated(id, false, rxData.size());
             onDataReceived(id, rxData);
