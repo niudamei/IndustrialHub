@@ -23,6 +23,7 @@ bool DemoRxDelayQueue::schedule(const QString &deviceId,
         return false;
 
     if (m_pending.size() >= m_capacity) {
+        ++m_queueFullCount;
         emit queueFull(deviceId);
         return false;
     }
@@ -30,6 +31,7 @@ bool DemoRxDelayQueue::schedule(const QString &deviceId,
     auto *timer = new QTimer(this);
     timer->setSingleShot(true);
     m_pending.insert(timer, PendingFrame{deviceId, data, delayMs});
+    m_peakPendingCount = qMax(m_peakPendingCount, m_pending.size());
 
     connect(timer, &QTimer::timeout, this, [this, timer]() {
         auto it = m_pending.find(timer);
@@ -40,6 +42,7 @@ bool DemoRxDelayQueue::schedule(const QString &deviceId,
 
         const PendingFrame frame = it.value();
         m_pending.erase(it);
+        ++m_deliveredCount;
         timer->deleteLater();
         emit frameReady(frame.deviceId, frame.data, frame.delayMs);
     });
@@ -52,6 +55,7 @@ int DemoRxDelayQueue::cancelAll()
 {
     const QList<QTimer *> timers = m_pending.keys();
     m_pending.clear();
+    m_cancelledCount += static_cast<quint64>(timers.size());
 
     for (QTimer *timer : timers) {
         if (!timer)
@@ -71,4 +75,24 @@ int DemoRxDelayQueue::pendingCount() const noexcept
 int DemoRxDelayQueue::capacity() const noexcept
 {
     return m_capacity;
+}
+
+int DemoRxDelayQueue::peakPendingCount() const noexcept
+{
+    return m_peakPendingCount;
+}
+
+quint64 DemoRxDelayQueue::deliveredCount() const noexcept
+{
+    return m_deliveredCount;
+}
+
+quint64 DemoRxDelayQueue::cancelledCount() const noexcept
+{
+    return m_cancelledCount;
+}
+
+quint64 DemoRxDelayQueue::queueFullCount() const noexcept
+{
+    return m_queueFullCount;
 }

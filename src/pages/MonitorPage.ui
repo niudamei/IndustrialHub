@@ -122,6 +122,12 @@
         <item><spacer name="demoDelaySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
        </layout>
       </item>
+      <item>
+       <widget class="QLabel" name="demoRxQueueStatsLabel">
+        <property name="text"><string>延迟 RX 队列（演示数据）：待处理 0 / 256 · 峰值 0 · 已送达 0 · 已取消 0 · 队列满 0</string></property>
+        <property name="toolTip"><string>统计当前页面生命周期内的演示 RX 延迟队列；不包含真实通信数据，停止模拟后历史计数仍保留。</string></property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

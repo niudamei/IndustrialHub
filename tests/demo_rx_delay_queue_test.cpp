@@ -35,6 +35,11 @@ int main(int argc, char *argv[])
     });
 
     CHECK(queue.capacity() == 2, "configured queue capacity is retained");
+    CHECK(queue.pendingCount() == 0, "queue starts empty");
+    CHECK(queue.peakPendingCount() == 0, "high-water mark starts at zero");
+    CHECK(queue.deliveredCount() == 0, "delivered counter starts at zero");
+    CHECK(queue.cancelledCount() == 0, "cancelled counter starts at zero");
+    CHECK(queue.queueFullCount() == 0, "queue-full counter starts at zero");
     CHECK(queue.schedule(QStringLiteral("DEMO-CAN-001"), QByteArray("one"), 1000),
           "first delayed RX is scheduled");
     CHECK(queue.schedule(QStringLiteral("DEMO-CANFD-002"), QByteArray("two"), 1000),
@@ -42,9 +47,12 @@ int main(int argc, char *argv[])
     CHECK(!queue.schedule(QStringLiteral("DEMO-TCP-003"), QByteArray("three"), 1000),
           "queue rejects a frame when capacity is reached");
     CHECK(queue.pendingCount() == 2, "pending count never exceeds capacity");
+    CHECK(queue.peakPendingCount() == 2, "high-water mark records queue saturation");
     CHECK(queueFullCount == 1, "queue saturation is reported exactly once");
+    CHECK(queue.queueFullCount() == 1, "queue-full counter records rejected frames");
     CHECK(queue.cancelAll() == 2, "cancelAll reports every cancelled timer");
     CHECK(queue.pendingCount() == 0, "cancellation releases all queue capacity");
+    CHECK(queue.cancelledCount() == 2, "cancelled counter records cleared frames");
 
     QVector<QString> deliveredIds;
     QVector<QByteArray> deliveredPayloads;
@@ -66,6 +74,7 @@ int main(int argc, char *argv[])
     CHECK(queue.schedule(QStringLiteral("DEMO-CAN-001"), QByteArray("stale"), 80),
           "old-configuration frame is scheduled");
     CHECK(queue.cancelAll() == 1, "old-configuration frame is cancelled");
+    CHECK(queue.cancelledCount() == 3, "cancellation counter accumulates across reconfiguration");
     CHECK(queue.schedule(QStringLiteral("DEMO-TCP-003"), QByteArray("fresh"), 20),
           "new-configuration frame can be scheduled immediately");
 
@@ -80,6 +89,8 @@ int main(int argc, char *argv[])
     CHECK(deliveredDelays.first() == 20,
           "delivered frame retains the configured delay");
     CHECK(queue.pendingCount() == 0, "delivered timer is removed from pending queue");
+    CHECK(queue.deliveredCount() == 1, "delivered counter increments exactly once");
+    CHECK(queue.peakPendingCount() == 2, "high-water mark is retained after draining");
 
     // Wait beyond the cancelled timer's original deadline: it must not arrive late.
     waitFor(100);

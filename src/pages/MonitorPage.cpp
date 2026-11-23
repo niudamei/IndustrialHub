@@ -811,6 +811,16 @@ void MonitorPage::updateLiveStatistics()
             .arg(trafficTotals.demo.txFrames)
             .arg(trafficTotals.demo.rxFrames)
             .arg(trafficTotals.demo.errors));
+    if (m_demoRxDelayQueue) {
+        ui->demoRxQueueStatsLabel->setText(
+            QStringLiteral("延迟 RX 队列（演示数据）：待处理 %1 / %2 · 峰值 %3 · 已送达 %4 · 已取消 %5 · 队列满 %6")
+                .arg(m_demoRxDelayQueue->pendingCount())
+                .arg(m_demoRxDelayQueue->capacity())
+                .arg(m_demoRxDelayQueue->peakPendingCount())
+                .arg(static_cast<qulonglong>(m_demoRxDelayQueue->deliveredCount()))
+                .arg(static_cast<qulonglong>(m_demoRxDelayQueue->cancelledCount()))
+                .arg(static_cast<qulonglong>(m_demoRxDelayQueue->queueFullCount())));
+    }
     ui->monitorStateLabel->setText(m_paused
         ? QStringLiteral("事件记录已暂停（统计继续）")
         : QStringLiteral("实时统计中"));

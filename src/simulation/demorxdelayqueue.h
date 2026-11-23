@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include <QtGlobal>
 
 class QTimer;
 
@@ -21,6 +22,10 @@ public:
     int cancelAll();
     int pendingCount() const noexcept;
     int capacity() const noexcept;
+    int peakPendingCount() const noexcept;
+    quint64 deliveredCount() const noexcept;
+    quint64 cancelledCount() const noexcept;
+    quint64 queueFullCount() const noexcept;
 
 signals:
     void frameReady(const QString &deviceId, const QByteArray &data, int delayMs);
@@ -36,6 +41,10 @@ private:
 
     QHash<QTimer *, PendingFrame> m_pending;
     int m_capacity = 256;
+    int m_peakPendingCount = 0;
+    quint64 m_deliveredCount = 0;
+    quint64 m_cancelledCount = 0;
+    quint64 m_queueFullCount = 0;
 };
 
 #endif // DEMORXDELAYQUEUE_H
