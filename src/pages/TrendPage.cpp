@@ -3,6 +3,7 @@
 #include "src/communication/communicationmanager.h"
 #include "src/core/businessdatamanager.h"
 #include "src/protocol/businessdatapoint.h"
+#include "src/monitoring/trendhistorybuffer.h"
 #include "src/simulation/demofaultpolicy.h"
 
 #include <QChart>
@@ -236,7 +237,8 @@ void TrendPage::onDemoBusinessDataGenerated(
             m_demoBusinessSeries[index].insert(id, series);
         }
 
-        series->append(static_cast<qreal>(timestamp), point.value);
+        TrendHistoryBuffer::appendBounded(
+            series, static_cast<qreal>(timestamp), point.value);
         m_lastDemoBusinessTimestamp.insert(seriesKey, timestamp);
     }
 }
@@ -413,7 +415,8 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
             series->attachAxis(m_businessAxisY[index]);
             m_businessSeries[index].insert(point.deviceId, series);
         }
-        series->append(static_cast<qreal>(timestamp), point.value);
+        TrendHistoryBuffer::appendBounded(
+            series, static_cast<qreal>(timestamp), point.value);
         m_lastBusinessTimestamp.insert(seriesKey, timestamp);
     }
 
