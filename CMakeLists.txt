@@ -104,6 +104,14 @@ if(BUILD_TESTING)
     target_include_directories(monitor_statistics_test PRIVATE ${CMAKE_SOURCE_DIR})
     add_test(NAME monitor_statistics_test COMMAND monitor_statistics_test)
 
+    add_executable(trend_history_buffer_test
+        tests/trend_history_buffer_test.cpp
+        src/monitoring/trendhistorybuffer.h
+    )
+    target_include_directories(trend_history_buffer_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(trend_history_buffer_test PRIVATE Qt6::Core Qt6::Charts)
+    add_test(NAME trend_history_buffer_test COMMAND trend_history_buffer_test)
+
     add_executable(demo_rx_delay_queue_test
         tests/demo_rx_delay_queue_test.cpp
         src/simulation/demorxdelayqueue.h
