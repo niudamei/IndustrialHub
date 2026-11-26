@@ -14,6 +14,7 @@
 #include <QTabWidget>
 #include <QComboBox>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QLegend>
 #include <QLineSeries>
 #include <QPainter>
@@ -41,6 +42,7 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
       m_communicationManager(communicationManager),
       m_businessDataManager(businessDataManager)
 {
+    m_monotonicClock.start();
     ui->setupUi(this);
     m_diagnostics = new CommunicationDiagnostics(nullptr, this);
     setupBusinessTrend();
@@ -145,6 +147,12 @@ TrendPage::TrendPage(CommunicationManager *communicationManager,
 TrendPage::~TrendPage()
 {
     delete ui;
+}
+
+qint64 TrendPage::monotonicNowMs() const
+{
+    // +1 preserves the positive sentinel used for an unset receive timestamp.
+    return m_monotonicClock.elapsed() + 1;
 }
 
 void TrendPage::onDataSent(const QString &deviceId, const QByteArray &data)
@@ -272,14 +280,15 @@ void TrendPage::recordTraffic(const QString &deviceId, bool isTx)
         return;
 
     const bool isNewDevice = !m_traffic.contains(id);
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const qint64 nowMs = monotonicNowMs();
     DeviceTraffic &traffic = m_traffic[id];
     (isTx ? traffic.txTimes : traffic.rxTimes).enqueue(nowMs);
     if (isTx) {
         ++traffic.txFrames;
     } else {
         ++traffic.rxFrames;
-        traffic.lastRxMs = nowMs;
+        traffic.lastRxMonotonicMs = nowMs;
+        traffic.lastRxMs = QDateTime::currentMSecsSinceEpoch();
     }
     if (isNewDevice)
         refreshDeviceList();
@@ -315,12 +324,7 @@ void TrendPage::refreshDeviceList()
 
 int TrendPage::countRecent(const QQueue<qint64> &times, qint64 nowMs) const
 {
-    int count = 0;
-    for (qint64 timestamp : times) {
-        if (nowMs - timestamp <= 1000)
-            ++count;
-    }
-    return count;
+    return MonitorStatistics::countMonotonicRecent(times, nowMs);
 }
 
  
@@ -500,8 +504,9 @@ void TrendPage::updateBusinessTrend(qint64 nowMs)
 
 void TrendPage::updateTrend()
 {
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    updateBusinessTrend(nowMs);
+    const qint64 nowMonotonicMs = monotonicNowMs();
+    const qint64 nowWallMs = QDateTime::currentMSecsSinceEpoch();
+    updateBusinessTrend(nowWallMs);
     const QString selectedId = ui->deviceCombo->currentData().toString();
     int realTxRate = 0;
     int realRxRate = 0;
@@ -509,12 +514,8 @@ void TrendPage::updateTrend()
     int demoRxRate = 0;
 
     for (auto it = m_traffic.begin(); it != m_traffic.end(); ++it) {
-        auto prune = [nowMs](QQueue<qint64> &queue) {
-            while (!queue.isEmpty() && nowMs - queue.head() > 15000)
-                queue.dequeue();
-        };
-        prune(it->txTimes);
-        prune(it->rxTimes);
+        MonitorStatistics::pruneMonotonicTimestamps(it->txTimes, nowMonotonicMs);
+        MonitorStatistics::pruneMonotonicTimestamps(it->rxTimes, nowMonotonicMs);
         if (!selectedId.isEmpty()
             && it.key().compare(selectedId, Qt::CaseInsensitive) != 0) {
             continue;
@@ -602,8 +603,8 @@ void TrendPage::updateTrend()
             ? QDateTime::fromMSecsSinceEpoch(traffic.lastRxMs)
                   .toString(QStringLiteral("HH:mm:ss.zzz"))
             : QStringLiteral("--");
-        const QString rxAge = traffic.lastRxMs > 0
-            ? QStringLiteral("%1 ms").arg(nowMs - traffic.lastRxMs)
+        const QString rxAge = traffic.lastRxMonotonicMs > 0
+            ? QStringLiteral("%1 ms").arg(nowMonotonicMs - traffic.lastRxMonotonicMs)
             : QStringLiteral("--");
         const QStringList values = {
             id,
