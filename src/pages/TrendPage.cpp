@@ -4,6 +4,7 @@
 #include "src/core/businessdatamanager.h"
 #include "src/protocol/businessdatapoint.h"
 #include "src/monitoring/trendhistorybuffer.h"
+#include "src/monitoring/monitorstatistics.h"
 #include "src/simulation/demofaultpolicy.h"
 
 #include <QChart>
@@ -521,8 +522,8 @@ void TrendPage::updateTrend()
             continue;
         }
 
-        const int deviceTxRate = countRecent(it->txTimes, nowMs);
-        const int deviceRxRate = countRecent(it->rxTimes, nowMs);
+        const int deviceTxRate = countRecent(it->txTimes, nowMonotonicMs);
+        const int deviceRxRate = countRecent(it->rxTimes, nowMonotonicMs);
         if (it->demoData) {
             demoTxRate += deviceTxRate;
             demoRxRate += deviceRxRate;
