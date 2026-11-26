@@ -41,6 +41,27 @@ int main()
     CHECK(near(jitter.standardDeviationMs(), 1.0),
           "online variance remains stable for large interval values");
 
+    QQueue<qint64> recentTraffic;
+    recentTraffic.enqueue(1000);
+    recentTraffic.enqueue(1500);
+    recentTraffic.enqueue(2000);
+    recentTraffic.enqueue(3000);
+    CHECK(MonitorStatistics::countMonotonicRecent(recentTraffic, 2000) == 3,
+          "one-second traffic window includes the inclusive boundary");
+    CHECK(MonitorStatistics::countMonotonicRecent(recentTraffic, 1900) == 2,
+          "future monotonic timestamps are not counted as recent traffic");
+    CHECK(MonitorStatistics::countMonotonicRecent(recentTraffic, 3000, 500) == 2,
+          "custom traffic rate windows are respected");
+    MonitorStatistics::pruneMonotonicTimestamps(recentTraffic, 17001, 15000);
+    CHECK(recentTraffic.size() == 1 && recentTraffic.head() == 3000,
+          "fifteen-second retention prunes only expired monotonic timestamps");
+
+    QQueue<qint64> untouchedFutureTraffic;
+    untouchedFutureTraffic.enqueue(5000);
+    MonitorStatistics::pruneMonotonicTimestamps(untouchedFutureTraffic, 4000, 15000);
+    CHECK(untouchedFutureTraffic.size() == 1,
+          "pruning does not discard timestamps later than the supplied monotonic now");
+
     MonitorStatistics::OnlineAvailability availability;
     CHECK(!availability.hasObservation(), "availability is unavailable before connection");
     CHECK(availability.ratePercent(1500) < 0.0,
