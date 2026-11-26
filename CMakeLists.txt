@@ -102,6 +102,7 @@ if(BUILD_TESTING)
         src/monitoring/monitorstatistics.h
     )
     target_include_directories(monitor_statistics_test PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(monitor_statistics_test PRIVATE Qt6::Core)
     add_test(NAME monitor_statistics_test COMMAND monitor_statistics_test)
 
     add_executable(trend_history_buffer_test
