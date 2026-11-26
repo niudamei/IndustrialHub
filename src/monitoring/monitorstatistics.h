@@ -5,7 +5,43 @@
 #include <cmath>
 #include <cstdint>
 
+#include <QQueue>
+
 namespace MonitorStatistics {
+
+// These helpers require timestamps from one monotonic clock. The retention
+// window bounds recent frame history; the shorter window supplies the live FPS.
+inline void pruneMonotonicTimestamps(QQueue<qint64> &timestamps,
+                                     qint64 nowMs,
+                                     qint64 retentionMs = 15000) noexcept
+{
+    if (nowMs <= 0 || retentionMs < 0)
+        return;
+
+    while (!timestamps.isEmpty()
+           && timestamps.head() <= nowMs
+           && nowMs - timestamps.head() > retentionMs) {
+        timestamps.dequeue();
+    }
+}
+
+inline int countMonotonicRecent(const QQueue<qint64> &timestamps,
+                                qint64 nowMs,
+                                qint64 windowMs = 1000) noexcept
+{
+    if (nowMs <= 0 || windowMs < 0)
+        return 0;
+
+    int count = 0;
+    for (qint64 timestamp : timestamps) {
+        // A future timestamp is invalid for a monotonic elapsed-time window.
+        if (timestamp > 0 && timestamp <= nowMs
+            && nowMs - timestamp <= windowMs) {
+            ++count;
+        }
+    }
+    return count;
+}
 
 class IntervalJitter
 {
