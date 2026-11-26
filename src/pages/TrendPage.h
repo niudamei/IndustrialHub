@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QPointF>
 #include <QString>
@@ -63,9 +64,11 @@ private:
         quint64 errors = 0;
         bool connected = false;
         bool demoData = false;
-        qint64 lastRxMs = 0;
+        qint64 lastRxMs = 0; // Wall-clock timestamp for display/export.
+        qint64 lastRxMonotonicMs = 0; // Elapsed timestamp for age calculations.
     };
 
+    qint64 monotonicNowMs() const;
     void recordTraffic(const QString &deviceId, bool isTx);
     void refreshDeviceList();
     int countRecent(const QQueue<qint64> &times, qint64 nowMs) const;
@@ -78,6 +81,7 @@ private:
     Ui::TrendPage *ui = nullptr;
     CommunicationManager *m_communicationManager = nullptr;
     BusinessDataManager *m_businessDataManager = nullptr;
+    QElapsedTimer m_monotonicClock;
     QTimer *m_timer = nullptr;
     QTimer *m_historyRefreshTimer = nullptr;
     QChartView *m_chartView = nullptr;
