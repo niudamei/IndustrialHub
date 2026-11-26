@@ -45,6 +45,7 @@ int main()
     recentTraffic.enqueue(1000);
     recentTraffic.enqueue(1500);
     recentTraffic.enqueue(2000);
+    recentTraffic.enqueue(2500);
     recentTraffic.enqueue(3000);
     CHECK(MonitorStatistics::countMonotonicRecent(recentTraffic, 2000) == 3,
           "one-second traffic window includes the inclusive boundary");
@@ -53,7 +54,9 @@ int main()
     CHECK(MonitorStatistics::countMonotonicRecent(recentTraffic, 3000, 500) == 2,
           "custom traffic rate windows are respected");
     MonitorStatistics::pruneMonotonicTimestamps(recentTraffic, 17001, 15000);
-    CHECK(recentTraffic.size() == 1 && recentTraffic.head() == 3000,
+    CHECK(recentTraffic.size() == 2
+              && recentTraffic.head() == 2500
+              && recentTraffic.last() == 3000,
           "fifteen-second retention prunes only expired monotonic timestamps");
 
     QQueue<qint64> untouchedFutureTraffic;
