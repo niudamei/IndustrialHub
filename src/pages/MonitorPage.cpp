@@ -631,8 +631,11 @@ void MonitorPage::generateDemoTraffic()
             ++frameCount;
             if (DemoFaultPolicy::shouldDropRx(
                     faultMode, faultTarget, id, frameCount, m_demoDropEvery)) {
+                m_demoInjectedDropCounters.record(id);
                 appendEvent(id, QStringLiteral("状态"),
-                            QStringLiteral("故障注入：本周期 RX 帧已丢弃"));
+                            QStringLiteral("故障注入：本周期演示 RX 帧已丢弃（该设备累计 %1 帧）")
+                                .arg(static_cast<qulonglong>(
+                                    m_demoInjectedDropCounters.countFor(id))));
                 continue;
             }
         }
@@ -821,6 +824,15 @@ void MonitorPage::updateLiveStatistics()
                 .arg(static_cast<qulonglong>(m_demoRxDelayQueue->cancelledCount()))
                 .arg(static_cast<qulonglong>(m_demoRxDelayQueue->queueFullCount())));
     }
+    ui->demoInjectedDropStatsLabel->setText(
+        QStringLiteral("演示故障注入丢帧（独立统计，不计入驱动错误）：CAN %1 · CAN-FD %2 · TCP %3 · 合计 %4")
+            .arg(static_cast<qulonglong>(
+                m_demoInjectedDropCounters.countFor(QStringLiteral("DEMO-CAN-001"))))
+            .arg(static_cast<qulonglong>(
+                m_demoInjectedDropCounters.countFor(QStringLiteral("DEMO-CANFD-002"))))
+            .arg(static_cast<qulonglong>(
+                m_demoInjectedDropCounters.countFor(QStringLiteral("DEMO-TCP-003"))))
+            .arg(static_cast<qulonglong>(m_demoInjectedDropCounters.total())));
     ui->monitorStateLabel->setText(m_paused
         ? QStringLiteral("事件记录已暂停（统计继续）")
         : QStringLiteral("实时统计中"));

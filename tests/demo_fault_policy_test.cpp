@@ -74,6 +74,23 @@ int main()
                                           QStringLiteral("DEMO-CAN-001"), 3, 3),
           "normal mode never drops RX frames");
 
+    DemoFaultPolicy::InjectedDropCounters injectedDrops;
+    injectedDrops.record(QStringLiteral("DEMO-CAN-001"));
+    injectedDrops.record(QStringLiteral(" demo-can-001 "));
+    injectedDrops.record(QStringLiteral("DEMO-CANFD-002"));
+    injectedDrops.record(QStringLiteral("DEV001"));
+    injectedDrops.record(QStringLiteral("DEMO-CAN-999"));
+    CHECK(injectedDrops.countFor(QStringLiteral("DEMO-CAN-001")) == 2,
+          "injected drops are counted per demo device, case-insensitively");
+    CHECK(injectedDrops.countFor(QStringLiteral("DEMO-CANFD-002")) == 1,
+          "CAN-FD injected drops remain separate from CAN");
+    CHECK(injectedDrops.countFor(QStringLiteral("DEMO-TCP-003")) == 0,
+          "devices without injected drops retain a zero count");
+    CHECK(injectedDrops.total() == 3,
+          "only the three reserved demo-device drops contribute to the total");
+    CHECK(injectedDrops.countFor(QStringLiteral("DEV001")) == 0,
+          "real driver device IDs cannot enter demo drop statistics");
+
     CHECK(DemoFaultPolicy::rxDelayMs(Mode::Delay, QString(),
                                       QStringLiteral("DEMO-CANFD-002"), 750) == 750,
           "delay mode returns the configured RX delay");

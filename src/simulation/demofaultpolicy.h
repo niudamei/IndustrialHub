@@ -1,6 +1,7 @@
 #ifndef DEMOFAULTPOLICY_H
 #define DEMOFAULTPOLICY_H
 
+#include <QHash>
 #include <QString>
 #include <QStringList>
 #include <QtGlobal>
@@ -98,6 +99,38 @@ inline int rxDelayMs(Mode mode,
 
     return configuredDelayMs;
 }
+
+class InjectedDropCounters
+{
+public:
+    // Counts only deliberate RX drops performed by the demo fault policy.
+    // Real driver traffic and delayed-queue capacity rejections are excluded.
+    void record(const QString &deviceId)
+    {
+        if (!isDemoDeviceId(deviceId))
+            return;
+
+        ++m_perDevice[deviceId.trimmed().toCaseFolded()];
+        ++m_total;
+    }
+
+    quint64 countFor(const QString &deviceId) const
+    {
+        if (!isDemoDeviceId(deviceId))
+            return 0;
+
+        return m_perDevice.value(deviceId.trimmed().toCaseFolded(), 0);
+    }
+
+    quint64 total() const noexcept
+    {
+        return m_total;
+    }
+
+private:
+    QHash<QString, quint64> m_perDevice;
+    quint64 m_total = 0;
+};
 
 } // namespace DemoFaultPolicy
 

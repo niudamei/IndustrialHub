@@ -128,6 +128,12 @@
         <property name="toolTip"><string>统计当前页面生命周期内的演示 RX 延迟队列；不包含真实通信数据，停止模拟后历史计数仍保留。</string></property>
        </widget>
       </item>
+      <item>
+       <widget class="QLabel" name="demoInjectedDropStatsLabel">
+        <property name="text"><string>演示故障注入丢帧（独立统计，不计入驱动错误）：CAN 0 · CAN-FD 0 · TCP 0 · 合计 0</string></property>
+        <property name="toolTip"><string>仅统计故障注入策略主动跳过的演示 RX 帧；不包含延迟队列容量溢出、取消帧或真实通信错误和丢包。计数仅在当前监控页面生命周期内累计，不写入设备数据库或真实通信诊断。</string></property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

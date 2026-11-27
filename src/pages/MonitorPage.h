@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include "src/protocol/businessdatapoint.h"
 #include "src/monitoring/monitorstatistics.h"
+#include "src/simulation/demofaultpolicy.h"
 #include <QHash>
 #include <QQueue>
 #include <QSet>
@@ -103,6 +104,7 @@ private:
     bool m_demoMode = false;
     quint64 m_demoSequence = 0;
     QHash<QString, quint64> m_demoFrameCounters;
+    DemoFaultPolicy::InjectedDropCounters m_demoInjectedDropCounters;
     QSet<QString> m_demoDisconnectedDevices;
     int m_demoDropEvery = 3;
     QCheckBox *m_demoOverTemperatureCheckBox = nullptr;
